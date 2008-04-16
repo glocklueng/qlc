@@ -22,67 +22,103 @@
 #ifndef SCENEEDITOR_H
 #define SCENEEDITOR_H
 
-#include <qvariant.h>
-#include <qwidget.h>
+#include <QWidget>
 
-#include "common/types.h"
-#include "uic_sceneeditor.h"
+#include "ui_sceneeditor.cpp"
+#include "common/qlctypes.h"
 #include "scene.h"
 
-class QVBoxLayout;
-class QHBoxLayout;
-class QGridLayout; 
-class QButtonGroup;
-class QGroupBox;
-class QLabel;
-class QPushButton;
-class QRadioButton;
-class QPopupMenu;
-class ListBoxIDItem;
+class QAction;
+class QMenu;
 
-class Fixture;
-
-class SceneEditor : public UI_SceneEditor
+class SceneEditor : public QWidget, public Ui_SceneEditor
 {
 	Q_OBJECT
 
- public:
+public:
 	SceneEditor(QWidget* parent);
 	~SceneEditor();
 
+	/*********************************************************************
+	 * Fixture
+	 *********************************************************************/
+public:
 	void setFixture(t_fixture_id id);
-	void initMenu();
 
-	Scene* currentScene();
+protected:
+	t_fixture_id m_fixture;
 
- signals:
-	void sceneActivated(SceneValue* values, t_channel channels);
-
- public slots:
-	void slotSceneListContextMenu(QListBoxItem*, const QPoint&);
+public slots:
 	void slotChannelChanged(t_channel, t_value, Scene::ValueType);
 
+	/** Signal handler for Doc::functionAdded signal */
+	void slotFunctionAdded(t_function_id fid);
+
+	/** Signal handler for Doc::functionRemoved signal */
+	void slotFunctionRemoved(t_function_id fid);
+
+	/** Signal handler for Doc::functionChanged signal */
+	void slotFunctionChanged(t_function_id fid);
+
+	/*********************************************************************
+	 * Menu & Actions
+	 *********************************************************************/
+protected:
+	void initActions();
+	void initMenu();
+
+protected slots:
 	void slotActivate();
 	void slotNew();
 	void slotStore();
-	void slotRemove();
 	void slotRename();
+	void slotRemove();
 
-	void slotFunctionAdded(t_function_id);
-	void slotFunctionRemoved(t_function_id);
-	void slotFunctionChanged(t_function_id);
+protected:
+	QAction* m_activateAction;
+	QAction* m_newAction;
+	QAction* m_storeAction;
+	QAction* m_renameAction;
+	QAction* m_removeAction;
 
- protected:
-	ListBoxIDItem* getItem(t_function_id id);
+	QMenu* m_menu;
+
+	/*********************************************************************
+	 * Scene list
+	 *********************************************************************/
+protected:
+	/** Fill the function list */
 	void fillFunctions();
-	void selectFunction(t_function_id fid);
-	void setStatusText(QString text, QColor color);
-	void setScene(Scene* scene);
 
- protected:
-	t_fixture_id m_fixture;
-	QPopupMenu* m_menu;
+	/** Get the list item that has the given function ID */
+	QTreeWidgetItem* getItem(t_function_id id);
+
+	/** Select the item that has the given function ID */
+	void selectFunction(t_function_id fid);
+
+protected slots:
+	/** Context menu has been requested for the scene list */
+	void slotSceneListContextMenu(const QPoint& pos);
+
+	/*********************************************************************
+	 * Current scene
+	 *********************************************************************/
+protected:
+	/** Get the current scene */
+	Scene* currentScene();
+
+signals:
+	void sceneActivated(SceneValue* values, t_channel channels);
+
+protected:
 	Scene* m_tempScene;
+
+	/*********************************************************************
+	 * Status
+	 *********************************************************************/
+protected:
+	/** Set status label's text and color */
+	void setStatusText(QString text, QColor color);
 };
 
 #endif

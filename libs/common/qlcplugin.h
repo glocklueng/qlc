@@ -1,6 +1,6 @@
 /*
   Q Light Controller
-  plugin.h
+  qlcplugin.h
 
   Copyright (c) Heikki Junnila
 
@@ -19,14 +19,12 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#ifndef PLUGIN_H
-#define PLUGIN_H
+#ifndef QLCPLUGIN_H
+#define QLCPLUGIN_H
 
-#include <qobject.h>
-#include <qmainwindow.h>
-#include <limits.h>
+#include <QObject>
 
-class Plugin;
+class QLCPlugin;
 
 /** 
  * Type definition for the only C-style exported function for plugins.
@@ -39,9 +37,9 @@ class Plugin;
  * }
  *
  */
-typedef Plugin* (*QLCPluginCreateFunction)();
+typedef QLCPlugin* (*QLCPluginCreateFunction)();
 
-class Plugin : public QObject
+class QLCPlugin : public QObject
 {
 	Q_OBJECT
 
@@ -49,20 +47,20 @@ public:
 	/**
 	 * Construct a new plugin
 	 */
-	Plugin();
+	QLCPlugin();
 
 	/**
 	 * Destroy the plugin
 	 */
-	virtual ~Plugin();
+	virtual ~QLCPlugin();
 	
 	/**
 	 * Plugin type
 	 */
-	enum PluginType
+	enum Type
 	{
-		OutputType,
-		InputType
+		Output,
+		Input
 	};
 	
 	/**
@@ -117,7 +115,7 @@ public:
 	/**
 	 * Get the plugin's type
 	 */
-	PluginType type();
+	Type type();
 
 	/**
 	 * Set the plugin's library handle (returned by dlopen())
@@ -131,7 +129,7 @@ public:
 
 protected:
 	QString m_name;
-	PluginType m_type;
+	Type m_type;
 	unsigned long m_version;
 	void* m_handle;
 };

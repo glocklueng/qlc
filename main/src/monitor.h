@@ -22,26 +22,24 @@
 #ifndef MONITOR_H
 #define MONITOR_H
 
-#include <qframe.h>
-#include <qptrlist.h>
-#include <qmutex.h>
-#include <qpainter.h>
+#include <QPainter>
+#include <QWidget>
+#include <QMutex>
 
-#include "common/types.h"
+#include "common/qlctypes.h"
 
-class QColor;
-class QBrush;
-class QPainter;
-class QRect;
-class QPixmap;
-class QApplication;
-class QFont;
-class QTimer;
-class QRegion;
-class QMenuBar;
-class QPopupMenu;
 class QDomDocument;
 class QDomElement;
+class QMenuBar;
+class QPixmap;
+class QAction;
+class QColor;
+class QBrush;
+class QTimer;
+class QRect;
+class QFont;
+class QMenu;
+class QIcon;
 
 class DMXMap;
 
@@ -57,72 +55,96 @@ public:
 	Monitor(QWidget* parent, DMXMap* dmxMap);
 	~Monitor();
 
+protected:
 	void init();
 
+	/*********************************************************************
+	 * Content
+	 *********************************************************************/
+protected:
 	void setUniverse(t_channel universe);
 	void setFrequency(int freq);
 
-	static void loader(QDomDocument* doc, QDomElement* root);
-	bool loadXML(QDomDocument* doc, QDomElement* root);
-	bool saveXML(QDomDocument* doc, QDomElement* fxi_root);
-
 protected slots:
 	void slotTimeOut();
-	void slotMenuCallback(int);
 
 protected:
 	void connectTimer();
+
+protected:
+	QTimer* m_timer;
+	int m_updateFrequency;
+
+	/** The universe number under inspection */
+	t_channel m_universe;
+
+	/** Old value buffer */
+	t_value* m_oldValues;
+
+	/** New value buffer */
+	t_value* m_newValues;
+
+	/** Value buffer mutex */
+	QMutex m_valueMutex;
+
+	/** DMXMap to get the values from */
+	DMXMap* m_dmxMap;
+  
+	/*********************************************************************
+	 * Menu
+	 *********************************************************************/
+protected:
 	void initMenu();
+	void slotMenuTriggered(QAction* action);
 
+protected:
+	QMenuBar* m_menuBar;
+	QMenu* m_universeMenu;
+	QMenu* m_displayMenu;
+	QMenu* m_speedMenu;
+
+	/*********************************************************************
+	 * Painting
+	 *********************************************************************/
+protected:
 	void paintEvent(QPaintEvent* e);
-	void closeEvent(QCloseEvent* e);
 
-	// Fixture label painting
+	/** Fixture label painting */
 	void paintFixtureLabelAll(QRegion region, int x_offset, int y_offset,
 				  int unitW, int unitH, int unitsX);
 	void paintFixtureLabel(int x, int y, int w, int h, QString label);
 
-	// Channel label painting
+	/** Channel label painting */
 	void paintChannelLabelAll(QRegion region, int x_offset, int y_offset,
 				  int unitW, int unitH, int unitsX);
 	void paintChannelLabel(int x, int y, int w, int h, QString s);
 
-	// Channel value painting
+	/** Channel value painting */
 	void paintChannelValueAll(QRegion region, int x_offset, int y_offset,
 				  int unitW, int unitH, int unitsX,
 				  bool onlyDelta);
 	void paintChannelValue(int x, int y, int w, int h, QString s);
 
-signals:
-	void closed();
-
 protected:
-	/** The universe number under inspection */
-	t_channel m_universe;
-
-	/** The smaller visible channel number */
+	/** The smallest visible channel number */
 	t_channel m_visibleMin;
 
 	/** The biggest visible channel number */
 	t_channel m_visibleMax;
 
-	t_value* m_oldValues;
-	t_value* m_newValues;
-	QMutex m_valueMutex;
-
-	DMXMap* m_dmxMap;
-  
-	QTimer* m_timer;
-	int m_updateFrequency;
-
+	/** Master painter object that draws stuff on the widget */
 	QPainter m_painter;
+
+	/** Font used */
 	QFont m_font;
 
-	QMenuBar* m_menuBar;
-	QPopupMenu* m_universeMenu;
-	QPopupMenu* m_displayMenu;
-	QPopupMenu* m_speedMenu;
-
+	/*********************************************************************
+	 * Save & Load
+	 *********************************************************************/
+public:
+	static void loader(QDomDocument* doc, QDomElement* root);
+	bool loadXML(QDomDocument* doc, QDomElement* root);
+	bool saveXML(QDomDocument* doc, QDomElement* fxi_root);
 };
 
 #endif

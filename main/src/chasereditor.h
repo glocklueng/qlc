@@ -22,13 +22,13 @@
 #ifndef CHASEREDITOR_H
 #define CHASEREDITOR_H
 
-#include <qdialog.h>
-#include "uic_chasereditor.h"
+#include <QDialog>
+#include "ui_chasereditor.cpp"
 
 class Chaser;
-class FunctionManager;
+class FunctionSelection;
 
-class ChaserEditor : public UI_ChaserEditor
+class ChaserEditor : public QDialog, public Ui_ChaserEditor
 {
 	Q_OBJECT
 
@@ -37,26 +37,38 @@ public:
 	~ChaserEditor();
 
 protected:
-	void updateStepList();
+	/**
+	 * Insert chaser steps into the editor's view and select an item
+	 *
+	 * @param selectIndex The index to select
+	 */
+	void updateStepList(int selectIndex = 0);
+
+	/** Update correct order numbers to each step */
 	void updateOrderNumbers();
 
 protected slots:
-	void slotOKClicked();
-	void slotCancelClicked();
+	void accept();
 
+	/** Add a step */
 	void slotAddClicked();
-	void slotAddAnother();
-	void slotRemoveClicked();
-	void slotFunctionManagerClosed();
 
-	void slotPlayClicked();
+	/** Add another step until Cancel is clicked */
+	void slotAddAnother();
+
+	/** Remove the selected step */
+	void slotRemoveClicked();
+
+	/** Raise the selected step */
 	void slotRaiseClicked();
+
+	/** Lower the selected step */
 	void slotLowerClicked();
 
 protected:
 	Chaser* m_chaser;
 	Chaser* m_original;
-	FunctionManager* m_functionManager;
+	FunctionSelection* m_functionSelection;
 };
 
 #endif

@@ -22,64 +22,36 @@
 #ifndef FIXTUREMANAGER_H
 #define FIXTUREMANAGER_H
 
+#include <QWidget>
+
 #include "fixture.h"
 #include "function.h"
 
-#include <qwidget.h>
-
-class QToolBar;
-class QToolButton;
-class QVBoxLayout;
-class QCloseEvent;
-class QDockArea;
+class QTreeWidgetItem;
+class QTextBrowser;
+class QTreeWidget;
 class QSplitter;
-class QListView;
-class QListViewItem;
-class QTextView;
-
-class Fixture;
+class QToolBar;
+class QAction;
 
 #define KXMLQLCFixtureManager "FixtureManager"
-#define KXMLQLCFixtureManagerSplitterLeft "SplitterLeft"
-#define KXMLQLCFixtureManagerSplitterRight "SplitterRight"
+#define KXMLQLCFixtureManagerSplitterSize "SplitterSize"
 
 class FixtureManager : public QWidget
 {
 	Q_OBJECT
 
- public:
-	/** Constructor */
+	/********************************************************************
+	 * Initialization
+	 ********************************************************************/
+public:
 	FixtureManager(QWidget* parent);
-
-	/** Destructor */
 	~FixtureManager();
 
-	/** Second-stage initialization */
-	void initView();
-
-	static void loader(QDomDocument* doc, QDomElement* root);
-	bool loadXML(QDomDocument* doc, QDomElement* root);
-	bool saveXML(QDomDocument* doc, QDomElement* fxi_root);
-
- protected:
-	/** Set the window title and set an icon */
-	void initTitle();
-
-	/** Construct the toolbar */
-	void initToolBar();
-
-	/** Construct the list view and data view */
-	void initDataView();
-
-	/** Update the list of fixtures */
-	void updateView();
-  
-	/** Update a single fixture's data into a QListViewItem */
-	void updateItem(QListViewItem* item, Fixture* fxt);
-
-	void copyFunction(Function* function, Fixture* fxt);
-
- public slots:
+	/********************************************************************
+	 * Doc signal handlers
+	 ********************************************************************/
+public slots:
 	 /** Callback for Doc::fixtureAdded() signals */
 	void slotFixtureAdded(t_fixture_id id);
 
@@ -89,51 +61,71 @@ class FixtureManager : public QWidget
 	/** Callback that listens to App mode change signals */
 	void slotModeChanged();
 
- protected slots:
-	 /** Callback for menu/tool item to add a fixture */
-	void slotAdd();
+	/********************************************************************
+	 * Data view
+	 ********************************************************************/
+protected:
+	/** Construct the list view and data view */
+	void initDataView();
 
-	 /** Callback for menu/tool item to delete a fixture */
-	void slotDelete();
+	/** Update the list of fixtures */
+	void updateView();
 
-	 /** Callback for menu/tool item to clone a fixture */
-	void slotClone();
+	/** Update a single fixture's data into a QTreeWidgetItem */
+	void updateItem(QTreeWidgetItem* item, Fixture* fxt);
 
-	void slotProperties();
-	void slotConsole();
-	void slotAutoFunction();
+	/** Copy the given function into the given fixture */
+	void copyFunction(Function* function, Fixture* fxt);
 
+protected slots:
 	/** Callback for fixture list selection changes */
-	void slotSelectionChanged(QListViewItem*);
+	void slotSelectionChanged();
 
 	 /** Callback for mouse double clicks */
-	void slotDoubleClicked(QListViewItem*);
+	void slotDoubleClicked(QTreeWidgetItem* item);
+
+protected:
+	QSplitter* m_splitter;
+	QTreeWidget* m_listView;
+	QTextBrowser* m_textView;
+
+	/********************************************************************
+	 * Menu & Toolbar & Actions
+	 ********************************************************************/
+protected:
+	/** Construct actions for toolbar & context menu */
+	void initActions();
+
+	/** Construct the toolbar */
+	void initToolBar();
+
+protected slots:
+	void slotAdd();
+	void slotProperties();
+	void slotConsole();
+	void slotClone();
+	void slotRemove();
+	void slotAutoFunction();
 
 	/** Callback for right mouse button clicks over a fixture item */
-	void slotRightButtonClicked(QListViewItem*, const QPoint&, int);
+	void slotContextMenuRequested(const QPoint& pos);
 
-	/** Callback for fixture list context menu activations */
-	void slotMenuCallBack(int);
-
- protected:
-	QVBoxLayout* m_layout;
+protected:
+	QAction* m_addAction;
+	QAction* m_propertiesAction;
+	QAction* m_cloneAction;
+	QAction* m_consoleAction;
+	QAction* m_removeAction;
 	QToolBar* m_toolbar;
-	QDockArea* m_dockArea;
-	QSplitter* m_splitter;
-	QListView* m_listView;
-	QTextView* m_textView;
 
-	QToolButton* m_addButton;
-	QToolButton* m_cloneButton;
-	QToolButton* m_deleteButton;
-	QToolButton* m_propertiesButton;
-	QToolButton* m_consoleButton;
+	/********************************************************************
+	 * Save & Load
+	 ********************************************************************/
+public:
+	static void loader(QDomDocument* doc, QDomElement* root);
+	bool loadXML(QDomDocument* doc, QDomElement* root);
+	bool saveXML(QDomDocument* doc, QDomElement* fxi_root);
 
- signals:
-	void closed();
-
- protected:
-	void closeEvent(QCloseEvent*);
 };
 
 #endif

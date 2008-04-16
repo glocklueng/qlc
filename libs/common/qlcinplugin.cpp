@@ -1,8 +1,8 @@
 /*
   Q Light Controller
-  plugin.cpp
+  qlcinplugin.cpp
 
-  Copyright (C) Heikki Junnila
+  Copyright (c) Heikki Junnila
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -19,40 +19,29 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <dlfcn.h>
-#include "plugin.h"
+#include "common/qlcplugin.h"
+#include "common/qlcinplugin.h"
 
-Plugin::Plugin() : QObject()
+QLCInPlugin::QLCInPlugin() : QLCPlugin()
 {
-	m_handle = NULL;
+	m_type = QLCPlugin::Input;
 }
 
-Plugin::~Plugin()
+QLCInPlugin::~QLCInPlugin()
 {
 }
 
-QString Plugin::name()
+t_input QLCInPlugin::inputs()
 {
-	return m_name;
+	return 1;
 }
 
-unsigned long Plugin::version()
+t_input_channel QLCInPlugin::channels(t_input input)
 {
-	return m_version;
+	return 1;
 }
 
-Plugin::PluginType Plugin::type()
+void QLCInPlugin::feedBack(t_input input, t_input_channel channel,
+			   t_input_value value)
 {
-	return m_type;
-}
-
-void Plugin::setHandle(void* handle)
-{
-	Q_ASSERT(handle != NULL);
-	m_handle = handle;
-}
-
-void* Plugin::handle()
-{
-	return m_handle;
 }

@@ -27,20 +27,21 @@
 #include <errno.h>
 #include <linux/errno.h>
 
-#include <qapplication.h>
-#include <qstring.h>
-#include <qthread.h>
-#include <qfile.h>
+#include <QApplication>
+#include <iostream>
+#include <QString>
+#include <QMutex>
+#include <QFile>
 
 #include "dmx4linuxout.h"
 #include "configuredmx4linuxout.h"
-#include "common/filehandler.h"
+#include "common/qlcfile.h"
 
 #define CONF_FILE "dmx4linuxout.conf"
 
 static QMutex _mutex;
 
-extern "C" OutputPlugin* create()
+extern "C" QLCOutPlugin* create()
 {
 	return new DMX4LinuxOut();
 }
@@ -49,10 +50,10 @@ extern "C" OutputPlugin* create()
  * Initialization
  *****************************************************************************/
 
-DMX4LinuxOut::DMX4LinuxOut() : OutputPlugin()
+DMX4LinuxOut::DMX4LinuxOut() : QLCOutPlugin()
 {
 	m_name = QString("DMX4Linux Output");
-	m_type = OutputType;
+	m_type = Output;
 	m_version = 0x00010100;
 
 	m_fd = -1;
@@ -83,9 +84,9 @@ int DMX4LinuxOut::open()
 	m_openError = errno;
 	if (m_openError < 0)
 	{
-		qDebug("DMX4Linux output is not available: %s",
-		       strerror(m_openError));
-		
+		std::cout << "DMX4Linux output is not available: "
+			  << strerror(m_openError)
+			  << std::endl;
 	}
 	else
 	{
@@ -94,8 +95,9 @@ int DMX4LinuxOut::open()
 		m_dmxInfoError = errno;
 		if (m_dmxInfoError < 0)
 		{
-			qDebug("Unable to get DMX4Linux information: %s",
-			       strerror(m_dmxInfoError));
+			std::cout << "Unable to get DMX4Linux information: "
+				  << strerror(m_dmxInfoError)
+				  << std::endl;
 		}
 		else
 		{
@@ -165,10 +167,10 @@ QString DMX4LinuxOut::infoText()
 	info += QString("<TABLE COLS=\"1\" WIDTH=\"100%\">");
 	info += QString("<TR>");
 	info += QString("<TD BGCOLOR=\"");
-	info += QApplication::palette().active().highlight().name();
+	//info += QApplication::palette().active().highlight().name();
 	info += QString("\">");
 	info += QString("<FONT COLOR=\"");
-	info += QApplication::palette().active().highlightedText().name();
+	//info += QApplication::palette().active().highlightedText().name();
 	info += QString("\" SIZE=\"5\">");
 	info += name();
 	info += QString("</FONT>");
@@ -241,30 +243,30 @@ QString DMX4LinuxOut::infoText()
 
 	info += QString("<TR>");
 	info += QString("<TD BGCOLOR=\"");
-	info += QApplication::palette().active().highlight().name();
+	//info += QApplication::palette().active().highlight().name();
 	info += QString("\">");
 	info += QString("<FONT COLOR=\"");
-	info += QApplication::palette().active().highlightedText().name();
+	//info += QApplication::palette().active().highlightedText().name();
 	info += QString("\">");
 	info += QString("Output");
 	info += QString("</FONT>");
 	info += QString("</TD>");
 
 	info += QString("<TD BGCOLOR=\"");
-	info += QApplication::palette().active().highlight().name();
+	//info += QApplication::palette().active().highlight().name();
 	info += QString("\">");
 	info += QString("<FONT COLOR=\"");
-	info += QApplication::palette().active().highlightedText().name();
+	//info += QApplication::palette().active().highlightedText().name();
 	info += QString("\">");
 	info += QString("Driver");
 	info += QString("</FONT>");
 	info += QString("</TD>");
 
 	info += QString("<TD BGCOLOR=\"");
-	info += QApplication::palette().active().highlight().name();
+	//info += QApplication::palette().active().highlight().name();
 	info += QString("\">");
 	info += QString("<FONT COLOR=\"");
-	info += QApplication::palette().active().highlightedText().name();
+	//info += QApplication::palette().active().highlightedText().name();
 	info += QString("\">");
 	info += QString("Channels");
 	info += QString("</FONT>");

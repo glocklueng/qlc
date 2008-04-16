@@ -22,8 +22,10 @@
 #ifndef HIDINPUT_H
 #define HIDINPUT_H
 
-#include "common/inputplugin.h"
-#include "common/types.h"
+#include <QList>
+
+#include "common/qlcinplugin.h"
+#include "common/qlctypes.h"
 
 #include "hiddevice.h"
 
@@ -31,13 +33,13 @@
  * This lib's only exported function that is used to create instances of
  * class HIDInput
  */
-extern "C" InputPlugin* create();
+extern "C" QLCInPlugin* create();
 
 /*****************************************************************************
  * HIDInput
  *****************************************************************************/
 
-class HIDInput : public InputPlugin
+class HIDInput : public QLCInPlugin
 {
 	Q_OBJECT
 
@@ -62,7 +64,7 @@ protected:
 	HIDDevice* device(const unsigned int index);
 
 protected:
-	QPtrList <HIDDevice> m_devices;
+	QList <HIDDevice*> m_devices;
 
 	/*********************************************************************
 	 * Inputs & channels

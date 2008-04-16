@@ -22,11 +22,16 @@
 #ifndef DUMMYINPLUGIN_H
 #define DUMMYINPLUGIN_H
 
-#include <qthread.h>
-#include "common/inputplugin.h"
-#include "common/types.h"
+#include <QThread>
 
-class DummyInPlugin : public InputPlugin
+#include "common/qlcinplugin.h"
+#include "common/qlctypes.h"
+
+class ConfigureDummyInPlugin;
+class QWidget;
+class QString;
+
+class DummyInPlugin : public QLCInPlugin
 {
 	Q_OBJECT
 
@@ -36,15 +41,15 @@ public:
 	DummyInPlugin();
 	virtual ~DummyInPlugin();
 	
-	virtual int open();
-	virtual int close();
+	int open();
+	int close();
 
-	virtual t_input inputs();
-	virtual t_input_channel channels(t_input input);
+	t_input inputs();
+	t_input_channel channels(t_input input);
 
-	virtual int configure(QWidget* parentWidget);
+	int configure(QWidget* parentWidget);
 
-	virtual QString infoText();
+	QString infoText();
 };
 
 #endif

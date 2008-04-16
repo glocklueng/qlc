@@ -19,10 +19,11 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#ifndef QLC_PHYSICAL_H
-#define QLC_PHYSICAL_H
+#ifndef QLCPHYSICAL_H
+#define QLCPHYSICAL_H
 
-class QString;
+#include <QString>
+
 class QDomElement;
 class QDomDocument;
 

@@ -1,5 +1,5 @@
 /*
-  Q Light Controller - Fixture Editor
+  Q Light Controller - Fixture Definition Editor
   editmode.h
 
   Copyright (C) Heikki Junnila
@@ -22,15 +22,17 @@
 #ifndef EDITMODE_H
 #define EDITMODE_H
 
-#include "uic_editmode.h"
+#include <QDialog>
+#include "ui_editmode.cpp"
 
 class QLCFixtureMode;
 class QLCFixtureDef;
 class QLCChannel;
 
-class EditMode : public UI_EditMode
+class EditMode : public QDialog, public Ui_EditMode
 {
 	Q_OBJECT
+
 public:
 	/** Use this constructor to edit an existing mode */
 	EditMode(QWidget* parent, QLCFixtureMode* mode);
@@ -41,43 +43,39 @@ public:
 	/** Destructor */
 	~EditMode();
 
+protected:
 	/** Initialize the dialog */
 	void init();
 
+	/*********************************************************************
+	 * Fixture Mode
+	 *********************************************************************/
+public:
 	/** Get the mode that was being edited. Don't save the pointer! */
 	QLCFixtureMode* mode() { return m_mode; }
 
-public slots:
-	void slotModeNameChanged(const QString& text);
+private:
+	QLCFixtureMode* m_mode;
+
+	/*********************************************************************
+	 * Channels page
+	 *********************************************************************/
+protected slots:
 	void slotAddChannelClicked();
 	void slotRemoveChannelClicked();
 	void slotRaiseChannelClicked();
 	void slotLowerChannelClicked();
-
-	void slotBulbTypeChanged(const QString &type);
-	void slotBulbLumensChanged(int lumens);
-	void slotBulbColourTemperatureChanged(const QString &kelvins);
-
-	void slotWeightChanged(int weight);
-	void slotWidthChanged(int width);
-	void slotHeightChanged(int height);
-	void slotDepthChanged(int depth);
-	
-	void slotLensNameChanged(const QString &name);
-	void slotLensDegreesMinChanged(int degrees);
-	void slotLensDegreesMaxChanged(int degrees);
-
-	void slotFocusTypeChanged(const QString &type);
-	void slotFocusPanMaxChanged(int degrees);
-	void slotFocusTiltMaxChanged(int degrees);
 
 protected:
 	void refreshChannelList();
 	QLCChannel* currentChannel();
 	void selectChannel(const QString &name);
 
-private:
-	QLCFixtureMode* m_mode;
+	/*********************************************************************
+	 * Accept
+	 *********************************************************************/
+protected slots:
+	void accept();
 };
 
 #endif

@@ -22,17 +22,17 @@
 #ifndef BUS_H
 #define BUS_H
 
-#include <qptrlist.h>
-#include <qobject.h>
+#include <QObject>
+#include <QList>
+#include "common/qlctypes.h"
 
-#include "common/types.h"
-
-class QFile;
-class QString;
 class QDomDocument;
 class QDomElement;
-class Function;
+class QString;
+class QFile;
+
 class BusEmitter;
+class Function;
 
 #define KXMLQLCBus "Bus"
 #define KXMLQLCBusID "ID"
@@ -47,14 +47,14 @@ class BusEmitter;
 
 class Bus
 {
- private:
+protected:
 	/** Constructor */
 	Bus();
 	
 	/** Destructor */
 	~Bus();
 	
- public:
+public:
 	/** Initialize buses */
 	static void init();
 
@@ -85,40 +85,41 @@ class Bus
 	/** Save all buses to an XML document */
 	static bool saveXML(QDomDocument* doc, QDomElement* wksp_root);
 
- private:
+protected:
 	t_bus_id m_id;
 	t_bus_value m_value;
 	QString m_name;
 
-	QPtrList <Function> m_listeners;
+	QList <Function*> m_listeners;
 
- private:
+protected:
 	static Bus* s_busArray;
 	static t_bus_id s_nextID;
 	static BusEmitter* s_busEmitter;
 };
 
-//
-// Bus Emitter class to handle signal emission
-//
+/*****************************************************************************
+ * Bus Emitter class to handle signal emission
+ *****************************************************************************/
+
 class BusEmitter : public QObject
 {
 	Q_OBJECT
 
-		friend class Bus;
+	friend class Bus;
 
- public:
+public:
 	BusEmitter() {};
 	~BusEmitter() {};
 
- protected:
+protected:
 	void emitValueChanged(t_bus_id id, t_bus_value value)
 		{ emit valueChanged(id, value); }
 
 	void emitNameChanged(t_bus_id id, QString name)
 		{ emit nameChanged(id, name); }
 
- signals:
+signals:
 	void valueChanged(t_bus_id, t_bus_value);
 	void nameChanged(t_bus_id, const QString&);
 };

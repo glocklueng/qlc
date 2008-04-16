@@ -19,19 +19,17 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qpushbutton.h>
-#include <qlabel.h>
-#include <qlistbox.h>
-#include <qpixmap.h>
-#include <qcolor.h>
-#include <qfont.h>
+#include <QListWidget>
+#include <QPushButton>
+#include <QPixmap>
+#include <QLabel>
+#include <QColor>
+#include <QFont>
 
 #include "aboutbox.h"
 #include "app.h"
 
-extern App* _app;
-
-AboutBox::AboutBox(QWidget* parent) : QDialog (parent, "About QLC", true)
+AboutBox::AboutBox(QWidget* parent) : QDialog (parent)
 {
 	initDialog();
 }
@@ -39,23 +37,29 @@ AboutBox::AboutBox(QWidget* parent) : QDialog (parent, "About QLC", true)
 AboutBox::~AboutBox()
 {
 	delete m_pm;
-	delete m_logo;
-	delete m_version;
-	delete m_copyright;
-	delete m_people;
-	delete m_ok;
 }
 
 void AboutBox::initDialog()
 {
-	QColor white(255, 255, 255);
 	int w = 350;
 	int h = 123;
+	QPalette pal;
+	QFont font;
 
-	setCaption(QString("About ") + KApplicationNameLong);
+	setWindowTitle(QString("About ") + KApplicationNameLong);
+	setFixedSize(w, h + 220);
 
-	m_pm = new QPixmap(QString(PIXMAPS) + QString("/qlc-big.png"));
+	/* Background color */
+	pal = palette();
+	pal.setColor(QPalette::Window, Qt::white);
+	setPalette(pal);
+
+	m_pm = new QPixmap(PIXMAPS "/qlc-big.png");
 	m_logo = new QLabel(this);
+
+	pal = m_logo->palette();
+	pal.setColor(QPalette::Window, Qt::white);
+	m_logo->setPalette(pal);
 
 	if (m_pm->isNull() == false)
 	{
@@ -65,56 +69,53 @@ void AboutBox::initDialog()
 	else
 	{
 		m_logo->setGeometry(0, 0, w, h);
-		m_logo->setBackgroundColor(QColor(255, 255, 255));
-		m_logo->setAlignment(AlignCenter);
+		m_logo->setAlignment(Qt::AlignCenter);
 		m_logo->setText("Incorrect pixmap path!");
 	}
 
-	setFixedSize(w, h + 220);
-	setBackgroundColor(white);
-
-	QFont font;
 	font.setPixelSize(12);
 
 	m_version = new QLabel(this);
 	m_version->setFont(font);
 	m_version->setGeometry(0, h, w, 20);
-	m_version->setAlignment(AlignCenter);
-	m_version->setText(KApplicationVersion);
-	m_version->setBackgroundColor(white);
+	m_version->setAlignment(Qt::AlignCenter);
+	m_version->setText(KApplicationNameLong + " " + KApplicationVersion);
+	pal = m_version->palette();
+	pal.setColor(QPalette::Window, Qt::white);
+	m_version->setPalette(pal);
 
 	m_copyright = new QLabel(this);
 	m_copyright->setFont(font);
 	m_copyright->setGeometry(0, h + 30, w, 50);
-	m_copyright->setAlignment(AlignCenter);
-	m_copyright->setTextFormat(RichText);
-	m_copyright->setText("QLC is licensed under the GNU GPL<BR>" \
-			     "and contains &copy; material created by<BR>" \
-			     "<B>the people involved in QLC development:</B>");
-	m_copyright->setBackgroundColor(white);
+	m_copyright->setAlignment(Qt::AlignCenter);
+	m_copyright->setTextFormat(Qt::RichText);
+	m_copyright->setText("QLC is licensed under the GNU GPL and is<BR>copyrighted &copy; by<BR><B>the people involved in QLC development:</B>");
+	pal = m_copyright->palette();
+	pal.setColor(QPalette::Window, Qt::white);
+	m_copyright->setPalette(pal);
 
-	m_people = new QListBox(this);
+	m_people = new QListWidget(this);
 	m_people->setFont(font);
 	m_people->setGeometry(5, h + 90, w - 10, 80);
-	m_people->setFocusPolicy(QWidget::NoFocus);
+	m_people->setFocusPolicy(Qt::NoFocus);
+	m_people->setSelectionMode(QAbstractItemView::NoSelection);
 	m_people->setFrameStyle(QFrame::Panel);
-	m_people->setScrollBar(true);
-	m_people->insertItem("Heikki Junnila <hjunnila@users.sf.net>");
-	m_people->insertItem("Stefan Krumm <stefankrumm@users.sf.net>");
-	m_people->insertItem("Christian Sühs <dance-or-die@users.sf.net>");
-	m_people->insertItem("Christopher Staite <chris@yourdreamnet.co.uk>");
-	m_people->setBackgroundColor(white);
+	m_people->addItem("Heikki Junnila <hjunnila@iki.fi>");
+	m_people->addItem("Stefan Krumm <krumm@geol.uni-erlangen.de>");
+	m_people->addItem("Christian Sühs <dance-or-die@users.sf.net>");
+	m_people->addItem("Christopher Staite <chris@yourdreamnet.co.uk>");
+	pal = m_people->palette();
+	pal.setColor(QPalette::Window, Qt::white);
+	m_people->setPalette(pal);
 
 	m_ok = new QPushButton(this);
 	m_ok->setGeometry(133, h + 180, 100, 30);
 	m_ok->setMinimumSize(100, 30);
 	m_ok->setDefault(false);
 	m_ok->setText("&OK");
-	m_ok->setBackgroundColor(white);
-	connect(m_ok, SIGNAL(clicked()), this, SLOT(slotOKClicked()));
-}
+	pal = m_ok->palette();
+	pal.setColor(QPalette::Window, Qt::white);
+	m_ok->setPalette(pal);
 
-void AboutBox::slotOKClicked()
-{
-	accept();
+	connect(m_ok, SIGNAL(clicked()), this, SLOT(accept()));
 }

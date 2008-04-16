@@ -19,212 +19,127 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qlabel.h>
-#include <qlineedit.h>
-#include <qlistview.h>
-#include <qpushbutton.h>
-#include <qmessagebox.h>
-#include <assert.h>
-#include <qtimer.h>
+#include <QTreeWidgetItem>
+#include <QTreeWidget>
+#include <QMessageBox>
+#include <QLineEdit>
+#include <QLabel>
+#include <QTimer>
+#include <QIcon>
 
 #include "common/qlcfixturedef.h"
 
 #include "functioncollectioneditor.h"
 #include "functioncollection.h"
+#include "functionselection.h"
 #include "function.h"
-#include "functionmanager.h"
+#include "fixture.h"
 #include "app.h"
 #include "doc.h"
-#include "fixture.h"
 
 extern App* _app;
 
 FunctionCollectionEditor::FunctionCollectionEditor(QWidget* parent,
 						   FunctionCollection* fc)
-	: UI_FunctionCollectionEditor(parent,
-				      "Function Collection Editor",
-				      true)
+	: QDialog(parent)
 {
 	Q_ASSERT(fc != NULL);
+	m_original = fc;
 
 	m_fc = new FunctionCollection();
 	m_fc->copyFrom(fc);
 	Q_ASSERT(m_fc != NULL);
 
-	m_original = fc;
-	m_functionManager = NULL;
+	setupUi(this);
 
-	init();
-}
+	m_addButton->setIcon(QIcon(PIXMAPS "/edit_add.png"));
+	connect(m_addButton, SIGNAL(clicked()), this, SLOT(slotAdd()));
 
-FunctionCollectionEditor::~FunctionCollectionEditor()
-{
-	delete m_fc;
-	m_fc = NULL;
-}
-
-void FunctionCollectionEditor::init()
-{
-	m_addFunction->setPixmap(QPixmap(QString(PIXMAPS) +
-					 QString("/edit_add.png")));
-	m_removeFunction->setPixmap(QPixmap(QString(PIXMAPS) +
-					    QString("/edit_remove.png")));
+	m_removeButton->setIcon(QIcon(PIXMAPS "/edit_remove.png"));
+	connect(m_removeButton, SIGNAL(clicked()), this, SLOT(slotRemove()));
 
 	m_nameEdit->setText(m_fc->name());
 	updateFunctionList();
 }
 
-/**
- * The user wants to add functions
- */
-void FunctionCollectionEditor::slotAddFunctionClicked()
+FunctionCollectionEditor::~FunctionCollectionEditor()
 {
-	if (m_functionManager == NULL)
-	{
-		// Create the function manager in selection mode so it
-		// looks like a normal modal dialog
-		m_functionManager = new FunctionManager(
-			this, FunctionManager::SelectionMode);
-
-		// Prevent the user from selecting this function
-		m_functionManager->setInactiveID(m_original->id());
-		m_functionManager->init();
-
-		// Catch the close event
-		connect(m_functionManager, SIGNAL(closed()),
-			this, SLOT(slotFunctionManagerClosed()));
-	}
-	
-	// Show the dialog
-	m_functionManager->show();
+	Q_ASSERT(m_fc != NULL);
+	delete m_fc;
+	m_fc = NULL;
 }
 
-/**
- * The selection dialog was closed, take the selection
- */
-void FunctionCollectionEditor::slotFunctionManagerClosed()
+void FunctionCollectionEditor::slotAdd()
 {
-	FunctionIDList list;
-	FunctionIDList::iterator it;
-
-	assert(m_functionManager);
-
-	if (m_functionManager->result() == QDialog::Accepted)
+	FunctionSelection sel(this, _app->doc(), true, m_fc->id());
+	if (sel.exec() == QDialog::Accepted)
 	{
-		m_functionManager->selection(list);
+		t_function_id fid;
 
-		for (it = list.begin(); it != list.end(); ++it)
+		QListIterator <t_function_id> it(sel.selection);
+		while (it.hasNext() == true)
 		{
-			if (isAlreadyMember(*it) == false)
-			{
-				m_fc->addItem(*it);
-			}
+			fid = it.next();
+			if (isAlreadyMember(fid) == false)
+				m_fc->addItem(fid);
 		}
-
-		list.clear();
 
 		updateFunctionList();
-
-		// Hide the function manager for a while
-		m_functionManager->hide();
-
-		// Add another step after a delay (to show that the step was added)
-		QTimer::singleShot(250, this, SLOT(slotAddAnother()));
-	}
-	else
-	{
-		delete m_functionManager;
-		m_functionManager = NULL;
 	}
 }
 
-//
-// Add another step until Cancel is clicked
-//
-void FunctionCollectionEditor::slotAddAnother()
+void FunctionCollectionEditor::slotRemove()
 {
-	m_functionManager->show();
-}
-
-//
-// Remove a function
-//
-void FunctionCollectionEditor::slotRemoveFunctionClicked()
-{
-	if (m_functionList->selectedItem() != NULL)
+	QTreeWidgetItem* item = m_functionList->currentItem();
+	if (item != NULL)
 	{
-		t_function_id id = 0;
-
-		id = m_functionList->selectedItem()->text(2).toInt();
-
-		if (m_fc->removeItem(id))
-		{
-			m_functionList->takeItem(m_functionList->selectedItem());
-		}
+		t_function_id id = item->text(2).toInt();
+		if (m_fc->removeItem(id) == true)
+			delete item;
 		else
-		{
-			ASSERT(false);
-		}
+			Q_ASSERT(false);
 	}
 }
 
-
-//
-// OK clicked; accept and save changes
-//
-void FunctionCollectionEditor::slotOKClicked()
+void FunctionCollectionEditor::accept()
 {
 	m_fc->setName(m_nameEdit->text());
-
 	m_original->copyFrom(m_fc);
-
 	_app->doc()->setModified();
 
 	QDialog::accept();
 }
 
-
-//
-// Cancel pressed; discard changes
-//
-void FunctionCollectionEditor::slotCancelClicked()
-{
-	reject();
-}
-
-
-//
-// Fill the function list
-//
 void FunctionCollectionEditor::updateFunctionList()
 {
-	QString fxi_name;
-	QString func_name;
-	QString func_type;
-	Fixture* fxi = NULL;
-	Function* function = NULL;
-	QValueList<t_function_id>::iterator it;
-	QString fid;
-
 	m_functionList->clear();
 
-	for (it = m_fc->steps()->begin(); it != m_fc->steps()->end(); ++it)
+	QListIterator <t_function_id> it(*m_fc->steps());
+	while (it.hasNext() == true)
 	{
-		function = _app->doc()->function(*it);
+		QString fxi_name;
+		QString func_name;
+		QString func_type;
+
+		t_function_id fid = it.next();
+		Function* function = _app->doc()->function(fid);
+
 		if (function == NULL)
 		{
-			func_name = QString("Invalid");
-			fxi_name = QString("Invalid");
-			func_type = QString("Invalid");
+			func_name = "Invalid";
+			fxi_name = "Invalid";
+			func_type = "Invalid";
 		}
 		else if (function->fixture() != KNoID)
 		{
+			Fixture* fxi = NULL;
+
 			func_name = function->name();
 			func_type = Function::typeToString(function->type());
 
 			fxi = _app->doc()->fixture(function->fixture());
 			if (fxi == NULL)
-				fxi_name = QString("Invalid");
+				fxi_name = "Invalid";
 			else
 				fxi_name = fxi->name();
 		}
@@ -235,26 +150,23 @@ void FunctionCollectionEditor::updateFunctionList()
 			func_type = Function::typeToString(function->type());
 		}
 
-		fid.setNum(*it);
-		new QListViewItem(m_functionList, fxi_name, func_name,
-				  func_type, fid);
+		QString s;
+		QTreeWidgetItem* item = new QTreeWidgetItem(m_functionList);
+		item->setText(0, fxi_name);
+		item->setText(1, func_name);
+		item->setText(2, func_type);
+		item->setText(3, s.setNum(fid));
 	}
 }
 
-
-//
-// Find an item from function list
-//
 bool FunctionCollectionEditor::isAlreadyMember(t_function_id id)
 {
-	QValueList<t_function_id>::iterator it;
+	QListIterator <t_function_id> it(*m_fc->steps());
 
-	for (it = m_fc->steps()->begin(); it != m_fc->steps()->end(); ++it)
+	while (it.hasNext() == true)
 	{
-		if (*it == id)
-		{
+		if (it.next() == id)
 			return true;
-		}
 	}
 
 	return false;

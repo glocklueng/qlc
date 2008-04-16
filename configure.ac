@@ -3,7 +3,7 @@
 # Q Light Controller
 # configure.in
 #
-# Copyright (C) 2005 Heikki Junnila
+# Copyright (C) Heikki Junnila
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -24,14 +24,14 @@
 AC_INIT()
 AC_CONFIG_AUX_DIR(config)
 
-AM_INIT_AUTOMAKE(qlc, 2.6.1)
+AM_INIT_AUTOMAKE(qlc, 2.7)
 AM_CONFIG_HEADER(config.h)
 
 ##############################
 # Constants
 ##############################
 
-QT_VERSION=3.3
+QT_VERSION=4.3
 
 ##############################################################################
 # Fixed subdirectories' names
@@ -79,7 +79,13 @@ fi
 ##############################################################################
 # Check for QT libraries & headers (as well as pkg-config)
 ##############################################################################
-PKG_CHECK_MODULES(QT, [qt-mt >= 3.3.0])
+PKG_CHECK_MODULES(QT,
+	[
+		QtCore >= $QT_VERSION
+		QtGui >= $QT_VERSION
+		QtXml >= $QT_VERSION
+	]
+)
 AC_SUBST(QT_CFLAGS)
 AC_SUBST(QT_LIBS)
 

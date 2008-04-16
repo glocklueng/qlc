@@ -19,16 +19,16 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qapplication.h>
-#include <qmessagebox.h>
-#include <qstringlist.h>
-#include <qdir.h>
+#include <QApplication>
+#include <QMessageBox>
+#include <QStringList>
+#include <QDir>
 
 #include "hidinput.h"
 #include "hideventdevice.h"
 #include "configurehidinput.h"
 
-extern "C" InputPlugin* create()
+extern "C" QLCInPlugin* create()
 {
 	return new HIDInput;
 }
@@ -37,11 +37,11 @@ extern "C" InputPlugin* create()
  * Initialization
  *****************************************************************************/
 
-HIDInput::HIDInput() : InputPlugin()
+HIDInput::HIDInput() : QLCInPlugin()
 {
 	m_version = 0x00010000;
 	m_name = QString("HID Input");
-	m_type = InputType;
+	m_type = Input;
 
 	open();
 }
@@ -58,16 +58,18 @@ int HIDInput::open()
 {
 	HIDDevice* hidDevice = NULL;
 	QDir dir("/dev/input/");
+	QStringList nameFilters;
 	QStringList entries;
 	QStringList::iterator it;
 	QString path;
 
 	close();
 
-	entries = dir.entryList("event*", QDir::Files | QDir::System);
+	nameFilters << "event*";
+	entries = dir.entryList(nameFilters, QDir::Files | QDir::System);
 	for (it = entries.begin(); it != entries.end(); ++it)
 	{
-		path = dir.absPath() + QString("/") + *it;
+		path = dir.absolutePath() + QDir::separator() + *it;
 		hidDevice = device(path);
 		if (hidDevice == NULL)
 	{
@@ -82,7 +84,7 @@ int HIDInput::close()
 {
 	HIDDevice* hidDevice = NULL;
 
-	while ((hidDevice = m_devices.take(0)) != NULL)
+	while ((hidDevice = m_devices.takeFirst()) != NULL)
 	{
 		hidDevice->close();
 		delete hidDevice;
@@ -91,13 +93,13 @@ int HIDInput::close()
 
 HIDDevice* HIDInput::device(const QString& path)
 {
-	QPtrListIterator<HIDDevice> it(m_devices);
+	QListIterator <HIDDevice*> it(m_devices);
 
-	while (it.current() != NULL)
+	while (it.hasNext() == true)
 	{
-		if (it.current()->path() == path)
-			return it.current();
-		++it;
+		HIDDevice* dev = it.next();
+		if (dev->path() == path)
+			return dev;
 	}
 
 	return NULL;
@@ -140,7 +142,6 @@ int HIDInput::configure(QWidget* parentWidget)
 
 QString HIDInput::infoText()
 {
-	QPtrListIterator<HIDDevice> it(m_devices);
 	HIDDevice* device = NULL;
 	QString info = QString::null;
 	QString t;
@@ -156,10 +157,10 @@ QString HIDInput::infoText()
 	info += QString("<TABLE COLS=\"1\" WIDTH=\"100%\">");
 	info += QString("<TR>");
 	info += QString("<TD BGCOLOR=\"");
-	info += QApplication::palette().active().highlight().name();
+	//info += QApplication::palette().active().highlight().name();
 	info += QString("\" COLSPAN=\"3\">");
 	info += QString("<FONT COLOR=\"");
-	info += QApplication::palette().active().highlightedText().name();
+	//info += QApplication::palette().active().highlightedText().name();
 	info += QString("\" SIZE=\"5\">");
 	info += name();
 	info += QString("</FONT>");
@@ -172,10 +173,10 @@ QString HIDInput::infoText()
 
 	/* Device title */
 	info += QString("<TD BGCOLOR=\"");
-	info += QApplication::palette().active().highlight().name();
+	//info += QApplication::palette().active().highlight().name();
 	info += QString("\">");
 	info += QString("<FONT COLOR=\"");
-	info += QApplication::palette().active().highlightedText().name();
+	//info += QApplication::palette().active().highlightedText().name();
 	info += QString("\" SIZE=\"5\">");
 	info += QString("Device");
 	info += QString("</FONT>");
@@ -183,10 +184,10 @@ QString HIDInput::infoText()
 
 	/* Name title */
 	info += QString("<TD BGCOLOR=\"");
-	info += QApplication::palette().active().highlight().name();
+	//info += QApplication::palette().active().highlight().name();
 	info += QString("\">");
 	info += QString("<FONT COLOR=\"");
-	info += QApplication::palette().active().highlightedText().name();
+	//info += QApplication::palette().active().highlightedText().name();
 	info += QString("\" SIZE=\"5\">");
 	info += QString("Name");
 	info += QString("</FONT>");
@@ -194,10 +195,10 @@ QString HIDInput::infoText()
 
 	/* Mode title */
 	info += QString("<TD BGCOLOR=\"");
-	info += QApplication::palette().active().highlight().name();
+	//info += QApplication::palette().active().highlight().name();
 	info += QString("\">");
 	info += QString("<FONT COLOR=\"");
-	info += QApplication::palette().active().highlightedText().name();
+	//info += QApplication::palette().active().highlightedText().name();
 	info += QString("\" SIZE=\"5\">");
 	info += QString("Mode");
 	info += QString("</FONT>");
@@ -215,11 +216,9 @@ QString HIDInput::infoText()
 	}
 	else
 	{
-		while ((device = it.current()) != NULL)
-		{
-			info += it.current()->infoText();
-			++it;
-		}
+		QListIterator <HIDDevice*> it(m_devices);
+		while (it.hasNext() == true)
+			info += it.next()->infoText();
 	}
 
 	info += QString("</TABLE>");

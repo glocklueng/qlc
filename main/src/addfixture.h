@@ -22,28 +22,30 @@
 #ifndef ADDFIXTURE_H
 #define ADDFIXTURE_H
 
-#include "common/types.h"
-#include "uic_addfixture.h"
+#include <QWidget>
+#include "common/qlctypes.h"
+#include "ui_addfixture.cpp"
 
+class QTreeWidgetItem;
 class QString;
 class QLCFixtureDef;
 class QLCFixtureMode;
 
-class AddFixture : public UI_AddFixture
+class AddFixture : public QDialog, public Ui_AddFixture
 {
 	Q_OBJECT
 
- public: 
+public: 
 	/** Constructor */
 	AddFixture(QWidget *parent);
 
 	/** Destructor */
 	~AddFixture();
 
-	/** Initialize view components */
-	void init();
-
- public:
+	/*********************************************************************
+	 * Value getters
+	 *********************************************************************/
+public:
 	/** Get the selected QLCFixtureDef */
 	QLCFixtureDef* fixtureDef() const { return m_fixtureDef; }
 
@@ -58,27 +60,49 @@ class AddFixture : public UI_AddFixture
 
 	/** Get the assigned DMX universe */
 	t_channel universe() const { return m_universeValue; }
-  
+
 	/** Get the number of similar fixtures to add */
-	int multipleNumber() const { return m_multipleNumberValue; }
+	int amount() const { return m_amountValue; }
 
 	/** Get the number of channels to leave between two fixtures */
-	t_channel addressGap() const { return m_addressGapValue; }
+	t_channel gap() const { return m_gapValue; }
 
 	/** Get the number of channels to use (ONLY for generic dimmers) */
 	t_channel channels() const { return m_channelsValue; }
-  
- protected:
+
+protected:
+	QLCFixtureDef* m_fixtureDef;
+	QLCFixtureMode* m_mode;
+
+	QString m_nameValue;
+
+	t_channel m_addressValue;
+	t_channel m_universeValue;
+	int m_amountValue;
+	t_channel m_gapValue;
+	t_channel m_channelsValue;
+
+	/*********************************************************************
+	 * Helpers
+	 *********************************************************************/
+protected:
+	/** Find a node that contains the given text */
+	QTreeWidgetItem* findNode(const QString& text);
+
+	/*********************************************************************
+	 * Fillers
+	 *********************************************************************/
+protected:
 	/** Fill all known fixture definitions to the tree view */
 	void fillTree();
 
 	/** Fill all modes of the current fixture to the mode combo */
 	void fillModeCombo(const QString& text = QString::null);
 
-	/** Get the currently selected fixture pointer */
-	QLCFixtureDef* selectedFixtureDef();
-
- protected slots:
+	/*********************************************************************
+	 * Slots
+	 *********************************************************************/
+protected slots:
 	 /** Callback for channels spin value changes */
 	 void slotChannelsChanged(int value);
 
@@ -88,39 +112,22 @@ class AddFixture : public UI_AddFixture
 	 /**
 	  * Callback for tree view selection changes
 	  */
-	void slotSelectionChanged(QListViewItem* item);
+	void slotSelectionChanged(QTreeWidgetItem* item, int column = 0);
 
 	/**
 	 * Callback for tree double clicks (same as select + OK)
 	 */
-	void slotTreeDoubleClicked(QListViewItem* item);
+	void slotTreeDoubleClicked(QTreeWidgetItem* item, int column = 0);
 
 	/**
 	 * Callback for friendly name editing
 	 */
-	void slotNameChanged(const QString &text);
+	void slotNameEdited(const QString &text);
 
 	/**
-	 * Callback for OK button clicks
+	 * OK button pressed
 	 */
-	void slotOKClicked();
-
-	/**
-	 * Callback for Cancel button clicks
-	 */
-	void slotCancelClicked();
-
- protected:
-	QLCFixtureDef* m_fixtureDef;
-	QLCFixtureMode* m_mode;
-
-	QString m_nameValue;
-
-	t_channel m_addressValue;
-	t_channel m_universeValue;
-	int m_multipleNumberValue;
-	t_channel m_addressGapValue;
-	t_channel m_channelsValue;
+	void accept();
 };
 
 #endif

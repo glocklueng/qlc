@@ -1,6 +1,6 @@
 /*
   Q Light Controller
-  outputplugin.h
+  qlcoutplugin.h
 
   Copyright (c) Heikki Junnila
 
@@ -19,13 +19,13 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include "outputplugin.h"
+#include "qlcoutplugin.h"
 
-OutputPlugin::OutputPlugin() : Plugin()
+QLCOutPlugin::QLCOutPlugin() : QLCPlugin()
 {
-	m_type = Plugin::OutputType;
+	m_type = QLCPlugin::Output;
 }
 
-OutputPlugin::~OutputPlugin()
+QLCOutPlugin::~QLCOutPlugin()
 {
 }

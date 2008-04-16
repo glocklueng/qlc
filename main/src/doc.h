@@ -22,8 +22,8 @@
 #ifndef DOC_H
 #define DOC_H
 
-#include <qobject.h>
-#include <qptrlist.h>
+#include <QObject>
+#include <QList>
 
 #include "function.h"
 #include "fixture.h"
@@ -34,11 +34,13 @@ class QDomDocument;
 class QLCFixtureDef;
 class QLCFixtureMode;
 
+#define KXMLQLCWorkspace "Workspace"
+
 class Doc : public QObject
 {
 	Q_OBJECT
 
- public:
+public:
 	Doc();
 	~Doc();
 
@@ -60,7 +62,7 @@ class Doc : public QObject
 	 */
 	void resetModified();
 
- public:
+public:
 	/*********************************************************************
 	 * Load & Save
 	 *********************************************************************/
@@ -97,7 +99,7 @@ class Doc : public QObject
 	/*********************************************************************
 	 * Fixture Instances
 	 *********************************************************************/
- public:
+public:
 	/**
 	 * Create a new fixture instance from the given fixture definition
 	 *
@@ -135,7 +137,7 @@ class Doc : public QObject
 	 */
 	bool newFixture(Fixture* fxi);
 
- public:	
+public:	
 	/**
 	 * Delete the given fixture instance from Doc
 	 *
@@ -153,7 +155,7 @@ class Doc : public QObject
 	/*********************************************************************
 	 * Functions
 	 *********************************************************************/
- public:
+public:
 	/**
 	 * Create a new function
 	 *
@@ -177,7 +179,15 @@ class Doc : public QObject
 			      QString func_name, t_fixture_id fxi_id,
 			      QDomDocument* doc, QDomElement* root);
 
- public:
+protected:
+	/**
+	 * Create a new function that is of the given type
+	 *
+	 * @param type Type of function to create
+	 */
+	Function* newFunction(Function::Type type);
+
+public:
 	/**
 	 * Delete the given function
 	 *
@@ -192,22 +202,26 @@ class Doc : public QObject
 	 */
 	Function* function(t_function_id id);
 
- public:
+public:
 	/**
-	 * Emit a functionChanged() signal
+	 * Emit a functionChanged() signal.
+	 *
+	 * Because Functions are not QObjects, they cannot emit signals by
+	 * themselves. Therefore, they must call this function to make Doc
+	 * emit the function change signal, instead.
 	 *
 	 * @param id The ID of the function that needs to be signalled
 	 */
 	void emitFunctionChanged(t_function_id id);
 
- private slots:
+protected slots:
 	/** Catch QLC App mode changes */
 	void slotModeChanged(App::Mode mode);
 
 	/** Catch fixture property changes */
 	void slotFixtureChanged(t_fixture_id fxi_id);
 
- signals:
+signals:
 	/** Signal that this Doc has been modified (or unmodified) */
 	void modified(bool state);
 
@@ -229,7 +243,7 @@ class Doc : public QObject
 	/** Signal that a function has been changed */
 	void functionChanged(t_function_id function);
 
- protected:
+protected:
 	/** Current Doc file name */
 	QString m_fileName;
 

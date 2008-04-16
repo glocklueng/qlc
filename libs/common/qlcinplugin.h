@@ -1,6 +1,6 @@
 /*
   Q Light Controller
-  inputplugin.h
+  qlcinplugin.h
 
   Copyright (c) Heikki Junnila
 
@@ -19,23 +19,23 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#ifndef INPUTPLUGIN_H
-#define INPUTPLUGIN_H
+#ifndef QLCINPLUGIN_H
+#define QLCINPLUGIN_H
 
-#include "common/plugin.h"
-#include "common/types.h"
+#include "common/qlcplugin.h"
+#include "common/qlctypes.h"
 
 /*****************************************************************************
  * InputPlugin
  *****************************************************************************/
 
-class InputPlugin : public Plugin
+class QLCInPlugin : public QLCPlugin
 {
 	Q_OBJECT
 
 public:
-	InputPlugin();
-	virtual ~InputPlugin();
+	QLCInPlugin();
+	virtual ~QLCInPlugin();
 
 	/**
 	 * Get the number of inputs provided by the plugin

@@ -1,5 +1,5 @@
 /*
-  Q Light Controller - Device Class Editor
+  Q Light Controller - Fixture Definition Editor
   editchannel.h
 
   Copyright (C) Heikki Junnila
@@ -19,43 +19,59 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#ifndef QLC_EDITCHANNEL_H
-#define QLC_EDITCHANNEL_H
+#ifndef EDITCHANNEL_H
+#define EDITCHANNEL_H
 
-#include "uic_editchannel.h"
+#include <QWidget>
+#include "ui_editchannel.cpp"
+
+class QTreeWidgetItem;
+class QString;
 
 class QLCChannel;
 class QLCCapability;
 
-class EditChannel : public UI_EditChannel
+class EditChannel : public QDialog, public Ui_EditChannel
 {
 	Q_OBJECT
- public:
+public:
 	EditChannel(QWidget* parent, QLCChannel* channel = NULL);
 	~EditChannel();
 
+protected:
 	void init();
 
-	/** Get the channel that was edited. Copy its contents to the real
-	    LogicalChannel instance, but don't save the pointer! */
+	/*********************************************************************
+	 * Channel
+	 *********************************************************************/
+public:
+	/** Get the channel that was edited. */
 	QLCChannel* channel() { return m_channel; }
 
- public slots:
+protected:
+	QLCChannel* m_channel;
+
+	/*********************************************************************
+	 * Basic channel info
+	 *********************************************************************/
+protected slots:
 	void slotNameChanged(const QString& name);
 	void slotGroupActivated(const QString& group);
-	void slotControlByteActivated(int button);
- 
-	void slotCapabilityListSelectionChanged(QListViewItem* item);
+	void slotMsbRadioToggled(bool toggled);
+	void slotLsbRadioToggled(bool toggled);
+
+	/*********************************************************************
+	 * Capabilities
+	 *********************************************************************/
+protected slots:
+	void slotCapabilityListSelectionChanged(QTreeWidgetItem* item);
 	void slotAddCapabilityClicked();
 	void slotRemoveCapabilityClicked();
 	void slotEditCapabilityClicked();
  
- protected:
+protected:
 	void refreshCapabilities();
 	QLCCapability* currentCapability();
- 
- private:
-	QLCChannel* m_channel;
 };
 
 #endif

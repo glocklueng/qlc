@@ -10,141 +10,90 @@ qlc_CXXFLAGS += -DVERSION=\"$(VERSION)\"
 qlc_LDADD  = @QT_LIBS@
 qlc_LDADD += $(top_srcdir)/libs/common/libqlccommon.la
 
-noinst_HEADERS = \
-	src/uic_addfixture.h \
-	src/uic_advancedsceneeditor.h \
-	src/uic_assignhotkey.h \
-	src/uic_assignsliderhotkey.h \
-	src/uic_busproperties.h \
-	src/uic_chasereditor.h \
-	src/uic_consolechannel.h \
-	src/uic_dmxaddresstool.h \
-	src/uic_dmxmapeditor.h \
-	src/uic_dmxpatcheditor.h \
-	src/uic_editscenevalue.h \
-	src/uic_efxeditor.h \
-	src/uic_fixturelist.h \
-	src/uic_fixtureproperties.h \
-	src/uic_functioncollectioneditor.h \
-	src/uic_sceneeditor.h \
-	src/uic_vcbuttonproperties.h \
-	src/uic_vcdockslider.h \
-	src/uic_vcframeproperties.h \
-	src/uic_vcsliderproperties.h \
-	src/uic_vcxypadproperties.h \
-	src/uic_virtualconsoleproperties.h \
-	\
-	src/aboutbox.h \
-	src/addfixture.h \
-	src/advancedsceneeditor.h \
-	src/app.h \
-	src/assignhotkey.h \
-	src/assignsliderhotkey.h \
-	src/bus.h \
-	src/busproperties.h \
-	src/chasereditor.h \
-	src/chaser.h \
-	src/consolechannel.h \
-	src/dmxaddresstool.h \
-	src/dmxmap.h \
-	src/dmxmapeditor.h \
-	src/dmxpatcheditor.h \
-	src/doc.h \
-	src/dummyinplugin.h \
-	src/dummyoutplugin.h \
-	src/editscenevalue.h \
-	src/efxeditor.h \
-	src/efx.h \
-	src/eventbuffer.h \
-	src/fixture.h \
-	src/fixtureconsole.h \
-	src/fixturelist.h \
-	src/fixturemanager.h \
-	src/fixtureproperties.h \
-	src/functioncollectioneditor.h \
-	src/functioncollection.h \
-	src/functionconsumer.h \
-	src/function.h \
-	src/functionmanager.h \
-	src/generatorarea.h \
-	src/inputmap.h \
-	src/keybind.h \
-	src/listboxiditem.h \
-	src/monitor.h \
-	src/pluginloader.h \
-	src/pluginmanager.h \
-	src/sceneeditor.h \
-	src/scene.h \
-	src/sliderkeybind.h \
-	src/vcbutton.h \
-	src/vcbuttonproperties.h \
-	src/vcdockarea.h \
-	src/vcdockslider.h \
-	src/vcframe.h \
-	src/vcframeproperties.h \
-	src/vclabel.h \
-	src/vcslider.h \
-	src/vcsliderproperties.h \
-	src/vcwidget.h \
-	src/vcxypad.h \
-	src/vcxypadproperties.h \
-	src/virtualconsole.h \
-	src/virtualconsoleproperties.h \
-	src/xychannelunit.h
+UICS = \
+	src/ui_addfixture.cpp \
+	src/ui_assignhotkey.cpp \
+	src/ui_busproperties.cpp \
+	src/ui_chasereditor.cpp \
+	src/ui_consolechannel.cpp \
+	src/ui_dmxaddresstool.cpp \
+	src/ui_dmxmapeditor.cpp \
+	src/ui_dmxpatcheditor.cpp \
+	src/ui_efxeditor.cpp \
+	src/ui_fixturelist.cpp \
+	src/ui_fixtureproperties.cpp \
+	src/ui_functioncollectioneditor.cpp \
+	src/ui_functionselection.cpp \
+	src/ui_sceneeditor.cpp \
+	src/ui_vcbuttonproperties.cpp \
+	src/ui_vcdockslider.cpp \
+	src/ui_vcframeproperties.cpp \
+	src/ui_vcsliderproperties.cpp \
+	src/ui_vcxypadproperties.cpp \
+	src/ui_virtualconsoleproperties.cpp
+
+MOCS = \
+	src/moc_aboutbox.cpp \
+	src/moc_addfixture.cpp \
+	src/moc_app.cpp \
+	src/moc_assignhotkey.cpp \
+	src/moc_bus.cpp \
+	src/moc_busproperties.cpp \
+	src/moc_chaser.cpp \
+	src/moc_chasereditor.cpp \
+	src/moc_consolechannel.cpp \
+	src/moc_dmxaddresstool.cpp \
+	src/moc_dmxmap.cpp \
+	src/moc_dmxmapeditor.cpp \
+	src/moc_dmxpatcheditor.cpp \
+	src/moc_doc.cpp \
+	src/moc_dummyinplugin.cpp \
+	src/moc_dummyoutplugin.cpp \
+	src/moc_efx.cpp \
+	src/moc_efxeditor.cpp \
+	src/moc_eventbuffer.cpp \
+	src/moc_fixture.cpp \
+	src/moc_fixtureconsole.cpp \
+	src/moc_fixturelist.cpp \
+	src/moc_fixturemanager.cpp \
+	src/moc_fixtureproperties.cpp \
+	src/moc_functioncollection.cpp \
+	src/moc_functioncollectioneditor.cpp \
+	src/moc_functionconsumer.cpp \
+	src/moc_function.cpp \
+	src/moc_functionmanager.cpp \
+	src/moc_functionselection.cpp \
+	src/moc_generatorarea.cpp \
+	src/moc_inputmap.cpp \
+	src/moc_keybind.cpp \
+	src/moc_monitor.cpp \
+	src/moc_pluginmanager.cpp \
+	src/moc_scene.cpp \
+	src/moc_sceneeditor.cpp \
+	src/moc_sliderkeybind.cpp \
+	src/moc_vcbutton.cpp \
+	src/moc_vcbuttonproperties.cpp \
+	src/moc_vcdockarea.cpp \
+	src/moc_vcdockslider.cpp \
+	src/moc_vcframe.cpp \
+	src/moc_vcframeproperties.cpp \
+	src/moc_vclabel.cpp \
+	src/moc_vcslider.cpp \
+	src/moc_vcsliderproperties.cpp \
+	src/moc_vcwidget.cpp \
+	src/moc_vcxypad.cpp \
+	src/moc_vcxypadproperties.cpp \
+	src/moc_virtualconsole.cpp \
+	src/moc_virtualconsoleproperties.cpp \
+	src/moc_xychannelunit.cpp
 
 qlc_SOURCES = \
-	src/uic_addfixture.cpp \
-	src/uic_advancedsceneeditor.cpp \
-	src/uic_assignhotkey.cpp \
-	src/uic_assignsliderhotkey.cpp \
-	src/uic_busproperties.cpp \
-	src/uic_chasereditor.cpp \
-	src/uic_consolechannel.cpp \
-	src/uic_dmxaddresstool.cpp \
-	src/uic_dmxmapeditor.cpp \
-	src/uic_dmxpatcheditor.cpp \
-	src/uic_editscenevalue.cpp \
-	src/uic_efxeditor.cpp \
-	src/uic_fixturelist.cpp \
-	src/uic_fixtureproperties.cpp \
-	src/uic_functioncollectioneditor.cpp \
-	src/uic_sceneeditor.cpp \
-	src/uic_vcbuttonproperties.cpp \
-	src/uic_vcdockslider.cpp \
-	src/uic_vcframeproperties.cpp \
-	src/uic_vcsliderproperties.cpp \
-	src/uic_vcxypadproperties.cpp \
-	src/uic_virtualconsoleproperties.cpp \
-	\
-	src/moc_uic_addfixture.cpp \
-	src/moc_uic_advancedsceneeditor.cpp \
-	src/moc_uic_assignhotkey.cpp \
-	src/moc_uic_assignsliderhotkey.cpp \
-	src/moc_uic_busproperties.cpp \
-	src/moc_uic_chasereditor.cpp \
-	src/moc_uic_consolechannel.cpp \
-	src/moc_uic_dmxaddresstool.cpp \
-	src/moc_uic_dmxmapeditor.cpp \
-	src/moc_uic_dmxpatcheditor.cpp \
-	src/moc_uic_editscenevalue.cpp \
-	src/moc_uic_efxeditor.cpp \
-	src/moc_uic_fixturelist.cpp \
-	src/moc_uic_fixtureproperties.cpp \
-	src/moc_uic_functioncollectioneditor.cpp \
-	src/moc_uic_sceneeditor.cpp \
-	src/moc_uic_vcbuttonproperties.cpp \
-	src/moc_uic_vcdockslider.cpp \
-	src/moc_uic_vcframeproperties.cpp \
-	src/moc_uic_vcsliderproperties.cpp \
-	src/moc_uic_vcxypadproperties.cpp \
-	src/moc_uic_virtualconsoleproperties.cpp \
+	$(UICS) \
 	\
 	src/aboutbox.cpp \
 	src/addfixture.cpp \
-	src/advancedsceneeditor.cpp \
 	src/app.cpp \
 	src/assignhotkey.cpp \
-	src/assignsliderhotkey.cpp \
 	src/bus.cpp \
 	src/busproperties.cpp \
 	src/chaser.cpp \
@@ -157,7 +106,6 @@ qlc_SOURCES = \
 	src/doc.cpp \
 	src/dummyinplugin.cpp \
 	src/dummyoutplugin.cpp \
-	src/editscenevalue.cpp \
 	src/efx.cpp \
 	src/efxeditor.cpp \
 	src/eventbuffer.cpp \
@@ -171,10 +119,10 @@ qlc_SOURCES = \
 	src/functionconsumer.cpp \
 	src/function.cpp \
 	src/functionmanager.cpp \
+	src/functionselection.cpp \
 	src/generatorarea.cpp \
 	src/inputmap.cpp \
 	src/keybind.cpp \
-	src/listboxiditem.cpp \
 	src/main.cpp \
 	src/monitor.cpp \
 	src/pluginloader.cpp \
@@ -198,71 +146,12 @@ qlc_SOURCES = \
 	src/virtualconsoleproperties.cpp \
 	src/xychannelunit.cpp \
 	\
-	src/moc_aboutbox.cpp \
-	src/moc_addfixture.cpp \
-	src/moc_advancedsceneeditor.cpp \
-	src/moc_app.cpp \
-	src/moc_assignhotkey.cpp \
-	src/moc_assignsliderhotkey.cpp \
-	src/moc_bus.cpp \
-	src/moc_busproperties.cpp \
-	src/moc_chaser.cpp \
-	src/moc_chasereditor.cpp \
-	src/moc_consolechannel.cpp \
-	src/moc_dmxaddresstool.cpp \
-	src/moc_dmxmap.cpp \
-	src/moc_dmxmapeditor.cpp \
-	src/moc_dmxpatcheditor.cpp \
-	src/moc_doc.cpp \
-	src/moc_dummyinplugin.cpp \
-	src/moc_dummyoutplugin.cpp \
-	src/moc_editscenevalue.cpp \
-	src/moc_efx.cpp \
-	src/moc_efxeditor.cpp \
-	src/moc_eventbuffer.cpp \
-	src/moc_fixture.cpp \
-	src/moc_fixtureconsole.cpp \
-	src/moc_fixturelist.cpp \
-	src/moc_fixturemanager.cpp \
-	src/moc_fixtureproperties.cpp \
-	src/moc_functioncollection.cpp \
-	src/moc_functioncollectioneditor.cpp \
-	src/moc_functionconsumer.cpp \
-	src/moc_function.cpp \
-	src/moc_functionmanager.cpp \
-	src/moc_generatorarea.cpp \
-	src/moc_inputmap.cpp \
-	src/moc_keybind.cpp \
-	src/moc_listboxiditem.cpp \
-	src/moc_monitor.cpp \
-	src/moc_pluginmanager.cpp \
-	src/moc_scene.cpp \
-	src/moc_sceneeditor.cpp \
-	src/moc_sliderkeybind.cpp \
-	src/moc_vcbutton.cpp \
-	src/moc_vcbuttonproperties.cpp \
-	src/moc_vcdockarea.cpp \
-	src/moc_vcdockslider.cpp \
-	src/moc_vcframe.cpp \
-	src/moc_vcframeproperties.cpp \
-	src/moc_vclabel.cpp \
-	src/moc_vcslider.cpp \
-	src/moc_vcsliderproperties.cpp \
-	src/moc_vcwidget.cpp \
-	src/moc_vcxypad.cpp \
-	src/moc_vcxypadproperties.cpp \
-	src/moc_virtualconsole.cpp \
-	src/moc_virtualconsoleproperties.cpp \
-	src/moc_xychannelunit.cpp
+	$(MOCS)
 
 # MOCS
 moc_%.cpp: %.h
 	$(MOC) $< -o $@
 
-# UIC headers
-uic_%.h: %.ui
+# UICS
+ui_%.cpp: %.ui
 	$(UIC) $< -o $@
-
-# UIC sources
-uic_%.cpp: uic_%.h
-	$(UIC) -impl $< $*.ui -o $@

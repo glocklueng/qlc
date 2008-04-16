@@ -2,7 +2,7 @@
   Q Light Controller
   assignhotkey.h
   
-  Copyright (C) 2000, 2001, 2002 Heikki Junnila
+  Copyright (c) Heikki Junnila
   
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -22,31 +22,31 @@
 #ifndef ASSIGNHOTKEY_H
 #define ASSIGNHOTKEY_H
 
-#include "uic_assignhotkey.h"
+#include <QDialog>
+#include "ui_assignhotkey.cpp"
 
+class QKeyEvent;
 class KeyBind;
 
-class AssignHotKey : public UI_AssignHotKey
+class AssignHotKey : public QDialog, public Ui_AssignHotKey
 {
-  Q_OBJECT
+	Q_OBJECT
 
- public:
-  AssignHotKey(QWidget* parent = NULL, const char* name = NULL);
-  ~AssignHotKey();
+public:
+	AssignHotKey(QWidget* parent);
+	~AssignHotKey();
+	
+protected:
+	void keyPressEvent(QKeyEvent*);
 
-  KeyBind* keyBind() { return m_keyBind; }
-
-  void initView();
-
- public slots:
-  void slotOKClicked();
-  void slotCancelClicked();
-
- protected:
-  void keyPressEvent(QKeyEvent*);
-
- private:
-  KeyBind* m_keyBind;
+	/*********************************************************************
+	 * Key binding
+	 *********************************************************************/
+public:
+	KeyBind* keyBind() const { return m_keyBind; }
+	
+protected:
+	KeyBind* m_keyBind;
 };
 
 #endif

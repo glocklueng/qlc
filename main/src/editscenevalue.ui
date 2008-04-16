@@ -1,129 +1,106 @@
-<!DOCTYPE UI><UI version="3.3" stdsetdef="1">
-<class>UI_EditSceneValue</class>
-<widget class="QDialog">
-    <property name="name">
-        <cstring>UI_EditSceneValue</cstring>
-    </property>
-    <property name="geometry">
-        <rect>
-            <x>0</x>
-            <y>0</y>
-            <width>381</width>
-            <height>133</height>
-        </rect>
-    </property>
-    <property name="caption">
-        <string>Edit Scene Value</string>
-    </property>
-    <grid>
-        <property name="name">
-            <cstring>unnamed</cstring>
+<ui version="4.0" >
+ <class>EditSceneValue</class>
+ <widget class="QDialog" name="EditSceneValue" >
+  <property name="geometry" >
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>380</width>
+    <height>120</height>
+   </rect>
+  </property>
+  <property name="windowTitle" >
+   <string>Edit scene value</string>
+  </property>
+  <layout class="QVBoxLayout" >
+   <item>
+    <widget class="QGroupBox" name="m_group" >
+     <property name="title" >
+      <string/>
+     </property>
+     <layout class="QGridLayout" >
+      <item row="0" column="0" >
+       <widget class="QLabel" name="m_presetLabel" >
+        <property name="text" >
+         <string>Preset value</string>
         </property>
-        <widget class="QPushButton" row="1" column="1">
-            <property name="name">
-                <cstring>m_cancel</cstring>
-            </property>
-            <property name="text">
-                <string>Cancel</string>
-            </property>
-        </widget>
-        <widget class="QPushButton" row="1" column="0">
-            <property name="name">
-                <cstring>m_ok</cstring>
-            </property>
-            <property name="text">
-                <string>OK</string>
-            </property>
-            <property name="default">
-                <bool>true</bool>
-            </property>
-        </widget>
-        <widget class="QGroupBox" row="0" column="0" rowspan="1" colspan="2">
-            <property name="name">
-                <cstring>m_groupBox</cstring>
-            </property>
-            <property name="title">
-                <string></string>
-            </property>
-            <grid>
-                <property name="name">
-                    <cstring>unnamed</cstring>
-                </property>
-                <widget class="QLabel" row="0" column="0">
-                    <property name="name">
-                        <cstring>TextLabel2</cstring>
-                    </property>
-                    <property name="text">
-                        <string>Preset Value</string>
-                    </property>
-                </widget>
-                <widget class="QComboBox" row="1" column="0">
-                    <property name="name">
-                        <cstring>m_presetCombo</cstring>
-                    </property>
-                </widget>
-                <widget class="QLabel" row="0" column="1">
-                    <property name="name">
-                        <cstring>TextLabel3</cstring>
-                    </property>
-                    <property name="text">
-                        <string>Value</string>
-                    </property>
-                </widget>
-                <widget class="QSpinBox" row="1" column="1">
-                    <property name="name">
-                        <cstring>m_valueSpin</cstring>
-                    </property>
-                    <property name="maxValue">
-                        <number>255</number>
-                    </property>
-                </widget>
-                <widget class="QComboBox" row="1" column="2">
-                    <property name="name">
-                        <cstring>m_typeCombo</cstring>
-                    </property>
-                </widget>
-                <widget class="QLabel" row="0" column="2">
-                    <property name="name">
-                        <cstring>TextLabel4</cstring>
-                    </property>
-                    <property name="text">
-                        <string>Type</string>
-                    </property>
-                </widget>
-            </grid>
-        </widget>
-    </grid>
-</widget>
-<connections>
-    <connection>
-        <sender>m_ok</sender>
-        <signal>clicked()</signal>
-        <receiver>UI_EditSceneValue</receiver>
-        <slot>accept()</slot>
-    </connection>
-    <connection>
-        <sender>m_cancel</sender>
-        <signal>clicked()</signal>
-        <receiver>UI_EditSceneValue</receiver>
-        <slot>reject()</slot>
-    </connection>
-    <connection>
-        <sender>m_typeCombo</sender>
-        <signal>activated(const QString&amp;)</signal>
-        <receiver>UI_EditSceneValue</receiver>
-        <slot>slotTypeActivated(const QString&amp;)</slot>
-    </connection>
-</connections>
-<tabstops>
-    <tabstop>m_presetCombo</tabstop>
-    <tabstop>m_valueSpin</tabstop>
-    <tabstop>m_typeCombo</tabstop>
-    <tabstop>m_ok</tabstop>
-    <tabstop>m_cancel</tabstop>
-</tabstops>
-<slots>
-    <slot>slotTypeActivated(const QString &amp;)</slot>
-</slots>
-<layoutdefaults spacing="6" margin="11"/>
-</UI>
+       </widget>
+      </item>
+      <item row="0" column="1" >
+       <widget class="QLabel" name="m_valueLabel" >
+        <property name="text" >
+         <string>DMX value</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2" >
+       <widget class="QLabel" name="m_typeLabel" >
+        <property name="text" >
+         <string>Value type</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0" >
+       <widget class="QComboBox" name="m_presetCombo" />
+      </item>
+      <item row="1" column="1" >
+       <widget class="QSpinBox" name="m_valueSpin" >
+        <property name="maximum" >
+         <number>255</number>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2" >
+       <widget class="QComboBox" name="m_typeCombo" />
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="m_buttonBox" >
+     <property name="orientation" >
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons" >
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::NoButton|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>m_buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>EditSceneValue</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>248</x>
+     <y>254</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>157</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>EditSceneValue</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>316</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>286</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

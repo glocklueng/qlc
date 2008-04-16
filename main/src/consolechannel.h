@@ -22,70 +22,115 @@
 #ifndef CONSOLECHANNEL_H
 #define CONSOLECHANNEL_H
 
-#include "common/types.h"
-#include "uic_consolechannel.h"
+#include <QWidget>
+#include "ui_consolechannel.cpp"
+
+#include "common/qlctypes.h"
 #include "scene.h"
 
-class QSlider;
-class QLabel;
-class QPushButton;
 class QContextMenuEvent;
-class QPopupMenu;
+class QMenu;
+
+class QLCChannel;
 class Fixture;
 
-class ConsoleChannel : public UI_ConsoleChannel
+class ConsoleChannel : public QWidget, public Ui_ConsoleChannel
 {
 	Q_OBJECT
 
- public:
-	ConsoleChannel(QWidget *parent, t_fixture_id fixtureID, t_channel channel);
+	/*********************************************************************
+	 * Initialization
+	 *********************************************************************/
+public:
+	ConsoleChannel(QWidget *parent, t_fixture_id fixtureID,
+		       t_channel channel);
 	~ConsoleChannel();
 
+protected:
+	/** Initialize the UI */
 	void init();
  
-	int getSliderValue(void);
-	void update(void);
+public slots:
+	/** Set channel's focus */
+	void slotSetFocus();
 
+	/**
+	 * Fixture console's scene editor has activated a scene, which is
+	 * reflected here. Set the value and status to this channel's widgets.
+	 */
+	void slotSceneActivated(SceneValue* values, t_channel channels);
+
+	/*********************************************************************
+	 * Menu
+	 *********************************************************************/
+protected slots:
+	void slotContextMenuTriggered(QAction* action);
+
+protected:
+	/** Open a context menu */
+	void contextMenuEvent(QContextMenuEvent*);
+
+	/** Initialize the context menu */
+	void initMenu();
+
+	/** Initialize the context menu for plain dimmer fixtures */
+	void initPlainMenu();
+
+	/** Initialize the context menu for fixtures with capabilities */
+	void initCapabilityMenu(QLCChannel* ch);
+
+protected:
+	QMenu* m_menu;
+
+	/*********************************************************************
+	 * Value
+	 *********************************************************************/
+public:
+	/** Get the channel's value */
+	int sliderValue() const;
+
+	/** Update the UI to match the channel's real status & value */
+	void update();
+
+public slots:
+	/** Slider value was changed */
+	void slotValueChange(int);
+
+	/** Emulate the user dragging the value slider */
+	void slotAnimateValueChange(t_value);
+
+protected:
+	t_value m_value;
+
+	/*********************************************************************
+	 * Status
+	 *********************************************************************/
+public:
+	/** Set status button's status */
 	void setStatusButton(Scene::ValueType);
 
 	Scene::ValueType status() const { return m_status; }
 
-	// For sequence editor doesn't like fade values
-	void setFadeStatusEnabled(bool enable); 
-  
- signals:
-	void changed(t_channel, t_value, Scene::ValueType);
-
- public slots:
-	void slotValueChange(int);
-	void slotAnimateValueChange(t_value);
-
-	void slotSceneActivated(SceneValue* values, t_channel channels);
-
- private slots:
+protected slots:
+	/** Status button was clicked by the user */
 	void slotStatusButtonClicked();
-	void slotSetFocus();
-	void slotContextMenuActivated(int);
 
- protected:
-	void contextMenuEvent(QContextMenuEvent*);
-
- protected:
-	void initMenu();
+protected:
+	/** Update the button's color, label and tip to show channel status */
 	void updateStatusButton();
 
- protected:
-	t_channel m_channel;
-	t_value m_value;
+protected:
 	Scene::ValueType m_status;
 
+	/*********************************************************************
+	 * Fixture channel
+	 *********************************************************************/
+protected:
+	t_channel m_channel;
 	t_fixture_id m_fixtureID;
 
-	bool m_fadeStatusEnabled;
-
-	bool m_updateOnly;
- 
-	QPopupMenu* m_menu;
+signals:
+	void changed(t_channel channel, t_value value, Scene::ValueType status);
 };
 
 #endif

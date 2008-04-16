@@ -22,30 +22,28 @@
 #ifndef FIXTUREPROPERTIES_H
 #define FIXTUREPROPERTIES_H
 
-#include "uic_fixtureproperties.h"
-#include "common/types.h"
+#include <QDialog>
+#include "ui_fixtureproperties.cpp"
+#include "common/qlctypes.h"
 
 class Fixture;
 
-class FixtureProperties : public UI_FixtureProperties
+class FixtureProperties : public QDialog, public Ui_FixtureProperties
 {
 	Q_OBJECT
 
- public:
+public:
 	/** Constructor */
 	FixtureProperties(QWidget* parent, t_fixture_id fixture);
 
 	/** Destructor */
 	~FixtureProperties();
-   
-	/** Dialog pre-initialisation */
-	void init();
-   
- protected slots:
-	 /** Callback for OK button click */
-	void slotOKClicked();
 
- protected:
+protected slots:
+	/** QDialog accept() slot for OK button clicks */
+	void accept();
+
+protected:
 	t_fixture_id m_fixture;
 };
 

@@ -19,14 +19,11 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qstring.h>
-#include <qlineedit.h>
-#include <qlabel.h>
-#include <qpushbutton.h>
-#include <qspinbox.h>
-#include <qptrlist.h>
-#include <qlistview.h>
-#include <qtimer.h>
+#include <QTreeWidgetItem>
+#include <QTreeWidget>
+#include <QPushButton>
+#include <QString>
+#include <QTimer>
 
 #include "configurehidinput.h"
 #include "hidinput.h"
@@ -36,10 +33,17 @@
  *****************************************************************************/
 
 ConfigureHIDInput::ConfigureHIDInput(QWidget* parent, HIDInput* plugin)
-	: UI_ConfigureHIDInput(parent, "Configure HIDInput", true)
+	: QDialog(parent)
 {
 	Q_ASSERT(plugin != NULL);
 	m_plugin = plugin;
+
+	setupUi(this);
+
+	connect(m_refreshButton, SIGNAL(clicked()),
+		this, SLOT(slotRefreshClicked()));
+	connect(m_okButton, SIGNAL(clicked()), this, SLOT(accept()));
+	connect(m_cancelButton, SIGNAL(clicked()), this, SLOT(reject()));
 
 	refreshList();
 }
@@ -60,18 +64,21 @@ void ConfigureHIDInput::slotRefreshClicked()
 
 void ConfigureHIDInput::refreshList()
 {
-	HIDDevice* dev = NULL;
 	QString s;
 
-	m_listView->clear();
+	m_list->clear();
 
 	for (unsigned int i = 0; i < m_plugin->m_devices.count(); i++)
 	{
+		HIDDevice* dev;
+		QTreeWidgetItem* item;
+
 		dev = m_plugin->device(i);
 		Q_ASSERT(dev != NULL);
 
-		s.setNum(i + 1);
-		new QListViewItem(m_listView, s, dev->name());
+		item = new QTreeWidgetItem(m_list);
+		item->setText(0, s.setNum(i + 1));
+		item->setText(1, dev->name());
 	}
 }
 

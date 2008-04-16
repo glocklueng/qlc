@@ -1,6 +1,6 @@
 /*
   Q Light Controller
-  filehandler.cpp
+  qlcfile.cpp
 
   Copyright (C) Heikki Junnila
 
@@ -19,95 +19,25 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qfile.h>
-#include <qdom.h>
-#include <assert.h>
-#include <qwidget.h>
+#include <iostream>
+#include <QWidget>
+#include <QFile>
+#include <QtXml>
 
-#include "filehandler.h"
-#include "settings.h"
+#include "qlcfile.h"
 
-/**
- * Read an old QLC-style file to a list of key-value pairs
- *
- * @param fileName The name of the file to read
- * @param list The resulting string list of key-value pairs
- *
- * @return true if succesful, otherwise false
- */
-bool FileHandler::readFileToList(QString &fileName, QPtrList <QString> &list)
+bool QLCFile::readXML(const QString path, QDomDocument** document)
 {
-	QFile file(fileName);
-	QString s = QString::null;
-	QString t = QString::null;
-	QString buf = QString::null;
-	int i = 0;
-	
-	if (fileName == QString::null)
-	{
-		return false;
-	}
-	
-	while (list.isEmpty() == false)
-	{
-		list.first();
-		delete list.take();
-	}
-	
-	if (file.open(IO_ReadOnly))
-	{
-		list.append(new QString("Entry"));
-		list.append(new QString("Dummy"));
-		
-		// First read all entries to a string list
-		while (file.atEnd() == false)
-		{
-			file.readLine(buf, 1024);
-			
-			// If there is no "equal" sign on this row or it begins
-			// with a hash, ignore it
-			i = buf.find(QString("="));
-			if (i > -1 && buf.left(1) != QString("#"))
-			{
-				/* Get the string up to equal sign */
-				s = buf.mid(0, i).stripWhiteSpace();
-				list.append(new QString(s));
-				
-				/* Get the string after the equal sign */
-				t = buf.mid(i + 1).stripWhiteSpace();
-				list.append(new QString(t));
-			}
-		}
-		
-		file.close();
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-/**
- * Read an XML file to a QDomDocument structure
- *
- * @param path Path to the file to read
- * @param document QDomDocument* or NULL if an error has occurred
- *
- * @return true if succesful, otherwise false
- */
-bool FileHandler::readXML(const QString path, QDomDocument** document)
-{
-	QFile file(path);
 	bool result = false;
 	QString error;
 	int line = 0;
 	int col = 0;
 
-	assert(document != NULL);
-	assert(path != QString::null);
+	Q_ASSERT(document != NULL);
+	Q_ASSERT(path != QString::null);
 
-	if (file.open(IO_ReadOnly) == true)
+	QFile file(path);
+	if (file.open(QIODevice::ReadOnly) == true)
 	{
 		*document = new QDomDocument();
 		result = (*document)->setContent(&file, false,
@@ -118,30 +48,22 @@ bool FileHandler::readXML(const QString path, QDomDocument** document)
 		{
 			QString str;
 
-			str.sprintf("%s: %s, line %d, col %d", path.ascii(),
-				    error.ascii(), line, col);
-			qDebug(str);
+			str.sprintf("%s: %s, line %d, col %d", qPrintable(path),
+				    qPrintable(error), line, col);
+			std::cout << str.toStdString();
 		}
 	}
 	else
 	{
-		qDebug(QString("Unable to open file: ") + path);
+		std::cout << "Unable to open file: " << path.toStdString()
+			  << endl;
 		result = false;
 	}
 
 	return result;
 }
 
-
-/**
- * Get a common XML file header as a QDomDocument
- *
- * @param content The content type (Settings, Workspace)
- * @param doc A newly-created QDomDocument containing the header
- *
- * @return true if succesful, otherwise false
- */
-bool FileHandler::getXMLHeader(QString content, QDomDocument** doc)
+bool QLCFile::getXMLHeader(QString content, QDomDocument** doc)
 {
 	QDomImplementation dom;
 	QDomDocumentType doctype;
@@ -184,8 +106,8 @@ bool FileHandler::getXMLHeader(QString content, QDomDocument** doc)
 	return true;
 }
 
-bool FileHandler::saveXMLWindowState(QDomDocument* doc, QDomElement* root,
-				     QWidget* window)
+bool QLCFile::saveXMLWindowState(QDomDocument* doc, QDomElement* root,
+				 QWidget* window)
 {
 	QDomElement tag;
 	QDomText text;
@@ -204,11 +126,9 @@ bool FileHandler::saveXMLWindowState(QDomDocument* doc, QDomElement* root,
 
 	/* Visible status */
 	if (window->isVisible() == true)
-		tag.setAttribute(KXMLQLCWindowStateVisible,
-				 Settings::trueValue());
+		tag.setAttribute(KXMLQLCWindowStateVisible, KXMLQLCTrue);
 	else
-		tag.setAttribute(KXMLQLCWindowStateVisible,
-				 Settings::falseValue());
+		tag.setAttribute(KXMLQLCWindowStateVisible, KXMLQLCFalse);
 
 	/* X Coordinate */
 	str.setNum(window->x());
@@ -229,10 +149,10 @@ bool FileHandler::saveXMLWindowState(QDomDocument* doc, QDomElement* root,
 	return true;
 }
 
-bool FileHandler::loadXMLWindowState(QDomElement* tag,
-				     int* x, int* y,
-				     int* w, int* h,
-				     bool* visible)
+bool QLCFile::loadXMLWindowState(QDomElement* tag,
+				 int* x, int* y,
+				 int* w, int* h,
+				 bool* visible)
 {
 	if (tag == NULL || x == NULL || y == NULL || w == NULL || h == NULL || 
 	    visible == NULL)
@@ -245,8 +165,7 @@ bool FileHandler::loadXMLWindowState(QDomElement* tag,
 		*w = tag->attribute(KXMLQLCWindowStateWidth).toInt();
 		*h = tag->attribute(KXMLQLCWindowStateHeight).toInt();
 		
-		if (tag->attribute(KXMLQLCWindowStateVisible) ==
-		    Settings::trueValue())
+		if (tag->attribute(KXMLQLCWindowStateVisible) == KXMLQLCTrue)
 			*visible = true;
 		else
 			*visible = false;
@@ -255,7 +174,7 @@ bool FileHandler::loadXMLWindowState(QDomElement* tag,
 	}
 	else
 	{
-		qWarning("Window state not found!");
+		std::cout << "Window state not found!" << endl;
 		return false;
 	}
 }

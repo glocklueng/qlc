@@ -19,16 +19,18 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qptrvector.h>
-#include <qptrlist.h>
-#include <qobject.h>
-#include <qstringlist.h>
-#include <qmessagebox.h>
+#include <QMessageBox>
+#include <QStringList>
+#include <iostream>
+#include <QList>
 
-#include "app.h"
+#include "common/qlcinplugin.h"
+#include "common/qlctypes.h"
+
 #include "inputmap.h"
-#include "common/inputplugin.h"
-#include "common/types.h"
+#include "app.h"
+
+using namespace std;
 
 extern App* _app;
 
@@ -42,9 +44,8 @@ InputMap::InputMap()
 
 InputMap::~InputMap()
 {
-	InputPlugin* inputPlugin = NULL;
-
-	while ((inputPlugin = m_plugins.take(0)) != NULL)
+	QLCInPlugin* inputPlugin;
+	while ((inputPlugin = m_plugins.takeFirst()) != NULL)
 		delete inputPlugin;
 }
 
@@ -54,29 +55,27 @@ InputMap::~InputMap()
 
 QStringList InputMap::pluginNames()
 {
-	QPtrListIterator<InputPlugin> it(m_plugins);
+	QListIterator <QLCInPlugin*> it(m_plugins);
 	QStringList list;
 
-	while (it.current() != NULL)
-	{
-		list.append((*it)->name());
-		++it;
-	}	
+	while (it.hasNext() == true)
+		list.append(it.next()->name());
 	
 	return list;
 }
 
 int InputMap::pluginInputs(const QString& pluginName)
 {
+	/* TODO */
 	return 0;
 }
 
 void InputMap::configurePlugin(const QString& pluginName)
 {
-	InputPlugin* inputPlugin = plugin(pluginName);
+	QLCInPlugin* inputPlugin = plugin(pluginName);
 	if (inputPlugin == NULL)
 		QMessageBox::warning(_app,
-				     QString("Unable to configure plugin"),
+				     "Unable to configure plugin",
 				     pluginName + QString(" not found!"));
 	else
 		inputPlugin->configure(_app);
@@ -84,14 +83,18 @@ void InputMap::configurePlugin(const QString& pluginName)
 
 QString InputMap::pluginStatus(const QString& pluginName)
 {
-	InputPlugin* inputPlugin = NULL;
+	QLCInPlugin* inputPlugin;
 	QString info;
 
 	if (pluginName != QString::null)
 		inputPlugin = plugin(pluginName);
+	else
+		inputPlugin = NULL;
 	
 	if (inputPlugin == NULL)
 	{
+		/* Overall plugin info */
+
 		// HTML header
 		info += QString("<HTML>");
 		info += QString("<HEAD>");
@@ -103,10 +106,10 @@ QString InputMap::pluginStatus(const QString& pluginName)
 		info += QString("<TABLE COLS=\"1\" WIDTH=\"100%\">");
 		info += QString("<TR>");
 		info += QString("<TD BGCOLOR=\"");
-		info += _app->colorGroup().highlight().name();
+		//info += _app->colorGroup().highlight().name();
 		info += QString("\">");
 		info += QString("<FONT COLOR=\"");
-		info += _app->colorGroup().highlightedText().name();
+		//info += _app->colorGroup().highlightedText().name();
 		info += QString("\" SIZE=\"5\">");
 		info += QString("Input mapping status");
 		info += QString("</FONT>");
@@ -118,38 +121,43 @@ QString InputMap::pluginStatus(const QString& pluginName)
 	}
 	else
 	{
+		/* Plugin-specific info */
 		info = inputPlugin->infoText();
 	}
 
 	return info;
 }
 
-bool InputMap::appendPlugin(InputPlugin* inputPlugin)
+bool InputMap::appendPlugin(QLCInPlugin* inputPlugin)
 {
 	Q_ASSERT(inputPlugin != NULL);
 
 	if (plugin(inputPlugin->name()) == NULL)
 	{
-		qDebug("Found input plugin: " + inputPlugin->name());
+		cout << "Found input plugin: "
+		     << inputPlugin->name().toStdString()
+		     << endl;
 		m_plugins.append(inputPlugin);
 		return true;
 	}
 	else
 	{
-		qDebug(inputPlugin->name() + QString(" is already loaded."));
+		cout << "Input plugin: "
+		     << inputPlugin->name().toStdString()
+		     << " is already loaded." << endl;
 		return false;
 	}
 }
 
-InputPlugin* InputMap::plugin(const QString& name)
+QLCInPlugin* InputMap::plugin(const QString& name)
 {
-	QPtrListIterator<InputPlugin> it(m_plugins);
+	QListIterator <QLCInPlugin*> it(m_plugins);
 
-	while (it.current() != NULL)
+	while (it.hasNext() == true)
 	{
-		if (it.current()->name() == name)
-			return it.current();
-		++it;
+		QLCInPlugin* plugin = it.next();
+		if (plugin->name() == name)
+			return plugin;
 	}
 	
 	return NULL;

@@ -22,20 +22,17 @@
 #ifndef FIXTURECONSOLE_H
 #define FIXTURECONSOLE_H
 
-#include <qwidget.h>
-#include <qptrlist.h>
+#include <QWidget>
+#include <QList>
 
-#include "common/types.h"
+#include "common/qlctypes.h"
 #include "consolechannel.h"
 
 class QCloseEvent;
-class QHBoxLayout;
-
-class Device;
-class SceneEditor;
-
 class QDomDocument;
 class QDomElement;
+
+class SceneEditor;
 
 #define KXMLQLCFixtureConsole "Console"
 
@@ -43,31 +40,29 @@ class FixtureConsole : public QWidget
 {
 	Q_OBJECT
 
- public:
+public:
 	FixtureConsole(QWidget *parent);
 	~FixtureConsole();
 
 	void setFixture(t_fixture_id id);
 
-	QPtrList <ConsoleChannel> unitList() { return m_unitList; }
+	QList <ConsoleChannel*> unitList() { return m_unitList; }
 	SceneEditor* sceneEditor() { return m_sceneEditor; }
 
 	bool loadXML(QDomDocument* doc, QDomElement* root);
 	bool saveXML(QDomDocument* doc, QDomElement* fxi_root);
 
- signals:
+signals:
 	void closed();
 
- protected:
+protected:
 	void closeEvent(QCloseEvent*);
 
- protected:
-	QHBoxLayout* m_layout;
-	
+protected:
 	SceneEditor* m_sceneEditor;
 	t_fixture_id m_fixture;
 	
-	QPtrList <ConsoleChannel> m_unitList;
+	QList <ConsoleChannel*> m_unitList;
 };
 
 #endif

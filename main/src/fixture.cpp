@@ -19,30 +19,31 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <assert.h>
+#include <iostream>
+#include <QString>
+#include <QtXml>
 
-#include "libs/common/qlcfixturedef.h"
-#include "libs/common/qlcfixturemode.h"
-#include "libs/common/qlcchannel.h"
-#include "libs/common/qlccapability.h"
-#include "fixture.h"
+#include "common/qlcfixturemode.h"
+#include "common/qlcfixturedef.h"
+#include "common/qlccapability.h"
+#include "common/qlcchannel.h"
+#include "common/qlctypes.h"
+
 #include "fixtureconsole.h"
-#include "libs/common/types.h"
+#include "fixture.h"
 #include "app.h"
 #include "doc.h"
 
 extern App* _app;
-extern QApplication* _qapp;
+
+using namespace std;
 
 /*****************************************************************************
  * Initialization
  *****************************************************************************/
 
-Fixture::Fixture(QLCFixtureDef* fixtureDef,
-		 QLCFixtureMode* mode,
-		 t_channel address,
-		 t_channel universe,
-		 QString name,
+Fixture::Fixture(QLCFixtureDef* fixtureDef, QLCFixtureMode* mode,
+		 t_channel address, t_channel universe, QString name,
 		 t_fixture_id id)
 {
 	m_fixtureDef = fixtureDef;
@@ -102,7 +103,7 @@ void Fixture::setName(QString name)
 	m_name = name;
 
 	if (m_console != NULL)
-		m_console->setCaption(m_name + " Console");
+		m_console->setWindowTitle(m_name + " Console");
 
 	emit changed(m_id);
 }
@@ -290,8 +291,9 @@ Fixture* Fixture::loader(QDomDocument* doc, QDomElement* root)
 		}
 		else
 		{
-			qDebug("Unknown fixture instance tag: %s",
-			       (const char*) tag.tagName());
+			cout << "Unknown fixture instance tag: "
+			     << tag.tagName().toStdString()
+			     << endl;
 		}
 		
 		node = node.nextSibling();
@@ -301,8 +303,9 @@ Fixture* Fixture::loader(QDomDocument* doc, QDomElement* root)
 	fixtureDef = _app->fixtureDef(manufacturer, model);
 	if (fixtureDef == NULL)
 	{
-		qWarning("Fixture definition for [%s - %s] not found!",
-			 (const char*) manufacturer, (const char*) model);
+		cout << QString("Fixture definition for [%1 - %2] not found!")
+			.arg(manufacturer).arg(model).toStdString()
+		     << endl;
 	}
 	else
 	{
@@ -310,43 +313,48 @@ Fixture* Fixture::loader(QDomDocument* doc, QDomElement* root)
 		fixtureMode = fixtureDef->mode(modeName);
 		if (fixtureMode == NULL)
 		{
-			qWarning("Fixture mode [%s] for [%s - %s] not found!",
-				 (const char*) modeName,
-				 (const char*) manufacturer,
-				 (const char*) model);
+			cout << QString("Fixture mode [%1] for [%2 - %3] "
+					"not found!").arg(modeName)
+				.arg(manufacturer).arg(model).toStdString()
+			     << endl;
 		}
 	}
 
 	/* Number of channels */
 	if (channels <= 0 || channels > KFixtureChannelsMax)
 	{
-		qWarning("Fixture <%s> channels %d out of bounds (%d - %d)!",
-			 (const char*) name, channels, 1, KFixtureChannelsMax);
+		cout << QString("Fixture [%1] channels %2 out of bounds "
+				"(%3 - %4).").arg(name).arg(channels).arg(1)
+			.arg(KFixtureChannelsMax).toStdString()
+		     << endl;
 		channels = 1;
 	}
 
 	/* Make sure that address is something sensible */
 	if (address > 511 || address + (channels - 1) > 511)
 	{
-		qWarning("Fixture channel range %d - %d out of DMX " \
-			 "bounds (%d - %d)!",
-			 address + 1, address + channels, 1, 512);
+		cout << QString("Fixture channel range %1 - %2 out of DMX "
+				"bounds (%3 - %4).").arg(address + 1)
+			.arg(address + channels).arg(1).arg(512).toStdString()
+		     << endl;
 		address = 0;
 	}
 
 	/* Make sure that universe is something sensible */
 	if (universe > KUniverseCount)
 	{
-		qWarning("Fixture universe %d out of bounds (%d - %d)!",
-			 universe, 0, KUniverseCount);
+		cout << QString("Fixture universe %1 out of bounds (%2 - %3).")
+			.arg(universe).arg(0).arg(KUniverseCount).toStdString()
+		     << endl;
 		universe = 0;
 	}
 
 	/* Check that we have a sensible ID, otherwise we can't continue */
 	if (id < 0 || id > KFixtureArraySize)
 	{
-		qWarning("Fixture ID %d out of bounds (%d - %d)!",
-			 id, 0, KFixtureArraySize);
+		cout << QString("Fixture ID %1 out of bounds (%2 - %3).")
+			.arg(id).arg(0).arg(KFixtureArraySize).toStdString()
+		     << endl;
 		return NULL;
 	}
 
@@ -488,10 +496,10 @@ QString Fixture::status()
 	info += QString("<TABLE COLS=\"1\" WIDTH=\"100%\">");
 	info += QString("<TR>");
 	info += QString("<TD BGCOLOR=\"");
-	info += _app->colorGroup().highlight().name();
+	//info += _app->colorGroup().highlight().name();
 	info += QString("\">");
 	info += QString("<FONT COLOR=\"");
-	info += _app->colorGroup().highlightedText().name();
+	//info += _app->colorGroup().highlightedText().name();
 	info += QString("\" SIZE=\"5\">");
 	info += name();
 	info += QString("</FONT>");
@@ -589,10 +597,10 @@ QString Fixture::status()
 	
 	// Relative channel column title
 	info += QString("<TD BGCOLOR=\"");
-	info += _app->colorGroup().highlight().name();
+	//info += _app->colorGroup().highlight().name();
 	info += QString("\">");
 	info += QString("<FONT COLOR=\"");
-	info += _app->colorGroup().highlightedText().name();
+	//info += _app->colorGroup().highlightedText().name();
 	info += QString("\" SIZE=\"3\">");
 	info += QString("Channel");
 	info += QString("</FONT>");
@@ -600,10 +608,10 @@ QString Fixture::status()
 	
 	// DMX channel column title
 	info += QString("<TD BGCOLOR=\"");
-	info += _app->colorGroup().highlight().name();
+	//info += _app->colorGroup().highlight().name();
 	info += QString("\">");
 	info += QString("<FONT COLOR=\"");
-	info += _app->colorGroup().highlightedText().name();
+	//info += _app->colorGroup().highlightedText().name();
 	info += QString("\" SIZE=\"3\">");
 	info += QString("DMX");
 	info += QString("</FONT>");
@@ -612,10 +620,10 @@ QString Fixture::status()
 
 	// Channel name column title
 	info += QString("<TD BGCOLOR=\"");
-	info += _app->colorGroup().highlight().name();
+	//info += _app->colorGroup().highlight().name();
 	info += QString("\">");
 	info += QString("<FONT COLOR=\"");
-	info += _app->colorGroup().highlightedText().name();
+	//info += _app->colorGroup().highlightedText().name();
 	info += QString("\" SIZE=\"3\">");
 	info += QString("Name");
 	info += QString("</FONT>");
@@ -664,13 +672,13 @@ bool Fixture::createConsole()
 {
 	if (m_console == NULL)
 	{
-		m_console = new FixtureConsole((QWidget*) _app->workspace());
+		m_console = new FixtureConsole(_app);
 		Q_ASSERT(m_console != NULL);
 
 		m_console->setFixture(m_id);
 		
 		// Set window title
-		m_console->setCaption(m_name + " Console");
+		m_console->setWindowTitle(m_name + " Console");
 		
 		// Catch close event
 		connect(m_console, SIGNAL(closed()),
@@ -688,7 +696,8 @@ void Fixture::viewConsole()
 	{
 		if (createConsole() == true)
 			m_console->show();
-		Q_ASSERT(m_console != NULL);
+		else
+			Q_ASSERT(0);
 	}
 	else
 	{

@@ -22,11 +22,12 @@
 #ifndef DUMMYOUTPLUGIN_H
 #define DUMMYOUTPLUGIN_H
 
-#include <qthread.h>
-#include "common/outputplugin.h"
-#include "common/types.h"
+#include <QMutex>
 
-class DummyOutPlugin : public OutputPlugin
+#include "common/qlcoutplugin.h"
+#include "common/qlctypes.h"
+
+class DummyOutPlugin : public QLCOutPlugin
 {
 	Q_OBJECT
 		

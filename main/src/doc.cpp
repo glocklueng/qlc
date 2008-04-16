@@ -19,61 +19,51 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qobject.h>
-#include <qstring.h>
-#include <qstringlist.h>
-#include <qdir.h>
-#include <qptrlist.h>
-#include <qmessagebox.h>
-#include <assert.h>
-#include <qdom.h>
+#include <QMessageBox>
+#include <QStringList>
+#include <iostream>
+#include <QString>
+#include <QList>
+#include <QtXml>
+#include <QDir>
 
-#include "common/qlcworkspace.h"
 #include "common/qlcfixturedef.h"
 #include "common/qlcfixturemode.h"
-#include "common/filehandler.h"
+#include "common/qlcfile.h"
 
+#include "functioncollection.h"
+#include "functionconsumer.h"
+#include "virtualconsole.h"
+#include "fixturemanager.h"
+#include "function.h"
+#include "fixture.h"
+#include "monitor.h"
+#include "chaser.h"
+#include "dmxmap.h"
+#include "scene.h"
+#include "efx.h"
 #include "app.h"
 #include "doc.h"
-#include "dmxmap.h"
-#include "fixture.h"
-#include "function.h"
-#include "scene.h"
-#include "functioncollection.h"
-#include "chaser.h"
-#include "efx.h"
-#include "monitor.h"
-#include "virtualconsole.h"
-#include "functionconsumer.h"
-#include "fixturemanager.h"
 
 extern App* _app;
 
-//
-// Constructor
-//
+using namespace std;
+
 Doc::Doc() : QObject()
 {
 	m_fileName = QString::null;
 
-	//
 	// Allocate fixture array
-	//
-	m_fixtureArray = (Fixture**) malloc(sizeof(Fixture*) * KFixtureArraySize);
+	m_fixtureArray = (Fixture**) malloc(sizeof(Fixture*) * 
+					    KFixtureArraySize);
 	for (t_fixture_id i = 0; i < KFixtureArraySize; i++)
-	{
 		m_fixtureArray[i] = NULL;
-	}
 
-	//
 	// Allocate function array
-	//
-	m_functionArray = (Function**)
-		malloc(sizeof(Function*) * KFunctionArraySize);
+	m_functionArray = (Function**) malloc(sizeof(Function*) *
+					      KFunctionArraySize);
 	for (t_function_id i = 0; i < KFunctionArraySize; i++)
-	{
 		m_functionArray[i] = NULL;
-	}
 
 	connect(_app, SIGNAL(modeChanged(App::Mode)),
 		this, SLOT(slotModeChanged(App::Mode)));
@@ -81,18 +71,12 @@ Doc::Doc() : QObject()
 	resetModified();
 }
 
-
-//
-// Destructor
-//
 Doc::~Doc()
 {
-	//
 	// Delete all functions
-	//
 	for (t_function_id i = 0; i < KFunctionArraySize; i++)
 	{
-		if (m_functionArray[i])
+		if (m_functionArray[i] != NULL)
 		{
 			delete m_functionArray[i];
 			m_functionArray[i] = NULL;
@@ -100,12 +84,9 @@ Doc::~Doc()
 			emit functionRemoved(i);
 		}
 	}
-
 	delete [] m_functionArray;
 
-	//
 	// Delete all fixture instances
-	//
 	for (t_fixture_id i = 0; i < KFixtureArraySize; i++)
 	{
 		if (m_fixtureArray[i] != NULL)
@@ -116,7 +97,6 @@ Doc::~Doc()
 			emit fixtureRemoved(i);
 		}
 	}
-
 	delete [] m_fixtureArray;
 }
 
@@ -145,15 +125,17 @@ bool Doc::loadXML(const QString& fileName)
 
 	Q_ASSERT(fileName != QString::null);
 
-	if (FileHandler::readXML(fileName, &doc) == true)
+	if (QLCFile::readXML(fileName, &doc) == true)
 	{
 		if (doc->doctype().name() == KXMLQLCWorkspace)
 		{
 			if (loadXML(doc) == false)
 			{
-				QMessageBox::warning(_app, 
-						     "Unable to open file",
-				     fileName + " is not a valid workspace file");
+				QMessageBox::warning(
+					_app, 
+					"Unable to open file",
+					fileName +
+					" is not a valid workspace file");
 				retval = false;
 			}
 			else
@@ -174,7 +156,8 @@ bool Doc::loadXML(const QString& fileName)
 	else
 	{
 		QMessageBox::warning(_app, "Unable to open file",
-			     fileName + " is not a valid workspace file");
+				     fileName + 
+				     " is not a valid workspace file");
 		retval = false;
 	}
 
@@ -200,7 +183,7 @@ bool Doc::loadXML(QDomDocument* doc)
 	root = doc->documentElement();
 	
 	/* Load workspace background & theme */
-	_app->workspace()->loadXML(doc, &root);
+	// _app->workspace()->loadXML(doc, &root);
 
 	if (root.tagName() != KXMLQLCWorkspace)
 	{
@@ -223,8 +206,8 @@ bool Doc::loadXML(QDomDocument* doc)
 		}
 		else if (tag.tagName() == KXMLQLCWindowState)
 		{
-			FileHandler::loadXMLWindowState(&tag, &x, &y, &w, &h,
-							&visible);
+			QLCFile::loadXMLWindowState(&tag, &x, &y, &w, &h,
+						    &visible);
 		}
 		else if (tag.tagName() == KXMLFixture)
 		{
@@ -251,8 +234,8 @@ bool Doc::loadXML(QDomDocument* doc)
 			VirtualConsole::loader(doc, &tag);
 		}
 		else
-			qDebug("Unknown Workspace tag: %s",
-			       (const char*) tag.tagName());
+			cout << QString("Unknown Workspace tag: %1")
+				.arg(tag.tagName()).toStdString() << endl;
 		
 		node = node.nextSibling();
 	}
@@ -268,14 +251,13 @@ bool Doc::saveXML(const QString& fileName)
 	QDomElement root;
 	QDomElement tag;
 	QDomText text;
-	QFile file;
 	bool retval = false;
 
-	file.setName(fileName);
-	if (file.open(IO_WriteOnly) == false)
+	QFile file(fileName);
+	if (file.open(QIODevice::WriteOnly) == false)
 		return false;
 
-	if (FileHandler::getXMLHeader(KXMLQLCWorkspace, &doc) == true)
+	if (QLCFile::getXMLHeader(KXMLQLCWorkspace, &doc) == true)
 	{
 		/* Create a text stream for the file */
 		QTextStream stream(&file);
@@ -287,28 +269,20 @@ bool Doc::saveXML(const QString& fileName)
 		_app->dmxMap()->saveXML(doc, &root);
 
 		/* Write background image and theme */
-		_app->workspace()->saveXML(doc, &root);
+		// _app->workspace()->saveXML(doc, &root);
 
 		/* Write window state & size */
-		FileHandler::saveXMLWindowState(doc, &root, _app);
+		QLCFile::saveXMLWindowState(doc, &root, _app);
 
 		/* Write fixtures into an XML document */
 		for (t_fixture_id i = 0; i < KFixtureArraySize; i++)
-		{
-			if (m_fixtureArray[i])
-			{
+			if (m_fixtureArray[i] != NULL)
 				m_fixtureArray[i]->saveXML(doc, &root);
-			}
-		}
 
 		/* Write functions into an XML document */
 		for (t_function_id i = 0; i < KFunctionArraySize; i++)
-		{
 			if (m_functionArray[i] != NULL)
-			{
 				m_functionArray[i]->saveXML(doc, &root);
-			}
-		}
 
 		/* Write buses */
 		Bus::saveXML(doc, &root);
@@ -359,6 +333,7 @@ Fixture* Doc::newFixture(QLCFixtureDef* fixtureDef,
 {
 	Fixture* fxi = NULL;
 	
+	/* Find the next free slot for a new fixture */
 	for (t_fixture_id i = 0; i < KFixtureArraySize; i++)
 	{
 		if (m_fixtureArray[i] == NULL)
@@ -442,13 +417,15 @@ bool Doc::newFixture(Fixture* fxi)
 
 	if (id < 0 || id > KFixtureArraySize)
 	{
-		qWarning("Fixture ID %d out of bounds (%d - %d)!",
-			 id, 0, KFixtureArraySize);
+		cout << QString("Fixture ID %1 out of bounds (%2 - %3)!")
+			.arg(id).arg(0).arg(KFixtureArraySize).toStdString()
+		     << endl;
 		return false;
 	}
 	else if (m_fixtureArray[id] != NULL)
 	{
-		qWarning("Fixture ID %d already taken by another fixture!", id);
+		cout << QString("Fixture ID %1 already taken!").arg(id)
+			.toStdString() << endl;
 		return false;
 	}
 	else
@@ -491,7 +468,8 @@ bool Doc::deleteFixture(t_fixture_id id)
 	}
 	else
 	{
-		qDebug("No such fixture ID:%d", id);
+		cout << QString("No such fixture ID: %1").arg(id).toStdString()
+		     << endl;
 		return false;
 	}
 }
@@ -511,61 +489,31 @@ Fixture* Doc::fixture(t_fixture_id id)
 Function* Doc::newFunction(Function::Type type, t_fixture_id fixture)
 {
 	Function* function = NULL;
-	bool ok = false;
-
-	//
-	// Create the function
-	//
-	switch(type)
-	{
-	case Function::Scene:
-		function = new Scene();
-		break;
-
-	case Function::Chaser:
-		function = new Chaser();
-		break;
-
-	case Function::Collection:
-		function = new FunctionCollection();
-		break;
-
-	case Function::EFX:
-		function = new EFX();
-		break;
-
-	default:
-		function = NULL;
-	}
-
-	//
-	// If the function was created successfully, save it to function
-	// array and set its position in the array as its ID
-	//
-	if (function == NULL)
-		return NULL;
 
 	// Find the next free space from function array
 	for (t_function_id id = 0; id < KFunctionArraySize; id++)
 	{
 		if (m_functionArray[id] == NULL)
 		{
+			function = newFunction(type);
+			Q_ASSERT(function != NULL);
 			m_functionArray[id] = function;
+
 			function->setID(id);
 			function->setFixture(fixture);
 
 			emit functionAdded(id);
 
-			ok = true;
 			break;
 		}
 	}
 
-	if (ok == false)
+	if (function == NULL)
 	{
-		qWarning("Function array is full. Cannot add any more functions!");
-		delete function;
-		function = NULL;
+		cout << QString("Cannot add any more functions. All %1 slots "
+				"are taken.").arg(KFunctionArraySize)
+			.toStdString()
+		     << endl;
 	}
 	
 	return function;
@@ -583,34 +531,12 @@ Function* Doc::newFunction(Function::Type func_type,
 	Q_ASSERT(func_id >= 0 && func_id < KFunctionArraySize);
 	Q_ASSERT(doc != NULL);
 	Q_ASSERT(root != NULL);
-
-	switch (func_type)
-	{
-	case Function::Scene:
-		function = new Scene();
-		break;
-
-	case Function::Chaser:
-		function = new Chaser();
-		break;
-
-	case Function::Collection:
-		function = new FunctionCollection();
-		break;
-
-	case Function::EFX:
-		function = new EFX();
-		break;
-		
-	default:
-		function = NULL;
-		break;
-	}
 	
-	/* Put the function to its place (same as its ID)
-	   in the function array */
+	/* Put the function to its place (==ID) in the function array */
 	if (m_functionArray[func_id] == NULL)
 	{
+		function = newFunction(func_type);
+		Q_ASSERT(function != NULL);
 		m_functionArray[func_id] = function;
 		
 		function->setID(func_id);
@@ -629,23 +555,33 @@ Function* Doc::newFunction(Function::Type func_type,
 	}
 	else
 	{
-		qWarning("Function ID %d already "\
-			 "taken by another function!", func_id);
-
-		delete function;
-		function = NULL;
-		m_functionArray[func_id] = NULL;
+		cout << QString("Function ID %1 already taken.")
+			.arg(func_id).toStdString() << endl;
 	}
 
 	return function;
 }
 
-//
-// Remove a function by a given id
-//
+Function* Doc::newFunction(Function::Type type)
+{
+	switch (type)
+	{
+	case Function::Scene:
+		return new Scene();
+	case Function::Chaser:
+		return new Chaser();
+	case Function::Collection:
+		return new FunctionCollection();
+	case Function::EFX:
+		return new EFX();
+	default:
+		return NULL;
+	}
+}
+
 void Doc::deleteFunction(t_function_id id)
 {
-	if (m_functionArray[id])
+	if (m_functionArray[id] != NULL)
 	{
 		delete m_functionArray[id];
 		m_functionArray[id] = NULL;
@@ -654,72 +590,48 @@ void Doc::deleteFunction(t_function_id id)
 	}
 }
 
-
-//
-// Return a function from the function array
-//
 Function* Doc::function(t_function_id id)
 {
 	if (id >= 0 && id < KFunctionArraySize)
-	{
 		return m_functionArray[id];
-	}
 	else
-	{
 		return NULL;
-	}
 }
 
 /*****************************************************************************
  * Miscellaneous
  *****************************************************************************/
 
-//
-// Emit a functionChanged() signal.
-//
-// Because Function is not a QObject, it cannot emit signals by itself.
-// Therefore it must call this function to make Doc emit the function
-// change signal, instead.
-//
 void Doc::emitFunctionChanged(t_function_id fid)
 {
 	emit functionChanged(fid);
 }
 
-//
-// Mode changed
-//
 void Doc::slotModeChanged(App::Mode mode)
 {
-	Function* f = NULL;
+	Function* function;
+	int i;
+
 	if (mode == App::Operate)
 	{
-		//
-		// Arm all functions, allocate anything that is needed
-		// during run-time.
-		//
-		for (int i = 0; i < KFunctionArraySize; i++)
+		/* Arm all functions, i.e. allocate everything that is
+		   needed if the function is run. */
+		for (i = 0; i < KFunctionArraySize; i++)
 		{
-			f = m_functionArray[i];
-			if (f)
-			{
-				f->arm();
-			}
+			function = m_functionArray[i];
+			if (function != NULL)
+				function->arm();
 		}
 	}
 	else
 	{
-		//
-		// Disarm all functions, delete anything that was
-		// allocated above.
-		//
-		for (int i = 0; i < KFunctionArraySize; i++)
+		/* Disarm all functions, i.e. delete everything that was
+		   allocated when the functions were armed. */
+		for (i = 0; i < KFunctionArraySize; i++)
 		{
-			f = m_functionArray[i];
-			if (f)
-			{
-				f->disarm();
-			}
+			function = m_functionArray[i];
+			if (function != NULL)
+				function->disarm();
 		}
 	}
 }

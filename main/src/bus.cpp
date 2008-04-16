@@ -2,7 +2,7 @@
   Q Light Controller
   bus.cpp
   
-  Copyright (C) 2000, 2001, 2002 Heikki Junnila
+  Copyright (C) Heikki Junnila
   
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -19,20 +19,23 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qfile.h>
-#include <qstring.h>
-#include <assert.h>
+#include <iostream>
+#include <QString>
+#include <QFile>
+#include <QtXml>
 
+#include "function.h"
 #include "bus.h"
 #include "app.h"
 #include "doc.h"
-#include "function.h"
 
 extern App* _app;
 
-t_bus_id Bus::s_nextID               ( KBusIDMin );
-Bus* Bus::s_busArray                 (      NULL );
-BusEmitter* Bus::s_busEmitter        (      NULL );
+t_bus_id Bus::s_nextID ( KBusIDMin );
+Bus* Bus::s_busArray ( NULL );
+BusEmitter* Bus::s_busEmitter ( NULL );
+
+using namespace std;
 
 Bus::Bus()
 {
@@ -47,13 +50,15 @@ Bus::~Bus()
 
 void Bus::init()
 {
-	if (s_busArray) delete s_busArray;
+	if (s_busArray != NULL)
+		delete s_busArray;
 	s_busArray = new Bus[KBusCount];
 
-	s_busArray[KBusIDDefaultFade].m_name = QString("Fade");
-	s_busArray[KBusIDDefaultHold].m_name = QString("Hold");
-
-	if (s_busEmitter) delete s_busEmitter;
+	s_busArray[KBusIDDefaultFade].m_name = "Fade";
+	s_busArray[KBusIDDefaultHold].m_name = "Hold";
+	
+	if (s_busEmitter != NULL)
+		delete s_busEmitter;
 	s_busEmitter = new BusEmitter();
 }
 
@@ -138,8 +143,9 @@ bool Bus::loadXML(QDomDocument* doc, QDomElement* root)
 			else if (tag.tagName() == KXMLQLCBusValue)
 				value = tag.text().toULong();
 			else
-				qDebug("Unknown Bus tag: %s",
-				       (const char*) tag.tagName());
+				cout << "Unknown Bus tag: "
+				     << tag.tagName().toStdString()
+				     << endl;
 
 			node = node.nextSibling();
 		}
@@ -151,7 +157,7 @@ bool Bus::loadXML(QDomDocument* doc, QDomElement* root)
 	}
 	else
 	{
-		qWarning("Bus node not found in file!");
+		cout << "Bus node not found in file!" << endl;
 		retval = false;
 	}
 

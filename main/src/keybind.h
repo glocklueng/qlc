@@ -22,10 +22,9 @@
 #ifndef KEYBIND_H
 #define KEYBIND_H
 
-#include <qobject.h>
+#include <QObject>
 
 class QKeyEvent;
-
 class QDomDocument;
 class QDomElement;
 
@@ -37,60 +36,137 @@ class KeyBind : public QObject
 {
 	Q_OBJECT
 
+	/*********************************************************************
+	 * Enums
+	 *********************************************************************/
 public:
+	enum PressAction {
+		PressStart = 0,
+		PressToggle = 1,
+		PressStepForward = 6,
+		PressStepBackward = 3,
+		PressStop = 4,
+		PressNothing = 5,
+		PressFlash = 2
+	};
+
+	enum ReleaseAction {
+		ReleaseStop = 0,
+		ReleaseNothing = 1
+	};
+
+	/*********************************************************************
+	 * Initialization
+	 *********************************************************************/
+public:
+	/** Construct an empty object */
 	KeyBind();
-	KeyBind(const int key, const int mod);
+
+	/** Construct an object with the given key and modifier */
+	KeyBind(const int key, const Qt::KeyboardModifiers mod);
+
+	/** Construct a copy object from the given KeyBind object */
 	KeyBind(const KeyBind* kb);
+
+	/** Destructor */
 	~KeyBind();
 
-	enum PressAction { PressStart = 0, PressToggle = 1, PressStepForward = 6,
-			   PressStepBackward = 3, PressStop = 4, PressNothing = 5,
-			   PressFlash = 2 };
+	/** Compare operator between two KeyBind objects */
+	bool operator==(KeyBind*);
 
-	enum ReleaseAction { ReleaseStop = 0, ReleaseNothing = 1 };
+	/** Check, whether the key binding is valid (i.e. there is a key) */
+	bool isValid() const;
 
-	static void keyString(int key, int mod, QString &string);
-	void keyString(QString &string) { return keyString(m_key, m_mod, string); }
+	/*********************************************************************
+	 * Key combo to string
+	 *********************************************************************/
+public:
+	/**
+	 * Get a string representation matching the given key & modifier
+	 *
+	 * @param key Keyboard key
+	 * @param mod Keyboard modifier key (alt, ctrl, shift...)
+	 * @return Key & modifier (e.g. "Ctrl + A")
+	 */
+	static QString keyString(int key, int mod);
 
+	/**
+	 * Get a string representation matching the object's current key
+	 * and modifier.
+	 *
+	 * @return Key & modifier (e.g. "Ctrl + A")
+	 */
+	QString keyString() { return keyString(m_key, m_mod); }
+
+	/*********************************************************************
+	 * Key and modifier
+	 *********************************************************************/
+public:
+	/** Get the assigned key */
 	int key() const { return m_key; }
+
+	/** Set the assigned key */
 	void setKey(int key);
 
-	int mod() const { return m_mod; }
-	void setMod(int mod);
+	/** Get the assigned modifier key */
+	Qt::KeyboardModifiers mod() const { return m_mod; }
 
-	void setPressAction(PressAction a) { m_pressAction = a; }
+	/** Set the assigned modifier key */
+	void setMod(Qt::KeyboardModifiers mod);
+
+protected:
+	/** The assigned key */
+	int m_key;
+
+	/** The assigned modified key (alt, ctrl, shift...) */
+	Qt::KeyboardModifiers m_mod;
+	
+	/*********************************************************************
+	 * Actions
+	 *********************************************************************/
+public:
+	/** Set the action to take when the assigned key combo is pressed */
+	void setPressAction(PressAction action) { m_pressAction = action; }
+
+	/** Get the action to take when the assigned key combo is pressed */
 	PressAction pressAction() const { return m_pressAction; }
 
-	void setReleaseAction(ReleaseAction a) { m_releaseAction = a; }
+	/** Set the action to take when the assigned key combo is released */
+	void setReleaseAction(ReleaseAction action) { m_releaseAction = action; }
+
+	/** Get the action to take when the assigned key combo is released */
 	ReleaseAction releaseAction() const { return m_releaseAction; }
 
-	bool valid() const { return m_valid; }
+signals:
+	/** Signal that is emitted when the key combo is pressed */
+	void pressed();
 
-	bool operator==(KeyBind*);
+	/** Signal that is emitted when the key combo is released */
+	void released();
+
+public slots:
+	/** Key press receiver slot */
+	void slotKeyPressed(QKeyEvent* e);
+
+	/** Key release receiver slot */
+	void slotKeyReleased(QKeyEvent* e);
+
+protected:
+	/** The action to take when the assigned key combo is pressed */
+	PressAction m_pressAction;
+
+	/** The action to take when the assigned key combo is released */
+	ReleaseAction m_releaseAction;
 
 	/*********************************************************************
 	 * Load & Save
 	 *********************************************************************/
 public:
+	/** Load this object's properties from an XML document */
 	bool loadXML(QDomDocument* doc, QDomElement* root);
+
+	/** Save this object's properties to an XML document */
 	bool saveXML(QDomDocument* doc, QDomElement* vc_root);
-
-signals:
-	void pressed();
-	void released();
-
-	public slots:
-	void slotKeyPressed(QKeyEvent* e);
-	void slotKeyReleased(QKeyEvent* e);
-
-private:
-	int m_key; // Key
-	int m_mod; // Modifier [shift|alt|control]
-
-	bool m_valid; // Does this object contain a valid key or not
-
-	PressAction m_pressAction;
-	ReleaseAction m_releaseAction;
 };
 
 #endif

@@ -22,13 +22,13 @@
 #ifndef HIDDEVICE_H
 #define HIDDEVICE_H
 
-#include <qobject.h>
-#include <qfile.h>
+#include <QObject>
+#include <QFile>
 
 #include <sys/ioctl.h>
 #include <linux/types.h>
 
-#include "common/types.h"
+#include "common/qlctypes.h"
 
 class HIDInput;
 

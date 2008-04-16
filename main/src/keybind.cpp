@@ -19,28 +19,30 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <ctype.h>
-#include <qnamespace.h>
-#include <qevent.h>
-#include <qdom.h>
+#include <QKeyEvent>
+#include <iostream>
+#include <QtXml>
 
-#include "keybind.h"
 #include "virtualconsole.h"
+#include "keybind.h"
 #include "app.h"
+
+using namespace std;
 
 extern App* _app;
 
+/*****************************************************************************
+ * Initialization
+ *****************************************************************************/
 
-//
-// Constructor
-//
 KeyBind::KeyBind() : QObject()
 {
 	m_pressAction = PressToggle;
 	m_releaseAction = ReleaseNothing;
-	m_key = Key_unknown;
-	m_mod = NoButton;
-	m_valid = false;
+	m_key = Qt::Key_unknown;
+	m_mod = Qt::NoModifier;
+
+	Q_ASSERT(_app->virtualConsole() != NULL);
 
 	connect(_app->virtualConsole(), SIGNAL(keyPressed(QKeyEvent*)),
 		this, SLOT(slotKeyPressed(QKeyEvent*)));
@@ -49,26 +51,15 @@ KeyBind::KeyBind() : QObject()
 		this, SLOT(slotKeyReleased(QKeyEvent*)));
 }
 
-
-//
-// Construct with key and modifier
-//
-KeyBind::KeyBind(const int key, const int mod) : QObject()
+KeyBind::KeyBind(const int key, const Qt::KeyboardModifiers mod) : QObject()
 {
 	m_key = key;
 	m_mod = mod;
 
-	if (key >= 0 && key < Key_unknown)
-	{
-		m_valid = true;
-	}
-	else
-	{
-		m_valid = false;
-	}
-
 	m_pressAction = PressStart;
 	m_releaseAction = ReleaseNothing;
+
+	Q_ASSERT(_app->virtualConsole() != NULL);
 
 	connect(_app->virtualConsole(), SIGNAL(keyPressed(QKeyEvent*)),
 		this, SLOT(slotKeyPressed(QKeyEvent*)));
@@ -77,20 +68,17 @@ KeyBind::KeyBind(const int key, const int mod) : QObject()
 		this, SLOT(slotKeyReleased(QKeyEvent*)));
 }
 
-
-//
-// Copy constructor
-//
 KeyBind::KeyBind(const KeyBind* kb) : QObject()
 {
-	ASSERT(kb != NULL);
+	Q_ASSERT(kb != NULL);
 	m_key = kb->key();
 	m_mod = kb->mod();
-	m_valid = kb->valid();
 
 	m_pressAction = kb->pressAction();
 	m_releaseAction = kb->releaseAction();
 
+	Q_ASSERT(_app->virtualConsole() != NULL);
+
 	connect(_app->virtualConsole(), SIGNAL(keyPressed(QKeyEvent*)),
 		this, SLOT(slotKeyPressed(QKeyEvent*)));
 
@@ -98,223 +86,203 @@ KeyBind::KeyBind(const KeyBind* kb) : QObject()
 		this, SLOT(slotKeyReleased(QKeyEvent*)));
 }
 
-
-//
-// Destructor
-//
 KeyBind::~KeyBind()
 {
 }
 
-
-//
-// Set the key
-//
-void KeyBind::setKey(int key)
+bool KeyBind::operator==(KeyBind* kb)
 {
-	if (key >= 0 && key <= Key_unknown)
-	{
-		m_key = key;
-		m_valid = true;
-	}
+	if (m_key != kb->key() || m_mod != kb->mod())
+		return false;
+	else if (pressAction() != kb->pressAction() ||
+		 releaseAction() != kb->releaseAction())
+		return false;
 	else
-	{
-		key = Key_unknown;
-		m_valid = false;
-	}
+		return true;
 }
 
-
-//
-// Set modifier
-//
-void KeyBind::setMod(int mod)
+bool KeyBind::isValid() const
 {
-	m_mod = mod;
+	if (m_key >= 0 && m_key <= Qt::Key_unknown)
+		return true;
+	else
+		return false;
 }
 
+/*****************************************************************************
+ * Key combo to string
+ *****************************************************************************/
 
-//
-// Output the key binding as a string
-//
-void KeyBind::keyString(int key, int mod, QString &string)
+QString KeyBind::keyString(int key, int mod)
 {
 	QString modString = QString::null;
 	QString keyString = QString::null;
+	QString string;
 
-	if (key >= Key_F1 && key <= Key_F35)
-	{
-		// Function keys
-		keyString.sprintf("F%d", key - Key_F1 + 1);
-	}
-	else if (key >= Key_0 && key <= Key_9)
-	{
-		// Number keys
-		keyString.sprintf("%d", key - Key_0);
-	}
-	else if (key >= Key_A && key <= Key_Z)
-	{
-		// A-Z
-		keyString.sprintf("%c", 'A' + key - Key_A);
-	}
+	if (key >= Qt::Key_F1 && key <= Qt::Key_F35)
+		keyString.sprintf("F%d", key - Qt::Key_F1 + 1);
+	else if (key >= Qt::Key_0 && key <= Qt::Key_9)
+		keyString.sprintf("%d", key - Qt::Key_0);
+	else if (key >= Qt::Key_A && key <= Qt::Key_Z)
+		keyString.sprintf("%c", 'A' + key - Qt::Key_A);
 	else
 	{
 		switch(key)
 		{
-		case Key_Exclam:
+		case Qt::Key_Exclam:
 			keyString.sprintf("!");
 			break;
-		case Key_QuoteDbl:
+		case Qt::Key_QuoteDbl:
 			keyString.sprintf("\"");
 			break;
-		case Key_NumberSign:
+		case Qt::Key_NumberSign:
 			keyString.sprintf("Unknown");
 			break;
-		case Key_Dollar:
+		case Qt::Key_Dollar:
 			keyString.sprintf("$");
 			break;
-		case Key_Percent:
+		case Qt::Key_Percent:
 			keyString.sprintf("%%");
 			break;
-		case Key_Ampersand:
+		case Qt::Key_Ampersand:
 			keyString.sprintf("&");
 			break;
-		case Key_Apostrophe:
+		case Qt::Key_Apostrophe:
 			keyString.sprintf("'");
 			break;
-		case Key_ParenLeft:
+		case Qt::Key_ParenLeft:
 			keyString.sprintf("(");
 			break;
-		case Key_ParenRight:
+		case Qt::Key_ParenRight:
 			keyString.sprintf(")");
 			break;
-		case Key_Asterisk:
+		case Qt::Key_Asterisk:
 			keyString.sprintf("*");
 			break;
-		case Key_Plus:
+		case Qt::Key_Plus:
 			keyString.sprintf("+");
 			break;
-		case Key_Comma:
+		case Qt::Key_Comma:
 			keyString.sprintf(",");
 			break;
-		case Key_Minus:
+		case Qt::Key_Minus:
 			keyString.sprintf("-");
 			break;
-		case Key_Period:
+		case Qt::Key_Period:
 			keyString.sprintf(".");
 			break;
-		case Key_Slash:
+		case Qt::Key_Slash:
 			keyString.sprintf("/");
 			break;
-		case Key_Colon:
+		case Qt::Key_Colon:
 			keyString.sprintf(":");
 			break;
-		case Key_Semicolon:
+		case Qt::Key_Semicolon:
 			keyString.sprintf(";");
 			break;
-		case Key_Less:
+		case Qt::Key_Less:
 			keyString.sprintf("<");
 			break;
-		case Key_Equal:
+		case Qt::Key_Equal:
 			keyString.sprintf("/");
 			break;
-		case Key_Greater:
+		case Qt::Key_Greater:
 			keyString.sprintf(">");
 			break;
-		case Key_Question:
+		case Qt::Key_Question:
 			keyString.sprintf("?");
 			break;
-		case Key_BracketLeft:
+		case Qt::Key_BracketLeft:
 			keyString.sprintf("?");
 			break;
-		case Key_Backslash:
+		case Qt::Key_Backslash:
 			keyString.sprintf("?");
 			break;
-		case Key_BracketRight:
+		case Qt::Key_BracketRight:
 			keyString.sprintf("?");
 			break;
-		case Key_AsciiCircum:
+		case Qt::Key_AsciiCircum:
 			keyString.sprintf("?");
 			break;
-		case Key_Underscore:
+		case Qt::Key_Underscore:
 			keyString.sprintf("_");
 			break;
-		case Key_QuoteLeft:
+		case Qt::Key_QuoteLeft:
 			keyString.sprintf("`");
 			break;
-		case Key_BraceLeft:
+		case Qt::Key_BraceLeft:
 			keyString.sprintf("{");
 			break;
-		case Key_Bar:
+		case Qt::Key_Bar:
 			keyString.sprintf("|");
 			break;
-		case Key_BraceRight:
+		case Qt::Key_BraceRight:
 			keyString.sprintf("}");
 			break;
-		case Key_AsciiTilde:
+		case Qt::Key_AsciiTilde:
 			keyString.sprintf("~");
 			break;
-		case Key_At:
+		case Qt::Key_At:
 			keyString.sprintf("@");
 			break;
-		case Key_Space:
+		case Qt::Key_Space:
 			keyString.sprintf("Space");
 			break;
-		case Key_Escape:
+		case Qt::Key_Escape:
 			keyString.sprintf("Escape");
 			break;
-		case Key_Return:
+		case Qt::Key_Return:
 			keyString.sprintf("Return");
 			break;
-		case Key_Enter:
+		case Qt::Key_Enter:
 			keyString.sprintf("Enter");
 			break;
-		case Key_Insert:
+		case Qt::Key_Insert:
 			keyString.sprintf("Insert");
 			break;
-		case Key_Delete:
+		case Qt::Key_Delete:
 			keyString.sprintf("Delete");
 			break;
-		case Key_Pause:
+		case Qt::Key_Pause:
 			keyString.sprintf("Pause");
 			break;
-		case Key_Home:
+		case Qt::Key_Home:
 			keyString.sprintf("Home");
 			break;
-		case Key_End:
+		case Qt::Key_End:
 			keyString.sprintf("End");
 			break;
-		case Key_PageUp:
+		case Qt::Key_PageUp:
 			keyString.sprintf("PageUp");
 			break;
-		case Key_PageDown:
+		case Qt::Key_PageDown:
 			keyString.sprintf("PageDown");
 			break;
-		case Key_Left:
+		case Qt::Key_Left:
 			keyString.sprintf("Left");
 			break;
-		case Key_Right:
+		case Qt::Key_Right:
 			keyString.sprintf("Right");
 			break;
-		case Key_Up:
+		case Qt::Key_Up:
 			keyString.sprintf("Up");
 			break;
-		case Key_Down:
+		case Qt::Key_Down:
 			keyString.sprintf("Down");
 			break;
-		case Key_Shift:
+		case Qt::Key_Shift:
 			keyString.sprintf("Shift +");
 			break;
-		case Key_Alt:
+		case Qt::Key_Alt:
 			keyString.sprintf("Alt +");
 			break;
-		case Key_Control:
+		case Qt::Key_Control:
 			keyString.sprintf("Control +");
 			break;
 		case 0:
 			keyString.sprintf("None");
 			break;
-		case Key_unknown:
+		case Qt::Key_unknown:
 			keyString.sprintf("Unknown");
 			break;
 		default:
@@ -323,84 +291,60 @@ void KeyBind::keyString(int key, int mod, QString &string)
 		}
 	}
 
-	if (mod & ShiftButton)
-	{
+	if (mod & Qt::Key_Shift)
 		modString += QString("Shift + ");
-	}
 
-	if (mod & AltButton)
-	{
+	if (mod & Qt::Key_Alt)
 		modString += QString("Alt + ");
-	}
 
-	if (mod & ControlButton)
-	{
+	if (mod & Qt::Key_Control)
 		modString += QString("Control + ");
-	}
 
-	if (key <= 0 || key > Key_unknown)
-	{
+	if (key <= 0 || key > Qt::Key_unknown)
 		string = QString("None");
-	}
 	else
-	{
 		string = QString(modString + keyString);
-	}
+
+	return string;
 }
 
+/*****************************************************************************
+ * Key and modifier
+ *****************************************************************************/
 
-//
-// Comparison between two KeyBind objects
-//
-bool KeyBind::operator==(KeyBind* kb)
+void KeyBind::setKey(int key)
 {
-	if (m_valid == kb->valid())
-	{
-	}
+	if (key >= 0 && key <= Qt::Key_unknown)
+		m_key = key;
 	else
-	{
-		return false;
-	}
-
-	if (m_key == kb->key() && m_mod == kb->mod())
-	{
-	}
-	else
-	{
-		return false;
-	}
-
-	if (pressAction() == kb->pressAction() &&
-	    releaseAction() == kb->releaseAction())
-	{
-	}
-	else
-	{
-		return false;
-	}
-
-	return true;
+		key = Qt::Key_unknown;
 }
+
+void KeyBind::setMod(Qt::KeyboardModifiers mod)
+{
+	m_mod = mod;
+}
+
+/*****************************************************************************
+ * Actions
+ *****************************************************************************/
 
 void KeyBind::slotKeyPressed(QKeyEvent* e)
 {
-	if (e->key() == m_key && (e->state() == m_mod))
-	{
+	if (e->key() == m_key && (e->modifiers() == m_mod))
 		emit pressed();
-	}
 }
 
 void KeyBind::slotKeyReleased(QKeyEvent* e)
 {
-	if (e->key() == m_key && (e->state() == m_mod))
-	{
+	if (e->key() == m_key && (e->modifiers() == m_mod))
 		emit released();
-	}
 }
 
 /*****************************************************************************
  * Load & Save
  *****************************************************************************/
+
 bool KeyBind::loadXML(QDomDocument* doc, QDomElement* root)
 {
 	QString action;
@@ -415,7 +359,7 @@ bool KeyBind::loadXML(QDomDocument* doc, QDomElement* root)
 
 	if (root->tagName() != KXMLQLCKeyBind)
 	{
-		qWarning("Key binding node not found!");
+		cout << "Key binding node not found!" << endl;
 		return false;
 	}
 
@@ -430,14 +374,15 @@ bool KeyBind::loadXML(QDomDocument* doc, QDomElement* root)
 			key = tag.text();
 
 			setKey(key.toInt());
-			setMod(mod.toInt());
+			setMod((Qt::KeyboardModifiers)mod.toInt());
 		}
 		else
 		{
-			qWarning("Unknown key binding tag: %s",
-				 (const char*) tag.tagName());
+			cout << "Unknown key binding tag: "
+			     << tag.tagName().toStdString()
+			     << endl;
 		}
-		
+
 		node = node.nextSibling();
 	}
 

@@ -10,10 +10,6 @@ qlcfixtureeditor_LDADD  = @QT_LIBS@
 qlcfixtureeditor_LDADD += $(top_srcdir)/libs/common/libqlccommon.la
 
 noinst_HEADERS = \
-	src/uic_editchannel.h \
-	src/uic_editmode.h \
-	src/uic_fixtureeditor.h \
-	\
 	src/aboutbox.h \
 	src/app.h \
 	src/editchannel.h \
@@ -22,23 +18,18 @@ noinst_HEADERS = \
 	src/fixtureeditor.h
 
 qlcfixtureeditor_SOURCES = \
-	src/uic_editchannel.cpp \
-	src/uic_editcapability.cpp \
-	src/uic_editmode.cpp \
-	src/uic_fixtureeditor.cpp \
-	\
-	src/moc_uic_editchannel.cpp \
-	src/moc_uic_editcapability.cpp \
-	src/moc_uic_editmode.cpp \
-	src/moc_uic_fixtureeditor.cpp \
+	src/ui_editchannel.cpp \
+	src/ui_editcapability.cpp \
+	src/ui_editmode.cpp \
+	src/ui_fixtureeditor.cpp \
 	\
 	src/aboutbox.cpp \
 	src/app.cpp \
-	src/main.cpp \
 	src/editchannel.cpp \
 	src/editcapability.cpp \
 	src/editmode.cpp \
 	src/fixtureeditor.cpp \
+	src/main.cpp \
 	\
 	src/moc_aboutbox.cpp \
 	src/moc_app.cpp \
@@ -52,9 +43,5 @@ moc_%.cpp: %.h
 	$(MOC) $< -o $@
 
 # UIC headers
-uic_%.h: %.ui
+ui_%.cpp: %.ui
 	$(UIC) $< -o $@
-
-# UIC sources
-uic_%.cpp: uic_%.h
-	$(UIC) -impl $< $*.ui -o $@

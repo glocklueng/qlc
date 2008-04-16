@@ -22,32 +22,45 @@
 #ifndef FIXTURELIST_H
 #define FIXTURELIST_H
 
-#include "common/types.h"
-#include "uic_fixturelist.h"
+#include <QDialog>
+#include "ui_fixturelist.cpp"
 
-class FixtureList : public UI_FixtureList
+#include "common/qlctypes.h"
+
+class FixtureList : public QDialog, public Ui_FixtureList
 {
 	Q_OBJECT
 
- public:
+	/*********************************************************************
+	 * Initialization
+	 *********************************************************************/
+public:
 	FixtureList(QWidget* parent);
 	~FixtureList();
 
+protected:
 	void init();
-	
+
+	/*********************************************************************
+	 * Selection
+	 *********************************************************************/
+public:	
 	/** Return the ID of the selected channel's fixture */
 	t_fixture_id selectedFixtureID() const { return m_fixture; }
 
 	/** Return the selected channel number */
 	t_channel selectedChannel() const { return m_channel; }
 
- public slots:
-	void slotSelectionChanged(QListViewItem* item);
-        void slotItemDoubleClicked(QListViewItem* item);
-
- protected:
+protected:
 	t_fixture_id m_fixture;
 	t_channel m_channel;
+
+	/*********************************************************************
+	 * Fixture list slots
+	 *********************************************************************/
+protected slots:
+	void slotSelectionChanged();
+        void slotItemDoubleClicked();
 };
 
 #endif

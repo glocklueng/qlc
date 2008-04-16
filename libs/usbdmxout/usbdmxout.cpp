@@ -29,23 +29,15 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include <qptrlist.h>
-#include <qapplication.h>
-#include <qthread.h>
-#include <qstring.h>
-#include <qpoint.h>
-#include <qpopupmenu.h>
-#include <qfile.h>
-#include <qdir.h>
+#include <QApplication>
+#include <iostream>
+#include <QString>
+#include <QMutex>
 
 #include "usbdmxout.h"
 #include "configureusbdmxout.h"
-#include "common/filehandler.h"
 
 static QMutex _mutex;
-
-#define CONF_FILE "usbdmxout.conf"
-#define DEVICE_DIR "/dev/"
 
 /*****************************************************************************
  * Peperoni Rodin interface macro definitions
@@ -144,7 +136,7 @@ static QMutex _mutex;
  * UsbDmxOut plugin implementation
  *****************************************************************************/
 
-extern "C" OutputPlugin* create()
+extern "C" QLCOutPlugin* create()
 {
 	return new USBDMXOut();
 }
@@ -153,10 +145,10 @@ extern "C" OutputPlugin* create()
  * Initialization
  *****************************************************************************/
 
-USBDMXOut::USBDMXOut() : OutputPlugin()
+USBDMXOut::USBDMXOut() : QLCOutPlugin()
 {
 	m_name = QString("USB DMX Output");
-	m_type = OutputType;
+	m_type = Output;
 	m_version = 0x00010100;
 
 	for (int i = 0; i < MAX_USBDMX_DEVICES; i++)
@@ -190,10 +182,12 @@ int USBDMXOut::open()
 	for (int i = 0; i < MAX_USBDMX_DEVICES; i++)
 	{
 		path.sprintf("/dev/usbdmx%d", i);
-		m_devices[i] = ::open(static_cast<const char*> (path), O_RDWR);
+		m_devices[i] = ::open(path.toUtf8(), O_RDWR);
 		m_errors[i] = errno;
 		if (m_devices[i] >= 0)
-			qDebug(QString("Found USB2DMX device from ") + path);
+			std::cout << "Found USB2DMX device from "
+				  << path.toStdString()
+				  << std::endl;
 	}
 
 	return 0;
@@ -247,10 +241,10 @@ QString USBDMXOut::infoText()
 	info += QString("<TABLE COLS=\"1\" WIDTH=\"100%\">");
 	info += QString("<TR>");
 	info += QString("<TD BGCOLOR=\"");
-	info += QApplication::palette().active().highlight().name();
+	//info += QApplication::palette().active().highlight().name();
 	info += QString("\">");
 	info += QString("<FONT COLOR=\"");
-	info += QApplication::palette().active().highlightedText().name();
+	//info += QApplication::palette().active().highlightedText().name();
 	info += QString("\" SIZE=\"5\">");
 	info += name();
 	info += QString("</FONT>");
@@ -280,20 +274,20 @@ QString USBDMXOut::infoText()
 	info += QString("<TABLE COLS=\"3\" WIDTH=\"100%\">");
 	info += QString("<TR>");
 	info += QString("<TD BGCOLOR=\"");
-	info += QApplication::palette().active().highlight().name();
+	//info += QApplication::palette().active().highlight().name();
 	info += QString("\">");
 	info += QString("<FONT COLOR=\"");
-	info += QApplication::palette().active().highlightedText().name();
+	//info += QApplication::palette().active().highlightedText().name();
 	info += QString("\">");
 	info += QString("Output");
 	info += QString("</FONT>");
 	info += QString("</TD>");
 
 	info += QString("<TD BGCOLOR=\"");
-	info += QApplication::palette().active().highlight().name();
+	//info += QApplication::palette().active().highlight().name();
 	info += QString("\">");
 	info += QString("<FONT COLOR=\"");
-	info += QApplication::palette().active().highlightedText().name();
+	//info += QApplication::palette().active().highlightedText().name();
 	info += QString("\">");
 	info += QString("Device name");
 	info += QString("</FONT>");

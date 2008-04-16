@@ -19,19 +19,16 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <stdlib.h>
-#include <qpixmap.h>
-#include <qslider.h>
-#include <qlabel.h>
-#include <qpushbutton.h>
-#include <qfont.h>
-#include <qapplication.h>
-#include <qtooltip.h>
-#include <qcursor.h>
-#include <assert.h>
-#include <qevent.h>
-#include <qpopupmenu.h>
-#include <qptrlist.h>
+#include <QContextMenuEvent>
+#include <QToolButton>
+#include <QPalette>
+#include <iostream>
+#include <QPixmap>
+#include <QSlider>
+#include <QLabel>
+#include <QMenu>
+#include <QList>
+#include <QtXml>
 
 #include "common/qlcchannel.h"
 #include "common/qlccapability.h"
@@ -45,55 +42,48 @@
 
 extern App* _app;
 
-//
-// Status button's colors
-//
-const QColor KStatusButtonColorFade  (  80, 151, 222 );
-const QColor KStatusButtonColorSet   ( 222,  80,  82 );
-const QColor KStatusButtonColorOff   (  28,  52,  77 );
+using namespace std;
 
-//
-// The preset menu title
-//
-const int KMenuTitle          ( INT_MAX );
+/** Status button's color for Fade status */
+#define KStatusButtonColorFade QColor(80, 151, 222)
 
-//
-// Constructor
-//
+/** Status button's color for Set status */
+#define KStatusButtonColorSet QColor(222, 80, 82)
+
+/** Status button's color for Off status */
+#define KStatusButtonColorOff QColor(28, 52, 77)
+
+/*****************************************************************************
+ * Initialization
+ *****************************************************************************/
+
 ConsoleChannel::ConsoleChannel(QWidget* parent, t_fixture_id fixtureID,
-			       t_channel channel)
-	: UI_ConsoleChannel(parent, "Console Channel"),
-
-	m_channel    ( channel ),
-	m_value      ( 0 ),
-	m_status     ( Scene::Fade ),
-	m_fixtureID  ( fixtureID ),
-	m_fadeStatusEnabled ( true ),
-	m_updateOnly ( false ),
-	m_menu       ( NULL )
+			       t_channel channel) : QWidget(parent)
 {
-	assert(fixtureID != KNoID);
-	assert(channel != KChannelInvalid);
+	Q_ASSERT(fixtureID != KNoID);
+	m_fixtureID = fixtureID;
+
+	Q_ASSERT(channel != KChannelInvalid);
+	m_channel = channel;
+
+	m_value = 0;
+	m_status = Scene::Fade;
+	m_menu = NULL;
+
+	setupUi(this);
+	init();
 }
 
-//
-// Destructor
-//
 ConsoleChannel::~ConsoleChannel()
 {
-	if (m_menu)
-	{
+	if (m_menu != NULL)
 		delete m_menu;
-	}
 }
 
-//
-// Initialize the UI
-//
 void ConsoleChannel::init()
 {
-	QLCChannel* ch = NULL;
-	Fixture* fixture = NULL;
+	Fixture* fixture;
+	QLCChannel* ch;
 	QString num;
 
 	// Check that we have an actual fixture
@@ -106,9 +96,9 @@ void ConsoleChannel::init()
 	// Generic fixtures don't have channel objects
 	ch = fixture->channel(m_channel);
 	if (ch != NULL)
-		QToolTip::add(this, ch->name());
+		this->setToolTip(ch->name());
 	else
-		QToolTip::add(this, "Level");
+		this->setToolTip(tr("Level"));
 
 	// Set channel label
 	num.sprintf("%.3d", m_channel + 1);
@@ -124,169 +114,9 @@ void ConsoleChannel::init()
 		this, SLOT(slotStatusButtonClicked()));
 
 	updateStatusButton();
-
-	// Initialize the preset menu only for normal fixtures,
-	// i.e. not for Generic dimmer fixtures
-	if (fixture->fixtureDef() != NULL && fixture->fixtureMode() != NULL)
-		initMenu();
-	else
-		delete m_presetButton;
+	initMenu();
 }
 
-//
-// Initialize the preset menu
-//
-void ConsoleChannel::initMenu()
-{
-	QLCCapability* c = NULL;
-	QLCChannel* ch = NULL;
-	Fixture* fixture = NULL;
-	QPopupMenu* valueMenu = NULL;
-	QString s;
-	QString t;
-	
-	fixture = _app->doc()->fixture(m_fixtureID);
-	Q_ASSERT(fixture != NULL);
-
-	ch = fixture->channel(m_channel);
-	Q_ASSERT(ch != NULL);
-	
-	// Get rid of a possible previous menu
-	if (m_menu != NULL)
-	{
-		delete m_menu;
-		m_menu = NULL;
-	}
-	
-	// Create a popup menu and set the channel name as the title
-	m_menu = new QPopupMenu();
-	m_menu->insertItem(ch->name(), KMenuTitle);
-	m_menu->setItemEnabled(KMenuTitle, false);
-	m_menu->insertSeparator();
-
-	QPtrListIterator<QLCCapability> it(*ch->capabilities());
-
-	while (it.current() != NULL)
-	{
-		c = it.current();
-
-		// Set the value range and name as menu item's name
-		s.sprintf("%s: %.3d - %.3d", (const char*) c->name(), 
-			  c->min(), c->max());
-
-		// Create submenu for ranges that contain more than one value
-		if (c->max() - c->min() > 0)
-		{
-			valueMenu = new QPopupMenu(m_menu);
-			
-			connect(valueMenu, SIGNAL(activated(int)),
-				this, SLOT(slotContextMenuActivated(int)));
-
-			for (int i = c->min(); i <= c->max(); i++)
-			{
-				t.sprintf("%.3d", i);
-				valueMenu->insertItem(t, i);
-			}
-			
-			m_menu->insertItem(s, valueMenu);
-		}
-		else
-		{
-			// Just one value in this range, don't create submenu
-			m_menu->insertItem(s, c->min());
-		}
-
-		++it;
-	}
-
-	// Connect menu item activation signal to this
-	connect(m_menu, SIGNAL(activated(int)),
-		this, SLOT(slotContextMenuActivated(int)));
-	
-	// Set the menu also as the preset button's popup menu
-	m_presetButton->setPopup(m_menu);
-}
-
-//
-// Set the status button's.. well.. status
-//
-void ConsoleChannel::setStatusButton(Scene::ValueType status)
-{
-	m_status = status;
-	updateStatusButton();
-}
-
-//
-// Sequence editor doesn't like fade values
-//
-void ConsoleChannel::setFadeStatusEnabled(bool enable)
-{
-	m_fadeStatusEnabled = enable;
-	if (m_status == Scene::Fade)
-	{
-		setStatusButton(Scene::Set);
-	}
-
-	updateStatusButton();
-}
-
-//
-// Status button was clicked by the user
-//
-void ConsoleChannel::slotStatusButtonClicked()
-{
-	if (m_fadeStatusEnabled)
-	{
-		m_status = (Scene::ValueType) ((m_status + 1) % 3);
-	}
-	else
-	{
-		if (m_status == Scene::Set)
-		{
-			m_status = Scene::NoSet;
-		}
-		else
-		{
-			m_status = Scene::Set;
-		}
-	}
-
-	updateStatusButton();
-
-	emit changed(m_channel, m_value, m_status);
-}
-
-//
-// Update the button's color, label and tooltip to reflect channel status
-//
-void ConsoleChannel::updateStatusButton()
-{
-	if (m_status == Scene::Fade)
-	{
-		m_statusButton->setPaletteBackgroundColor(
-						KStatusButtonColorFade);
-		m_statusButton->setText("F");
-		QToolTip::add(m_statusButton, "Fade");
-	}
-	else if (m_status == Scene::Set)
-	{
-		m_statusButton->setPaletteBackgroundColor(
-						KStatusButtonColorSet);
-		m_statusButton->setText("S");
-		QToolTip::add(m_statusButton, "Set");
-	}
-	else
-	{
-		m_statusButton->setPaletteBackgroundColor(
-						KStatusButtonColorOff);
-		m_statusButton->setText("X");
-		QToolTip::add(m_statusButton, "Off");
-	}
-}
-
-//
-// Set channel's focus
-//
 void ConsoleChannel::slotSetFocus()
 {
 	t_value value = 0;
@@ -305,56 +135,117 @@ void ConsoleChannel::slotSetFocus()
 	m_valueSlider->setFocus();
 }
 
-//
-// Update the UI to match the channel's real status & value
-//
-void ConsoleChannel::update()
+void ConsoleChannel::slotSceneActivated(SceneValue* values, t_channel channels)
 {
-	t_value value = 0;
+	Q_ASSERT(values != NULL);
 	
-	Fixture* fixture = _app->doc()->fixture(m_fixtureID);
+	if (m_channel <= channels)
+	{
+		setStatusButton(values[m_channel].type);
+		
+		if (values[m_channel].type == Scene::Set ||
+		    values[m_channel].type == Scene::Fade)
+		{
+			slotAnimateValueChange(values[m_channel].value);
+			emit changed(m_channel, m_value, m_status);
+		}
+	}
+}
+
+/*****************************************************************************
+ * Menu
+ *****************************************************************************/
+
+void ConsoleChannel::initMenu()
+{
+	Fixture* fixture;
+	QLCChannel* ch;
+	
+	fixture = _app->doc()->fixture(m_fixtureID);
 	Q_ASSERT(fixture != NULL);
+
+	ch = fixture->channel(m_channel);
+	Q_ASSERT(ch != NULL);
 	
-	value = _app->dmxMap()->getValue(fixture->universeAddress() +
-					 m_channel);
+	// Get rid of a possible previous menu
+	if (m_menu != NULL)
+	{
+		delete m_menu;
+		m_menu = NULL;
+	}
 	
-	m_valueLabel->setNum(value);
-	slotAnimateValueChange(value);
+	// Create a popup menu and set the channel name as its title
+	m_menu = new QMenu(this);
+	m_menu->setTitle(ch->name());
+
+	// Initialize the preset menu only for normal fixtures,
+	// i.e. not for Generic dimmer fixtures
+	if (fixture->fixtureDef() != NULL && fixture->fixtureMode() != NULL)
+		initCapabilityMenu(ch);
+	else
+		initPlainMenu();
+	
 }
 
-//
-// Slider value was changed
-//
-void ConsoleChannel::slotValueChange(int value)
+void ConsoleChannel::initPlainMenu()
 {
-	value = KChannelValueMax - value;
+	for (t_value i = 0; i < 255; i++)
+	{
+		QAction* action;
+		QString s;
 
-	Fixture* fixture = _app->doc()->fixture(m_fixtureID);
-	Q_ASSERT(fixture != NULL);
-	
-	_app->dmxMap()->setValue(fixture->universeAddress() + m_channel,
-				 (t_value) value);
-	
-	m_valueLabel->setNum(value);
-	
-	m_value = value;
-	emit changed(m_channel, m_value, m_status);
+		s.sprintf("%.3d", i);
+		action = m_menu->addAction(s);
+		action->setData(i);
+	}
 }
 
-//
-// Get the channel's value
-//
-int ConsoleChannel::getSliderValue()
+void ConsoleChannel::initCapabilityMenu(QLCChannel* ch)
 {
-	return KChannelValueMax - m_valueSlider->value();
-}
+	QLCCapability* cap;
+	QMenu* valueMenu;
+	QAction* action;
+	QString s;
+	QString t;
 
-//
-// Emulate the user dragging the value slider
-//
-void ConsoleChannel::slotAnimateValueChange(t_value value)
-{
-	m_valueSlider->setValue(static_cast<int> (KChannelValueMax - value));
+	QListIterator <QLCCapability*> it(*ch->capabilities());
+	while (it.hasNext() == true)
+	{
+		cap = it.next();
+
+		// Set the value range and name as the menu item's name
+		s.sprintf("%s: %.3d - %.3d", cap->name().unicode(), 
+			  cap->min(), cap->max());
+
+		if (cap->max() - cap->min() > 0)
+		{
+			// Create submenu for ranges of more than one value
+			valueMenu = new QMenu(m_menu);
+			valueMenu->setTitle(s);
+
+			for (int i = cap->min(); i <= cap->max(); i++)
+			{
+				action = valueMenu->addAction(
+					t.sprintf("%.3d", i));
+				action->setData(i);
+			}
+			
+			m_menu->addMenu(valueMenu);
+		}
+		else
+		{
+			// Just one value in this range, put that into the menu
+			action = m_menu->addAction(s);
+			action->setData((int) ((cap->min() + cap->max()) / 2));
+		}
+	}
+
+	// Connect menu item activation signal to this
+	connect(m_menu, SIGNAL(triggered(QAction*)),
+		this, SLOT(slotContextMenuTriggered(QAction*)));
+	
+	// Set the menu also as the preset button's popup menu
+	m_presetButton->setMenu(m_menu);
 }
 
 void ConsoleChannel::contextMenuEvent(QContextMenuEvent* e)
@@ -369,37 +260,103 @@ void ConsoleChannel::contextMenuEvent(QContextMenuEvent* e)
 	}
 }
 
-void ConsoleChannel::slotContextMenuActivated(int value)
+void ConsoleChannel::slotContextMenuTriggered(QAction* action)
 {
-	if (value == KMenuTitle)
+	Q_ASSERT(action != NULL);
+
+	// The menuitem's data contains a valid DMX value
+	slotAnimateValueChange(action->data().toInt());
+}
+
+/*****************************************************************************
+ * Value
+ *****************************************************************************/
+
+void ConsoleChannel::update()
+{
+	t_value value = 0;
+	
+	Fixture* fixture = _app->doc()->fixture(m_fixtureID);
+	Q_ASSERT(fixture != NULL);
+	
+	value = _app->dmxMap()->getValue(fixture->universeAddress() +
+					 m_channel);
+	
+	m_valueLabel->setNum(value);
+	slotAnimateValueChange(value);
+}
+
+void ConsoleChannel::slotValueChange(int value)
+{
+	Fixture* fixture = _app->doc()->fixture(m_fixtureID);
+	Q_ASSERT(fixture != NULL);
+	
+	value = KChannelValueMax - value;
+	
+	_app->dmxMap()->setValue(fixture->universeAddress() + m_channel,
+				 (t_value) value);
+	
+	m_valueLabel->setNum(value);
+	
+	m_value = value;
+	emit changed(m_channel, m_value, m_status);
+}
+
+int ConsoleChannel::sliderValue() const
+{
+	return KChannelValueMax - m_valueSlider->value();
+}
+
+void ConsoleChannel::slotAnimateValueChange(t_value value)
+{
+	m_valueSlider->setValue(static_cast<int> (KChannelValueMax - value));
+}
+
+/*****************************************************************************
+ * Status
+ *****************************************************************************/
+
+void ConsoleChannel::setStatusButton(Scene::ValueType status)
+{
+	m_status = status;
+	updateStatusButton();
+}
+
+void ConsoleChannel::slotStatusButtonClicked()
+{
+	m_status = (Scene::ValueType) ((m_status + 1) % 3);
+	updateStatusButton();
+	emit changed(m_channel, m_value, m_status);
+}
+
+void ConsoleChannel::updateStatusButton()
+{
+	QPalette p;
+	if (m_status == Scene::Fade)
 	{
-		return;
+		p = m_statusButton->palette();
+		p.setColor(QPalette::Window, KStatusButtonColorFade);
+		m_statusButton->setPalette(p);
+
+		m_statusButton->setText("F");
+		m_statusButton->setToolTip("Fade");
+	}
+	else if (m_status == Scene::Set)
+	{
+		p = m_statusButton->palette();
+		p.setColor(QPalette::Window, KStatusButtonColorSet);
+		m_statusButton->setPalette(p);
+
+		m_statusButton->setText("S");
+		m_statusButton->setToolTip("Set");
 	}
 	else
 	{
-		// The menuitem contains a valid DMX value
-		slotAnimateValueChange(value);
-	}
-}
+		p = m_statusButton->palette();
+		p.setColor(QPalette::Window, KStatusButtonColorOff);
+		m_statusButton->setPalette(p);
 
-//
-// Fixture console's scene editor activated a scene, which is reflected
-// here. So set the value and status to UI.
-//
-void ConsoleChannel::slotSceneActivated(SceneValue* values,
-					t_channel channels)
-{
-	Q_ASSERT(values != NULL);
-
-	if (m_channel <= channels)
-	{
-		setStatusButton(values[m_channel].type);
-
-		if (values[m_channel].type == Scene::Set ||
-		    values[m_channel].type == Scene::Fade)
-		{
-			slotAnimateValueChange(values[m_channel].value);
-			emit changed(m_channel, m_value, m_status);
-		}
+		m_statusButton->setText("X");
+		m_statusButton->setToolTip("Off");
 	}
 }

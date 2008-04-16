@@ -19,56 +19,47 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qlistbox.h>
-#include <qcombobox.h>
-#include <qlistview.h>
-#include <qlineedit.h>
-#include <qpushbutton.h>
-#include <qstring.h>
-#include <qpixmap.h>
-#include <qbuttongroup.h>
-#include <qtooltip.h>
-#include <qinputdialog.h>
-#include <qapplication.h>
-#include <qfont.h>
-#include <qheader.h>
-#include <qpopupmenu.h>
-#include <qmessagebox.h>
-#include <limits.h>
-#include <assert.h>
-#include <math.h>
+#include <QTreeWidgetItem>
+#include <QTreeWidget>
+#include <QMessageBox>
+#include <QLineEdit>
+#include <QString>
+#include <QMenu>
 
 #include "common/qlcfixturedef.h"
 #include "common/qlcchannel.h"
 #include "common/qlccapability.h"
 
 #include "advancedsceneeditor.h"
-#include "app.h"
-#include "doc.h"
+#include "editscenevalue.h"
 #include "function.h"
 #include "fixture.h"
 #include "scene.h"
-#include "editscenevalue.h"
+#include "app.h"
+#include "doc.h"
 
 extern App* _app;
 
-const int KColumnNumber  ( 0 );
+const int KColumnNumber ( 0 );
 const int KColumnChannel ( 1 );
 const int KColumnCapability  ( 2 );
-const int KColumnValue   ( 3 );
-const int KColumnType    ( 4 );
+const int KColumnValue ( 3 );
+const int KColumnType ( 4 );
 
 AdvancedSceneEditor::AdvancedSceneEditor(QWidget* parent, Scene* scene)
-	: UI_AdvancedSceneEditor(parent, "Advanced Scene Editor", true)
+	: QDialog(parent)
 {
 	Q_ASSERT(scene != NULL);
 	m_original = scene;
 
+	setupUi(this);
+
 	m_scene = new Scene();
 	m_scene->copyFrom(scene, scene->fixture());
 
-	m_sceneNameEdit->setText(m_scene->name());
-	m_sceneNameEdit->setSelection(0, m_scene->name().length());
+	m_nameEdit->setText(m_scene->name());
+	m_nameEdit->setSelection(0, m_scene->name().length());
+
 	initListView();
 }
 
@@ -83,13 +74,11 @@ AdvancedSceneEditor::~AdvancedSceneEditor()
  * Context Menu
  *****************************************************************************/
 
-void AdvancedSceneEditor::slotContextMenu(QListViewItem* item,
-					  const QPoint &pos,
-					  int col)
+void AdvancedSceneEditor::slotContextMenu(const QPoint &pos)
 {
 	if (m_scene == NULL)
 		return;
-
+	
 	switch (col)
 	{
 	case KColumnNumber:
@@ -302,6 +291,12 @@ void AdvancedSceneEditor::initListView()
 {
 	m_listView->clear();
 
+	connect(m_listView, SIGNAL(customContextMenu(const QPoint&)),
+		this, SLOT(slotContextMenu(const QPoint&)));
+
+	connect(m_listView, SIGNAL(itemSelectionChanged()),
+		this, SLOT(slotItemSelectionChanged()));
+
 	/* Create channel items into listview and update their contents */
 	for (t_channel ch = 0; ch < m_scene->channels(); ch++)
 		updateChannelItem(new QListViewItem(m_listView), ch);
@@ -365,7 +360,7 @@ void AdvancedSceneEditor::updateChannelItem(QListViewItem* item, t_channel ch)
 	item->setText(KColumnType, m_scene->valueTypeString(ch));
 }
 
-void AdvancedSceneEditor::slotSelectionChanged()
+void AdvancedSceneEditor::slotItemSelectionChanged()
 {
 	QListViewItem* item = NULL;
 	t_channel ch = 0;

@@ -19,15 +19,15 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qlistview.h>
-#include <qheader.h>
-#include <qlabel.h>
-#include <qpushbutton.h>
-#include <qlineedit.h>
-#include <qspinbox.h>
-#include <qcombobox.h>
-#include <assert.h>
-#include <qmessagebox.h>
+#include <QDialogButtonBox>
+#include <QTreeWidgetItem>
+#include <QTreeWidget>
+#include <QPushButton>
+#include <QMessageBox>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QSpinBox>
+#include <QLabel>
 
 #include "common/qlcfixturedef.h"
 #include "common/qlcfixturemode.h"
@@ -42,26 +42,38 @@ static const int KColumnName    ( 0 );
 static const int KColumnType    ( 1 );
 static const int KColumnPointer ( 2 );
 
-AddFixture::AddFixture(QWidget *parent)
-	: UI_AddFixture(parent, "Add fixture", true),
-	
-	  m_addressValue        ( 0 ),
-	  m_universeValue       ( 0 ),
-	  m_multipleNumberValue ( 1 ),
-	  m_addressGapValue     ( 0 ),
-	  m_channelsValue       ( 0 )
+AddFixture::AddFixture(QWidget *parent) : QDialog(parent)
 {
+	m_addressValue = 0;
+	m_universeValue = 0;
+	m_amountValue = 1;
+	m_gapValue = 0;
+	m_channelsValue = 0;
+
+	setupUi(this);
+
+	fillTree();
+
+	m_buttonBox->setStandardButtons(QDialogButtonBox::Cancel);
 }
 
 AddFixture::~AddFixture()
 {
 }
 
-void AddFixture::init()
-{
-	fillTree();
+/*****************************************************************************
+ * Helpers
+ *****************************************************************************/
 
-	m_ok->setEnabled(false);
+QTreeWidgetItem* AddFixture::findNode(const QString& text)
+{
+	QList <QTreeWidgetItem*> list = m_tree->findItems(text,
+							  Qt::MatchExactly,
+							  KColumnName);
+	if (list.isEmpty() == true)
+		return NULL;
+	else
+		return list.at(0);
 }
 
 /*****************************************************************************
@@ -70,58 +82,48 @@ void AddFixture::init()
 
 void AddFixture::fillTree()
 {
-	QPtrListIterator <QLCFixtureDef> it(*_app->fixtureDefList());
-	QLCFixtureDef* fixtureDef = NULL;
-	QListViewItem* parent = NULL;
-	QListViewItem* node = NULL;
+	QLCFixtureDef* fixtureDef;
+	QTreeWidgetItem* parent;
+	QTreeWidgetItem* node;
 	QString str;
 
 	/* Clear the tree of any previous data */
 	m_tree->clear();
 
 	/* Add all known fixture definitions. */
-	while ( (fixtureDef = *it) != NULL )
+	QListIterator <QLCFixtureDef*> it(*_app->fixtureDefList());
+	while (it.hasNext() == true)
 	{
+		fixtureDef = it.next();
 		parent = NULL;
 
-		/* Search for an existing manufacturer parent node from
-		   the tree. If such is found, it will be used as the
-		   parent for the current fixture. If not, the manufacturer
-		   will be added as a new parent and then used for the
-		   current fixture. */
-		for (node = m_tree->firstChild(); node != NULL;
-		     node = node->nextSibling())
-		{
-			if (node->text(KColumnName) == fixtureDef->manufacturer())
-			{
-				parent = node;
-				break;
-			}
-		}
+		/* Find an existing manufacturer parent node */
+		parent = findNode(fixtureDef->manufacturer());
 
 		/* If an existing manufacturer parent node was not found,
 		   we must create one. Otherwise we use the found node
 		   as the parent for the new item. */
 		if (parent == NULL)
-			parent = new QListViewItem(m_tree,
-						   fixtureDef->manufacturer());
+		{
+			parent = new QTreeWidgetItem(m_tree);
+			parent->setText(KColumnName,
+					fixtureDef->manufacturer());
+		}
 
 		/* Create a new fixture node, under the parent node */
-		node = new QListViewItem(parent);
+		node = new QTreeWidgetItem(parent);
 		node->setText(KColumnName, fixtureDef->model());
 		node->setText(KColumnType, fixtureDef->type());
 
 		/* Store the fixture pointer into the tree */
 		str.sprintf("%d", (unsigned long) fixtureDef);
 		node->setText(KColumnPointer, str);
-
-		++it;
 	}
 
 	/* Create a node & parent for generic dimmers */
-	parent = new QListViewItem(m_tree);
+	parent = new QTreeWidgetItem(m_tree);
 	parent->setText(KColumnName, KXMLFixtureGeneric);
-	node = new QListViewItem(parent);
+	node = new QTreeWidgetItem(parent);
 	node->setText(KColumnName, KXMLFixtureGeneric);
 	node->setText(KColumnType, KXMLFixtureDimmer);
 	node->setText(KColumnPointer, "0");
@@ -136,22 +138,19 @@ void AddFixture::fillModeCombo(const QString& text)
 	if (m_fixtureDef == NULL)
 	{
 		m_modeCombo->setEnabled(false);
-		m_modeCombo->insertItem(text);
-		m_modeCombo->setCurrentItem(0);
+		m_modeCombo->addItem(text);
+		m_modeCombo->setCurrentIndex(0);
 	}
 	else
 	{
 		m_modeCombo->setEnabled(true);
 
-		QPtrListIterator <QLCFixtureMode> it(*m_fixtureDef->modes());
-		while ( (mode = *it) != NULL )
-		{
-			m_modeCombo->insertItem(mode->name());
-			++it;
-		}
+		QListIterator <QLCFixtureMode*> it(*m_fixtureDef->modes());
+		while (it.hasNext() == true)
+			m_modeCombo->addItem(mode->name());
 
 		/* Select the first mode by default */
-		m_modeCombo->setCurrentItem(0);
+		m_modeCombo->setCurrentIndex(0);
 		slotModeActivated(m_modeCombo->currentText());
 	}
 }
@@ -162,6 +161,8 @@ void AddFixture::fillModeCombo(const QString& text)
 
 void AddFixture::slotChannelsChanged(int value)
 {
+	/* Set the maximum possible address so that channels cannot
+	   overflow beyond DMX's range of 512 channels */
 	m_addressSpin->setRange(1, 513 - value);
 }
 
@@ -182,7 +183,7 @@ void AddFixture::slotModeActivated(const QString& modeName)
 	m_channelsSpin->setValue(m_mode->channels());
 }
 
-void AddFixture::slotSelectionChanged(QListViewItem* item)
+void AddFixture::slotSelectionChanged(QTreeWidgetItem* item, int column)
 {
 	QString manuf;
 	QString model;
@@ -202,17 +203,20 @@ void AddFixture::slotSelectionChanged(QListViewItem* item)
 		m_channelsSpin->setValue(0);
 		m_addressSpin->setEnabled(false);
 		m_universeSpin->setEnabled(false);
-		m_multipleNumberSpin->setEnabled(false);
-		m_addressGapSpin->setEnabled(false);
+		
+		m_amountSpin->setEnabled(false);
+		m_gapSpin->setEnabled(false);
 		m_channelsSpin->setEnabled(false);
 		
-		m_ok->setEnabled(false);
+		m_buttonBox->setStandardButtons(QDialogButtonBox::Cancel);
 	}
 	else
 	{
 		if (item->text(KColumnName) == KXMLFixtureGeneric &&
 		    item->parent()->text(KColumnName) == KXMLFixtureGeneric)
 		{
+			/* Generic dimmer selected. User enters number of
+			   channels. */
 			m_fixtureDef = NULL;
 			fillModeCombo(KXMLFixtureGeneric);
 			m_channelsSpin->setEnabled(true);
@@ -226,7 +230,7 @@ void AddFixture::slotSelectionChanged(QListViewItem* item)
 		}
 		else
 		{
-			/* Get the selected fixture pointer */
+			/* Specific fixture selected. Def contains num of chs */
 			m_fixtureDef = (QLCFixtureDef*) 
 				item->text(KColumnPointer).toULong();
 			Q_ASSERT(m_fixtureDef != NULL);
@@ -247,46 +251,40 @@ void AddFixture::slotSelectionChanged(QListViewItem* item)
 		
 		m_addressSpin->setEnabled(true);
 		m_universeSpin->setEnabled(true);
-		m_multipleNumberSpin->setEnabled(true);
-		m_addressGapSpin->setEnabled(true);
+
+		m_amountSpin->setEnabled(true);
+		m_gapSpin->setEnabled(true);
 		
-		m_ok->setEnabled(true);
+		m_buttonBox->setStandardButtons(QDialogButtonBox::Ok |
+						QDialogButtonBox::Cancel);
 	}
 }
 
-void AddFixture::slotTreeDoubleClicked(QListViewItem* item)
+void AddFixture::slotTreeDoubleClicked(QTreeWidgetItem* item, int column)
 {
-	slotSelectionChanged(item);
-
+	slotSelectionChanged(item, column);
 	if (item != NULL && item->parent() != NULL)
-		slotOKClicked();
+		accept();
 }
 
-void AddFixture::slotNameChanged(const QString &text)
+void AddFixture::slotNameEdited(const QString &text)
 {
+	/* If the user clears the text in the name field,
+	   start substituting the name with the model again. */
 	m_nameValue = text;
 	if (text.length() == 0)
-	{
-		/* If the user clears the text in the name field,
-		   start substituting the name with the model again. */
-		m_nameEdit->clearModified();
-	}
+		m_nameEdit->setModified(false);
 }
 
-void AddFixture::slotOKClicked()
+void AddFixture::accept()
 {
 	m_addressValue = m_addressSpin->value() - 1;
 	m_universeValue = m_universeSpin->value() - 1;
 	
-	m_multipleNumberValue = m_multipleNumberSpin->value();
-	m_addressGapValue = m_addressGapSpin->value();
+	m_amountValue = m_amountSpin->value();
+	m_gapValue = m_gapSpin->value();
 
 	m_channelsValue = m_channelsSpin->value();
 	
 	accept();
-}
-
-void AddFixture::slotCancelClicked()
-{
-	reject();
 }

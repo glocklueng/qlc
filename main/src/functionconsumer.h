@@ -22,10 +22,10 @@
 #ifndef FUNCTIONCONSUMER_H
 #define FUNCTIONCONSUMER_H
 
-#include <qthread.h>
-#include <qptrlist.h>
+#include <QThread>
+#include <QList>
 
-#include "common/types.h"
+#include "common/qlctypes.h"
 #include "function.h"
 
 class DMXMap;
@@ -169,7 +169,7 @@ public:
 	 *
 	 * @return The current timecode
 	 */
-	void timeCode(t_bus_value& timeCode);
+	t_bus_value timeCode();
 	
 	/** 
 	 * Stop the FunctionConsumer alltogether. No functions will be run
@@ -201,7 +201,7 @@ protected:
 	bool m_running;
 
 	/** List of currently running functions */
-	QPtrList <Function> m_functionList;
+	QList <Function*> m_functionList;
 
 	/** Mutex that guards access to m_functionList */
 	QMutex m_functionListMutex;

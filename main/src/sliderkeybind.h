@@ -47,10 +47,7 @@ public:
 	SliderKeyBind(const SliderKeyBind* skb);
 	~SliderKeyBind();
 
-	static void keyStringUp(int keyUp, int modUp, QString &string);
 	void keyStringUp(QString &string) { return keyStringUp(m_keyUp, m_modUp, string); }
-
-	static void keyStringDown(int keyDown, int modDown, QString &string);
 	void keyStringDown(QString &string) { return keyStringDown(m_keyDown, m_modDown, string); }
 
 	int keyUp() const { return m_keyUp; }
@@ -82,17 +79,14 @@ signals:
 	void pressedUp();
 	void pressedDown();
 
-	public slots:
+public slots:
 	void slotSliderKeyPressed(QKeyEvent* e);
 
 private:
-	int m_keyUp; // Key
+	int m_keyUp;
 	int m_keyDown;
-	int m_modUp; // Modifier [shift|alt|control]
+	int m_modUp;
 	int m_modDown;
-
-	bool m_validUp; // Does this object contain a valid key or not
-	bool m_validDown;
 };
 
 #endif

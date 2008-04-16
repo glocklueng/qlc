@@ -22,180 +22,187 @@
 #ifndef FUNCTIONMANAGER_H
 #define FUNCTIONMANAGER_H
 
-#include <qwidget.h>
-#include <qvaluelist.h>
-#include <qptrlist.h>
-#include "common/types.h"
+#include <QWidget>
+#include <QAction>
+#include <QList>
+#include "common/qlctypes.h"
 
-class QPopupMenu;
-class QDockArea;
-class QToolBar;
-class QToolButton;
-class QListView;
-class QListViewItem;
-class QHBoxLayout;
+class QTreeWidgetItem;
+class QTreeWidget;
 class QSplitter;
-class QPushButton;
+class QToolBar;
+class QMenu;
 
 class Function;
 class Fixture;
-
-typedef QValueList<t_function_id> FunctionIDList;
 
 class FunctionManager : public QWidget
 {
 	Q_OBJECT
 
+	/*********************************************************************
+	 * Initialization
+	 *********************************************************************/
 public:
-	FunctionManager(QWidget* parent, WFlags flags = NormalMode);
+	FunctionManager(QWidget* parent);
 	~FunctionManager();
 
-	// Second stage initialization
-	void init();
+protected:
+	QSplitter* m_splitter;
 
-	// Selected functions from selection mode
-	int selection(FunctionIDList& list);
-
-	// Result from selection mode; unset in normal mode
-	int result() { return m_result; }
-
-	// Set a function to be inactive to prevent making direct loops
-	void setInactiveID(t_function_id id) { m_inactiveID = id; }
-	
+	/*********************************************************************
+	 * Doc signal handlers
+	 *********************************************************************/
 public slots:
-	void show();
+	/** Fixture was added to Doc */
+	void slotFixtureAdded(t_fixture_id fxi_id);
 
-	void slotFixtureAdded(t_fixture_id);
-	void slotFixtureRemoved(t_fixture_id);
-	void slotFixtureChanged(t_fixture_id);
+	/** Fixture was removed from Doc */
+	void slotFixtureRemoved(t_fixture_id fxi_id);
 
-	void slotFunctionAdded(t_function_id);
-	void slotFunctionRemoved(t_function_id);
-	void slotFunctionChanged(t_function_id);
+	/** Fixture properties were changed */
+	void slotFixtureChanged(t_fixture_id fxi_id);
 
-public:
-	static const WFlags NormalMode = 0;
-	static const WFlags SelectionMode = WShowModal | WType_Dialog |
-						WStyle_DialogBorder;
+	/** Function was added to Doc */
+	void slotFunctionAdded(t_function_id fid);
 
+	/** Function was removed from Doc */
+	void slotFunctionRemoved(t_function_id fid);
+
+	/** Function was changed */
+	void slotFunctionChanged(t_function_id fid);
+
+	/*********************************************************************
+	 * Fixture tree
+	 *********************************************************************/
 protected:
-	void closeEvent(QCloseEvent* e);
-
-protected:
-	// Get an item from the given listview by the given id
-	QListViewItem* getItem(t_function_id id, QListView* listView);
-
-	// Init menu
-	void initMenu();
-	// Init toolbar
-	void initToolbar();
-	// Init fixture tree view
+	/** Init fixture tree view */
 	void initFixtureTree();
-	// Init function tree view
-	void initFunctionTree();
 
-	// Get available fixtures
+	/** Get available fixtures */
 	void updateFixtureTree();
 
-	// Update the item's contents from the given function
-	void updateFunctionItem(QListViewItem* item, Function* function);
+protected slots:
+	/** Fixture selection was changed */
+	void slotFixtureTreeSelectionChanged();
 
-	// Delete all currently selected functions
+	/** Right mouse button was clicked on fixture tree */
+	void slotFixtureTreeContextMenuRequested(const QPoint& pos);
+
+protected:
+	QTreeWidget* m_fixtureTree;
+
+	/*********************************************************************
+	 * Function tree
+	 *********************************************************************/
+protected:
+	/** Init function tree view */
+	void initFunctionTree();
+
+	/** Update the item's contents from the given function */
+	void updateFunctionItem(QTreeWidgetItem* item, Function* function);
+
+	/** Delete all currently selected functions */
 	void deleteSelectedFunctions();
 
-	// Update menu/tool item's enabled status
-	void updateMenuItems();
-
-	// Copy the given function to the given fixture
-	Function* copyFunction(t_function_id, t_fixture_id);
-
 protected slots:
-	void slotFixtureHeaderClicked(int section);
-	void slotFunctionHeaderClicked(int section);
-
-	void slotFixtureTreeSelectionChanged(QListViewItem* item);
+	/** Function selection was changed */
 	void slotFunctionTreeSelectionChanged();
 
-	void slotFixtureTreeContextMenuRequested(QListViewItem* item,
-					         const QPoint& pos, int col);
-	void slotFunctionTreeContextMenuRequested(QListViewItem* item,
-					         const QPoint& pos, int col);
+	/** Right mouse button was clicked on function tree */
+	void slotFunctionTreeContextMenuRequested(const QPoint& pos);
 
-	void slotFunctionTreeDoubleClicked(QListViewItem* item,
-					   const QPoint& pos, int col);
+protected:
+	QTreeWidget* m_functionTree;
 
+	// Get an item from the given listview by the given id
+	QTreeWidgetItem* getItem(t_function_id id, QTreeWidget* listView);
+
+protected slots:
+	/** Set the selected bus to all selected functions */
 	void slotBusActivated(int busID);
+
+	/*********************************************************************
+	 * Clipboard
+	 *********************************************************************/
+protected:
+	typedef enum _ClipboardAction
+	{
+		ClipboardNone,
+		ClipboardCut,
+		ClipboardCopy
+	} ClipboardAction;
+
+	/** The current clipboard action (see above) */
+	ClipboardAction m_clipboardAction;
+
+	/** List of cut/copied function IDs */
+	QList <t_function_id> m_clipboard;
+
+	/*********************************************************************
+	 * Menus, toolbar & actions
+	 *********************************************************************/
+protected:
+	void initActions();
+	void initMenu();
+	void initToolbar();
+
+protected slots:
+	/** When bus name changes, its action must also be updated */
+	void slotBusNameChanged(t_bus_id id, const QString& name);
 
 	void slotAddScene();
 	void slotAddChaser();
 	void slotAddCollection();
 	void slotAddEFX();
 
+	int slotEdit();
 	void slotCut();
 	void slotCopy();
 	void slotPaste();
-	int slotEdit();
 	void slotDelete();
-
-	void slotAddMenuCallback(int);
-	void slotUpdateBusMenu();
-
 	void slotSelectAll();
 
-	void slotOKClicked();
-	void slotCancelClicked();
-
-signals:
-	void closed();
+protected:
+	/** Update action enabled status */
+	void updateActionStatus();
 
 protected:
-	typedef enum _ClipboardAction
-	{
-		ClipboardNone = 0,
-		ClipboardCut,
-		ClipboardCopy
-	} ClipboardAction;
+	QMenu* m_addMenu;
+	QMenu* m_editMenu;
+	QMenu* m_busMenu;
 
-	QPopupMenu* m_addMenu;
-	QPopupMenu* m_editMenu;
-	QPopupMenu* m_busMenu;
-
-	QDockArea* m_dockArea;
 	QToolBar* m_toolbar;
 
-	QToolButton* m_addSceneButton;
-	QToolButton* m_addChaserButton;
-	QToolButton* m_addCollectionButton;
-	QToolButton* m_addEFXButton;
+	QAction* m_addSceneAction;
+	QAction* m_addChaserAction;
+	QAction* m_addCollectionAction;
+	QAction* m_addEFXAction;
 
-	QToolButton* m_cutButton;
-	QToolButton* m_copyButton;
-	QToolButton* m_pasteButton;
-	QToolButton* m_editButton;
-	QToolButton* m_deleteButton;
+	QAction* m_cutAction;
+	QAction* m_copyAction;
+	QAction* m_pasteAction;
+	QAction* m_editAction;
+	QAction* m_deleteAction;
+	QAction* m_selectAllAction;
 
-	QListView* m_fixtureTree;
-	QListView* m_functionTree;
+	QList <QAction*> m_busActions;
 
-	QSplitter* m_treeViewSplitter;
+	/*********************************************************************
+	 * Helpers
+	 *********************************************************************/
+protected:
+	/** Copy the given function to the given fixture */
+	Function* copyFunction(t_function_id, t_fixture_id);
 
-	QPtrList<QListViewItem> m_selectedFunctions;
-	FunctionIDList m_clipboard;
-	ClipboardAction m_clipboardAction;
+	/** Add a new function of the given type */
+	void addFunction(Function::Type type);
 
-	// Selection mode stuff
-	bool m_selectionMode;
-	int m_result;
-	
-	t_function_id m_inactiveID;
-	
-	FunctionIDList m_selection;
-
-	QHBoxLayout* m_buttonLayout;
-	QPushButton* m_ok;
-	QPushButton* m_cancel;
-
+protected:
+	/** Don't listen to Doc::functionAdded signal when this is true */
 	bool m_blockAddFunctionSignal;
+
+	/** Don't listen to Doc::functionRemoved signal when this is true */
 	bool m_blockRemoveFunctionSignal;
 };
 

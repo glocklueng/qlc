@@ -22,18 +22,17 @@
 #ifndef DMXMAPEDITOR_H
 #define DMXMAPEDITOR_H
 
-#include "uic_dmxmapeditor.h"
+#include <QDialog>
+#include "ui_dmxmapeditor.cpp"
 
 class DMXMap;
 
-class DMXMapEditor : public UI_DMXMapEditor
+class DMXMapEditor : public QDialog, public Ui_DMXMapEditor
 {
 	Q_OBJECT
 public:
 	DMXMapEditor(QWidget* parent, DMXMap* dmxMap);
 	~DMXMapEditor();
-
-	void init();
 
 	/*********************************************************************
 	 *
@@ -45,42 +44,16 @@ protected slots:
 	void slotEditMappingButtonClicked();
 
 	/**
-	 * Slot for context menu requests (RMB clicks) on the mapping list view
+	 * Slot for context menu requests (RMB clicks) on the mapping view
 	 *
-	 * Since each selectable output has to have unique menu ID, the IDs
-	 * are organized by hundreds:
-	 *
-	 * The 1st plugin has ID 0
-	 * The 1st plugin's outputs can get IDs 0-99
-	 * The 2nd plugin has ID 100
-	 * The 2nd plugin's outputs can get IDs 100-199
-	 * etc.
-	 *
-	 * It is VERY unlikely that any plugin would have even ten outputs,
-	 * but since this method has no serious disadvantages, I suppose being
-	 * a bit future-proof wouldn't hurt anyone.
-	 *
-	 * @param item The clicked QListViewItem*
 	 * @param point The exact clicking point
-	 * @param column The clicked column
 	 */
-	void slotListViewContextMenuRequested(QListViewItem* item,
-					      const QPoint& point,
-					      int column);
-
-	/**
-	 * Slot for context menu item activation signals. See the above
-	 * function (@ref slotListViewContextMenuRequested) for how the
-	 * menu IDs are organized.
-	 *
-	 * @param item The menu ID of the activated item
-	 */
-	void slotPluginMenuActivated(int item);
+	void slotListViewContextMenuRequested(const QPoint& point);
 
 	/*********************************************************************
 	 * OK & Cancel
 	 *********************************************************************/
-public:
+public slots:
 	/** Slot for OK button */
 	void accept();
 

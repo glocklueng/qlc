@@ -2,7 +2,7 @@
   Q Light Controller
   scene.h
   
-  Copyright (C) 2004 Heikki Junnila
+  Copyright (C) Heikki Junnila
   
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -23,18 +23,20 @@
 #define SCENE_H
 
 #include "function.h"
-#include "common/types.h"
+#include "common/qlctypes.h"
 
-class Scene;
 class EventBuffer;
-class Fixture;
 class RunTimeData;
 class SceneValue;
+class Fixture;
+class Scene;
+
 class QDomDocument;
+class QDomElement;
 
 class Scene : public Function
 {
- public:
+public:
 	enum ValueType
 	{
 		Set   = 0, // Normal value
@@ -42,7 +44,7 @@ class Scene : public Function
 		NoSet = 2  // Ignored value
 	};
 
- public:
+public:
 	/** Standard constructor */
 	Scene();
 
@@ -74,11 +76,11 @@ class Scene : public Function
 	void disarm();
 	void cleanup();
 	
- protected:
+protected:
 	void init();
 	void run();
 	
- private:
+protected:
 	SceneValue* m_values;
 	
 	t_bus_value m_timeSpan;
@@ -96,7 +98,7 @@ class Scene : public Function
 
 class RunTimeData
 {
- public:
+public:
 	float start;
 	float current;
 	float target;
@@ -106,7 +108,7 @@ class RunTimeData
 
 class SceneValue
 {
- public:
+public:
 	Scene::ValueType type;
 	t_value value;
 };

@@ -19,44 +19,36 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <stdlib.h>
-#include <qlistview.h>
-#include <qlabel.h>
-#include <qpushbutton.h>
-#include <qtoolbutton.h>
-#include <qradiobutton.h>
-#include <qbuttongroup.h>
-#include <qcheckbox.h>
-#include <qlistview.h>
-#include <qlineedit.h>
-#include <limits.h>
-#include <qmessagebox.h>
-#include <assert.h>
-#include <qtimer.h>
+#include <QTreeWidgetItem>
+#include <QRadioButton>
+#include <QTreeWidget>
+#include <QPushButton>
+#include <QMessageBox>
+#include <QLineEdit>
+#include <QCheckBox>
+#include <QLabel>
+#include <QTimer>
+#include <QIcon>
 
 #include "common/qlcfixturedef.h"
 
+#include "functionselection.h"
 #include "chasereditor.h"
-#include "function.h"
 #include "fixture.h"
+#include "chaser.h"
 #include "app.h"
 #include "doc.h"
-#include "functionmanager.h"
-#include "chaser.h"
 
 extern App* _app;
 
-#define COL_NUM      0
-#define COL_FIXTURE  1
-#define COL_FUNCTION 2
-#define COL_TYPE     3
-#define COL_FID      4
+#define KColumnNumber     0
+#define KColumnFixture    1
+#define KColumnFunction   2
+#define KColumnType       3
+#define KColumnFunctionID 4
 
-//
-// Constructor
-//
 ChaserEditor::ChaserEditor(QWidget* parent, Chaser* chaser)
-	: UI_ChaserEditor(parent, "ChaserEditor", true)
+	: QDialog(parent)
 {
 	Q_ASSERT(chaser != NULL);
 
@@ -65,42 +57,57 @@ ChaserEditor::ChaserEditor(QWidget* parent, Chaser* chaser)
 	Q_ASSERT(m_chaser != NULL);
 
 	m_original = chaser;
-	m_functionManager = NULL;
+	m_functionSelection = NULL;
 
+	/* Name edit */
 	m_nameEdit->setText(m_chaser->name());
 	m_nameEdit->setSelection(0, m_nameEdit->text().length());
 
-	m_addStep->setPixmap(QPixmap(QString(PIXMAPS) +
-				     QString("/edit_add.png")));
-	m_removeStep->setPixmap(QPixmap(QString(PIXMAPS) +
-					QString("/edit_remove.png")));
+	/* Button pixmaps */
+	m_addButton->setIcon(QIcon(PIXMAPS "/edit_add.png"));
+	m_removeButton->setIcon(QIcon(PIXMAPS "/edit_remove.png"));
+	m_raiseButton->setIcon(QIcon(PIXMAPS "/up.png"));
+	m_lowerButton->setIcon(QIcon(PIXMAPS "/down.png"));
 
-	m_raiseButton->setPixmap(QPixmap(QString(PIXMAPS) +
-					 QString("/up.png")));
-	m_lowerButton->setPixmap(QPixmap(QString(PIXMAPS) +
-					 QString("/down.png")));
+	/* Running order */
+	switch (m_chaser->runOrder())
+	{
+	default:
+	case Chaser::Loop:
+		m_loop->setChecked(true);
+		break;
+	case Chaser::PingPong:
+		m_pingPong->setChecked(true);
+		break;
+	case Chaser::SingleShot:
+		m_singleShot->setChecked(true);
+		break;
+	}
 
-	m_runOrderGroup->setButton(static_cast<int> (m_chaser->runOrder()));
-	m_directionGroup->setButton(static_cast<int> (m_chaser->direction()));
+	/* Running direction */
+	switch (m_chaser->direction())
+	{
+	default:
+	case Chaser::Forward:
+		m_forward->setChecked(true);
+		break;
+	case Chaser::Backward:
+		m_backward->setChecked(true);
+		break;
+	}
 
-	m_stepList->setSorting(-1);
-
+	m_stepList->setSortingEnabled(false);
 	updateStepList();
 }
 
-//
-// Destructor
-//
 ChaserEditor::~ChaserEditor()
 {
 	delete m_chaser;
 }
 
-//
-// Insert chaser steps into the editor's list
-//
-void ChaserEditor::updateStepList()
+void ChaserEditor::updateStepList(int selectIndex)
 {
+	QTreeWidgetItem* item;
 	QString fxi_name;
 	QString func_name;
 	QString func_type;
@@ -108,24 +115,28 @@ void ChaserEditor::updateStepList()
 
 	m_stepList->clear();
 
-	QValueList<t_function_id>::iterator it;
-	it = m_chaser->steps()->end();
-	for (unsigned int i = 0; i < m_chaser->steps()->count(); i++)
+	QListIterator <t_function_id> it(*m_chaser->steps());
+	it.toBack();
+	while (it.hasPrevious() == true)
 	{
-		--it;
-		Function* f = _app->doc()->function(*it);
-		if (f == NULL)
+		t_function_id fid;
+		Function* function;
+		QString str;
+
+		fid = it.previous();
+		function = _app->doc()->function(fid);
+		if (function == NULL)
 		{
 			fxi_name = QString("Invalid");
 			func_name = QString("Invalid");
 			func_type = QString("Invalid");
 		}
-		else if (f->fixture() != KNoID)
+		else if (function->fixture() != KNoID)
 		{
-			func_name = f->name();
-			func_type = Function::typeToString(f->type());
-
-			fxi = _app->doc()->fixture(f->fixture());
+			func_name = function->name();
+			func_type = Function::typeToString(function->type());
+			
+			fxi = _app->doc()->fixture(function->fixture());
 			if (fxi == NULL)
 				fxi_name = QString("Invalid");
 			else
@@ -134,254 +145,140 @@ void ChaserEditor::updateStepList()
 		else
 		{
 			fxi_name = QString("Global");
-			func_name = f->name();
-			func_type = Function::typeToString(f->type());
+			func_name = function->name();
+			func_type = Function::typeToString(function->type());
 		}
-
-		QString fid;
-		fid.setNum(*it);
-		new QListViewItem(m_stepList, "###", fxi_name,
-				  func_name, func_type, fid);
+		
+		item = new QTreeWidgetItem(m_stepList);
+		item->setText(KColumnNumber, "###");
+		item->setText(KColumnFixture, fxi_name);
+		item->setText(KColumnFunction, func_name);
+		item->setText(KColumnType, func_type);
+		item->setText(KColumnFunctionID, str.setNum(fid));
 	}
+
+	/* Select the specified item */
+	item = m_stepList->topLevelItem(selectIndex);
+	if (item != NULL)
+		item->setSelected(true);
 
 	updateOrderNumbers();
 }
 
-//
-// Accept changes and exit
-//
-void ChaserEditor::slotOKClicked()
+void ChaserEditor::updateOrderNumbers()
 {
-	//
-	// Name
-	//
-	m_chaser->setName(m_nameEdit->text());
+	int i = 1;
+	QString num;
 
-	//
-	// Run Order
-	//
-	if (m_runOrderGroup->selected() == m_singleShot)
+	QTreeWidgetItemIterator it(m_stepList);
+	while (*it != NULL)
 	{
-		m_chaser->setRunOrder(Chaser::SingleShot);
+		num.sprintf("%.03d", i++);
+		(*it)->setText(KColumnNumber, num);
 	}
-	else if (m_runOrderGroup->selected() == m_pingPong)
-	{
-		m_chaser->setRunOrder(Chaser::PingPong);
-	}
-	else
-	{
-		m_chaser->setRunOrder(Chaser::Loop);
-	}
-
-	//
-	// Direction
-	//
-	if (m_directionGroup->selected() == m_backward)
-	{
-		m_chaser->setDirection(Chaser::Backward);
-	}
-	else
-	{
-		m_chaser->setDirection(Chaser::Forward);
-	}
-
-	m_original->copyFrom(m_chaser, false);
-
-	_app->doc()->setModified();
-	accept();
 }
 
-//
-// Cancel editing
-//
-void ChaserEditor::slotCancelClicked()
+void ChaserEditor::slotAddClicked()
 {
-	reject();
+	if (m_functionSelection == NULL)
+	{
+		// Create a new function manager
+		m_functionSelection = new FunctionSelection(this,
+							    _app->doc(),
+							    false,
+							    m_original->id());
+
+		while (m_functionSelection->exec() == QDialog::Accepted)
+		{
+			QListIterator <t_function_id>
+				it(m_functionSelection->selection);
+			
+			while (it.hasNext() == true)
+				m_chaser->addStep(it.next());
+			
+			// Clear the selection dialog's selection
+			m_functionSelection->selection.clear();
+			
+			// Update all steps in the list
+			updateStepList();
+			
+			// Add another step after a short delay
+			QTimer::singleShot(250, this, SLOT(slotAddAnother()));
+		}
+
+		// Clear the last selection
+		m_functionSelection->selection.clear();			
+	}
 }
 
-//
-// Remove the selected step
-//
 void ChaserEditor::slotRemoveClicked()
 {
-	QListViewItem* item = m_stepList->currentItem();
+	QTreeWidgetItem* item = m_stepList->currentItem();
 
 	if (item != NULL)
-	{
-		m_chaser->removeStep(item->text(COL_NUM).toInt() - 1);
-	}
+		m_chaser->removeStep(item->text(KColumnNumber).toInt() - 1);
 
 	updateStepList();
 }
 
-//
-// Add a step to the chaser function
-//
-void ChaserEditor::slotAddClicked()
-{
-	if (m_functionManager == NULL)
-	{
-		// Create a new function manager
-		m_functionManager = new FunctionManager(this,
-							FunctionManager::SelectionMode);
-
-		connect(m_functionManager, SIGNAL(closed()),
-			this, SLOT(slotFunctionManagerClosed()));
-		// Prevent the user from selecting this function
-		m_functionManager->setInactiveID(m_original->id());
-
-		// Initialize the function manager UI
-		m_functionManager->init();
-	}
-	
-	m_functionManager->show();
-}
-
-//
-// Function manager was closed
-//
-void ChaserEditor::slotFunctionManagerClosed()
-{
-	FunctionIDList list;
-	FunctionIDList::iterator it;
-	Function* function = NULL;
-
-	assert(m_functionManager);
-
-	if (m_functionManager->result() == QDialog::Accepted)
-	{
-		m_functionManager->selection(list);
-
-		for (it = list.begin(); it != list.end(); ++it)
-		{
-			m_chaser->addStep(*it);
-		}
-
-		// Clear the selection list
-		list.clear();
-
-		// Update steps to the list
-		updateStepList();
-		
-		// Hide the function manager for a while
-		m_functionManager->hide();
-
-		// Add another step after a delay (to show that the step was added)
-		QTimer::singleShot(250, this, SLOT(slotAddAnother()));
-	}
-	else
-	{
-		delete m_functionManager;
-		m_functionManager = NULL;
-	}
-}
-
-//
-// Add another step until Cancel is clicked
-//
-void ChaserEditor::slotAddAnother()
-{
-	m_functionManager->show();
-}
-
-//
-// Test run
-//
-void ChaserEditor::slotPlayClicked()
-{
-	qDebug("Not implemented");
-}
-
-//
-// Update correct order numbers to each step
-//
-void ChaserEditor::updateOrderNumbers()
-{
-	int i = 1;
-	QString size;
-	QString num;
-
-	size.setNum(m_chaser->steps()->count());
-
-	// Create an iterator and give the listview as argument
-	QListViewItemIterator it(m_stepList);
-
-	// Iterate through all items of the listview
-	for (; it.current() != NULL; ++it)
-	{
-		num.sprintf("%.03d", i++);
-		it.current()->setText(COL_NUM, num);
-	}
-}
-
-//
-// Raise a chaser step one position higher
-//
 void ChaserEditor::slotRaiseClicked()
 {
-	QListViewItem* item = m_stepList->currentItem();
-	t_function_id fid = 0;
-	int index = 0;
-	int newIndex = 0;
+	QTreeWidgetItem* item;
+	int index;
 
+	item = m_stepList->currentItem();
 	if (item != NULL)
 	{
-		index = item->text(COL_NUM).toInt() - 1;
-		fid = item->text(COL_FID).toInt();
+		index = m_stepList->indexOfTopLevelItem(item);
 
-		if (m_chaser->raiseStep(index))
-		{
-			updateStepList();
+		/* Raise the step */
+		m_chaser->raiseStep(index);
 
-			// Select the item again, now it's one step above
-			QListViewItemIterator it(m_stepList);
-			while (it.current() != NULL)
-			{
-				if (newIndex == index - 1)
-				{
-					m_stepList->setSelected(it.current(), true);
-					break;
-				}
-
-				newIndex++;
-				++it;
-			}
-		}
+		/* Update step list and select the same item */
+		updateStepList(index - 1);
 	}
 }
 
-//
-// Lower a chaser step one position lower
-//
 void ChaserEditor::slotLowerClicked()
 {
-	QListViewItem* item = m_stepList->currentItem();
-	t_function_id fid = 0;
-	int index = 0;
-	int newIndex = 0;
+	QTreeWidgetItem* item;
+	int index;
 
+	item = m_stepList->currentItem();
 	if (item != NULL)
 	{
-		index = item->text(COL_NUM).toInt() - 1;
-		fid = item->text(COL_FID).toInt();
+		index = m_stepList->indexOfTopLevelItem(item);
 
-		if (m_chaser->lowerStep(index))
-		{
-			updateStepList();
+		/* Raise the step */
+		m_chaser->lowerStep(index);
 
-			// Select the item again, now it's one step below
-			QListViewItemIterator it(m_stepList);
-			while (it.current() != NULL)
-			{
-				if (newIndex == index + 1)
-				{
-					m_stepList->setSelected(it.current(), true);
-					break;
-				}
-
-				newIndex++;
-				++it;
-			}
-		}
+		/* Update step list and select the same item */
+		updateStepList(index + 1);
 	}
+}
+
+void ChaserEditor::accept()
+{
+	/* Name */
+	m_chaser->setName(m_nameEdit->text());
+
+	/* Run Order */
+	if (m_singleShot->isChecked() == true)
+		m_chaser->setRunOrder(Chaser::SingleShot);
+	else if (m_pingPong->isChecked() == true)
+		m_chaser->setRunOrder(Chaser::PingPong);
+	else
+		m_chaser->setRunOrder(Chaser::Loop);
+
+	/* Direction */
+	if (m_backward->isChecked() == true)
+		m_chaser->setDirection(Chaser::Backward);
+	else
+		m_chaser->setDirection(Chaser::Forward);
+
+	/* Copy the temp chaser's contents to the original */
+	m_original->copyFrom(m_chaser, false);
+
+	_app->doc()->setModified();
+	QDialog::accept();
 }

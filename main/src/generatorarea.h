@@ -22,25 +22,27 @@
 #ifndef GENERATORAREA_H
 #define GENERATORAREA_H
 
-#include <qframe.h>
-#include <qpointarray.h>
+#include <QPolygon>
+#include <QFrame>
 
 class QPaintEvent;
 
 class GeneratorArea : public QFrame
 {
-  Q_OBJECT
+	Q_OBJECT
 
- public:
-  GeneratorArea(QWidget* parent = NULL, const char* name = NULL);
-  ~GeneratorArea();
+public:
+	GeneratorArea(QWidget* parent);
+	~GeneratorArea();
 
-  void setPointArray(QPointArray&);
+	/** Set the points to draw */
+	void setPoints(const QPolygon& points);
 
- protected:
-  void paintEvent(QPaintEvent*);
-
-  QPointArray m_pointArray;
+protected:
+	void paintEvent(QPaintEvent* event);
+	
+	/** The array of points to draw */
+	QPolygon m_points;
 };
 
 #endif

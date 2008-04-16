@@ -2,7 +2,7 @@
   Q Light Controller
   dmxaddresstool.h
   
-  Copyright (C) 2000, 2001, 2002 Heikki Junnila
+  Copyright (C) Heikki Junnila
   
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -22,26 +22,29 @@
 #ifndef DMXADDRESSTOOL_H
 #define DMXADDRESSTOOL_H
 
-#include "uic_dmxaddresstool.h"
+#include <QDialog>
+#include "ui_dmxaddresstool.cpp"
 
-class DMXAddressTool : public UI_DMXAddressTool
+class QString;
+
+class DMXAddressTool : public QDialog, public Ui_DMXAddressTool
 {
-  Q_OBJECT
+	Q_OBJECT
 
- public:
-  DMXAddressTool(QWidget* parent = NULL, const char* name = NULL);
-  ~DMXAddressTool();
+public:
+	DMXAddressTool(QWidget* parent);
+	~DMXAddressTool();
 
-  int address() { return m_address; }
-  void setAddress(int address);
+	int address() { return m_address; }
+	void setAddress(int address);
 
- private slots:
-  void slotSliderValueChanged(int value);
-  void slotDecimalChanged(const QString &text);
+protected slots:
+	void slotSliderValueChanged(int value);
+	void slotDecimalChanged(const QString &text);
 
- private:
-  int m_address;
-  bool m_updateValue;
+protected:
+	int m_address;
+	bool m_updateValue;
 };
 
 #endif

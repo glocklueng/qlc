@@ -22,15 +22,13 @@
 #ifndef FUNCTION_H
 #define FUNCTION_H
 
-#include <qobject.h>
-#include <qthread.h>
-#include <limits.h>
-#include <qptrlist.h>
-#include <qstring.h>
-#include <qevent.h>
-#include <qdom.h>
-
-#include "common/types.h"
+#include <QObject>
+#include <QThread>
+#include <QString>
+#include <QEvent>
+#include <QMutex>
+#include <QList>
+#include "common/qlctypes.h"
 
 #define KXMLQLCFunction "Function"
 #define KXMLQLCFunctionFixture "Fixture"
@@ -52,15 +50,17 @@
 
 #define KXMLQLCFunctionEnabled "Enabled"
 
-const int KFunctionStopEvent        ( QEvent::User + 1 );
+#define KFunctionStopEvent static_cast<QEvent::Type> (QEvent::User + 1)
 
-class Fixture;
-class EventBuffer;
-class QFile;
-class VirtualController;
-class Bus;
-class Function;
 class QDomDocument;
+class QDomElement;
+class QFile;
+
+class VirtualController;
+class EventBuffer;
+class Function;
+class Fixture;
+class Bus;
 
 //
 // Weird namespace, wouldn't work without...
@@ -130,7 +130,10 @@ class Function : public QThread
 	void setID(t_function_id);
 	
 	// Return the type of this function (see the enum above)
-	Function::Type type() { return m_type; }
+	Function::Type type() const { return m_type; }
+
+	// Return the type of this function as a string
+	QString typeString() const;
 	
 	// Convert a RunOrder to string
 	static QString runOrderToString(Function::RunOrder);
@@ -145,7 +148,7 @@ class Function : public QThread
 	static Function::Direction stringToDirection(QString str);
 
 	// Convert a type to string
-	static QString typeToString(Function::Type);
+	static QString typeToString(const Function::Type type);
 	
 	// Convert a string to type enum
 	static Type stringToType(QString);
@@ -265,17 +268,17 @@ class Function : public QThread
 //
 // Function Stop Event
 //
-class FunctionStopEvent : public QCustomEvent
+class FunctionStopEvent : public QEvent
 {
- public:
-  FunctionStopEvent(t_function_id id)
-    : QCustomEvent( KFunctionStopEvent )
-    { m_functionID = id; }
-
-  t_function_id functionID() { return m_functionID; }
-
- private:
-  t_function_id m_functionID;
+public:
+FunctionStopEvent(t_function_id id)
+	: QEvent( KFunctionStopEvent )
+	{ m_functionID = id; }
+	
+	t_function_id functionID() { return m_functionID; }
+	
+private:
+	t_function_id m_functionID;
 };
 
 #endif

@@ -1,5 +1,5 @@
 /*
-  Q Light Controller
+  Q Light Controller - Fixture Definition Editor
   editcapability.h
 
   Copyright (C) Heikki Junnila
@@ -22,30 +22,36 @@
 #ifndef EDITCAPABILITY_H
 #define EDITCAPABILITY_H
 
-#include "uic_editcapability.h"
+#include <QWidget>
+#include "ui_editcapability.cpp"
 
 class QWidget;
 class QLCCapability;
 
-class EditCapability : public UI_EditCapability
+class EditCapability : public QDialog, public Ui_EditCapability
 {
 	Q_OBJECT
 
- public:
+public:
 	EditCapability(QWidget* parent, QLCCapability* capability = NULL);
 	~EditCapability();
  
-	void init();
- 
+	/*********************************************************************
+	 * Capability
+	 *********************************************************************/
+public:
 	QLCCapability* capability() const { return m_capability; }
 
- public slots:
+protected:
+	QLCCapability* m_capability;
+
+	/*********************************************************************
+	 * UI slots
+	 *********************************************************************/
+public slots:
 	void slotMinSpinChanged(int value);
 	void slotMaxSpinChanged(int value);
-	void slotNameChanged(const QString& text);
-
- private:
-	QLCCapability* m_capability;
+	void slotDescriptionEdited(const QString& text);
 };
 
 #endif

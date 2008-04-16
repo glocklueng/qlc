@@ -19,25 +19,28 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qfile.h>
-#include <qptrlist.h>
-#include <time.h>
-#include <qapplication.h>
-#include <qpointarray.h>
+#include <QApplication>
+#include <iostream>
+#include <QPolygon>
+#include <QList>
+#include <QtXml>
+
 #include <math.h>
 
-#include "common/filehandler.h"
+#include "common/qlcfile.h"
 #include "common/qlcfixturedef.h"
 
+#include "functionconsumer.h"
+#include "eventbuffer.h"
+#include "fixture.h"
 #include "app.h"
 #include "doc.h"
 #include "efx.h"
 #include "bus.h"
-#include "fixture.h"
-#include "eventbuffer.h"
-#include "functionconsumer.h"
 
 extern App* _app;
+
+using namespace std;
 
 /* Supported EFX algorithms */
 static const char* KCircleAlgorithmName    ( "Circle" );
@@ -103,7 +106,7 @@ EFX::~EFX()
 	stop();
 
 	m_startMutex.lock();
-	while (m_running)
+	while (m_running == true)
 	{
 		m_startMutex.unlock();
 		sched_yield();
@@ -120,7 +123,7 @@ EFX::~EFX()
  *
  * @param array The array to save the preview points to
  */
-void EFX::setPreviewPointArray(QPointArray* array)
+void EFX::setPreviewPointArray(QPolygon* array)
 {
 	m_previewPointArray = array;
 }
@@ -132,9 +135,7 @@ void EFX::setPreviewPointArray(QPointArray* array)
 void EFX::updatePreview()
 {
 	if (m_previewPointArray == NULL)
-	{
 		return;
-	}
 
 	int stepCount = 128;
 	int step = 0;
@@ -259,19 +260,11 @@ QString EFX::algorithm()
 void EFX::setAlgorithm(QString algorithm)
 {
 	QStringList list;
-
 	EFX::algorithmList(list);
-
-	list = list.grep(algorithm);
-	if (list.isEmpty())
-	{
-		qDebug("Invalid algorithm for EFX: " + algorithm);
-		m_algorithm = KCircleAlgorithmName;
-	}
-	else
-	{
+	if (list.contains(algorithm) == true)
 		m_algorithm = QString(algorithm);
-	}
+	else
+		m_algorithm = KCircleAlgorithmName;
 
 	updatePreview();
 }
@@ -998,8 +991,9 @@ bool EFX::loadXML(QDomDocument* doc, QDomElement* root)
 		}
 		else
 		{
-			qDebug("Unknown EFX tag: %s",
-			       (const char*) tag.tagName());
+			cout << "Unknown EFX tag: "
+			     << tag.tagName().toStdString()
+			     << endl;
 		}
 		
 		node = node.nextSibling();
@@ -1055,8 +1049,9 @@ bool EFX::loadXMLAxis(QDomDocument* doc, QDomElement* root)
 		}
 		else
 		{
-			qWarning("Unknown EFX axis tag: %s",
-				 (const char*) tag.tagName());
+			cout << "Unknown EFX axis tag: "
+			     << tag.tagName().toStdString()
+			     << endl;
 		}
 		
 		node = node.nextSibling();
@@ -1078,7 +1073,7 @@ bool EFX::loadXMLAxis(QDomDocument* doc, QDomElement* root)
 	}
 	else
 	{
-		qWarning("Unknown EFX axis: %s", (const char*) axis);
+		cout << "Unknown EFX axis: " << axis.toStdString() << endl;
 	}
 	
 	return true;
@@ -1139,7 +1134,9 @@ void EFX::arm()
 	}
 	else
 	{
-		qDebug("No fixture instance for EFX: " + Function::name());
+		cout << "No fixture instance for EFX: "
+		     << Function::name().toStdString()
+		     << endl;
 	}
 
 	m_stopped = false;
@@ -1175,7 +1172,9 @@ void EFX::arm()
 		pointFunc = NULL;
 		m_stopped = true;
 
-		qDebug("Unknown algorithm used in EFX: " + m_name);
+		cout << "Unknown algorithm used in EFX: "
+		     << m_name.toStdString()
+		     << endl;
 	}
 }
 

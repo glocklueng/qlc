@@ -19,50 +19,46 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qwidget.h>
-#include <qpushbutton.h>
-#include <qspinbox.h>
-#include <qcombobox.h>
-#include <qptrlist.h>
-#include <math.h>
+#include <QPushButton>
+#include <QComboBox>
+#include <QSpinBox>
+#include <QList>
 
 #include "common/qlcchannel.h"
 #include "common/qlccapability.h"
 #include "editscenevalue.h"
 
 EditSceneValue::EditSceneValue(QWidget* parent, QLCChannel* ch,
-			       SceneValue &currentValue)
-	: UI_EditSceneValue(parent, "Edit Scene Value", true)
+			       SceneValue &currentValue) : QDialog(parent)
 {
 	Q_ASSERT(ch != NULL);
 
 	m_channel = ch;
 	m_updateValue = true;
 
-	QPtrListIterator <QLCCapability> it(*m_channel->capabilities());
-	while ( *it != NULL )
-	{
-		m_presetCombo->insertItem((*it)->name());
-		++it;
-	}
+	setupUi(this);
 
-	m_typeCombo->insertItem("Fade");
-	m_typeCombo->insertItem("Set");
-	m_typeCombo->insertItem("NoSet");
+	QListIterator <QLCCapability*> it(*m_channel->capabilities());
+	while (it.hasNext() == true)
+		m_presetCombo->addItem(it.next()->name());
+
+	m_typeCombo->addItem("Fade");
+	m_typeCombo->addItem("Set");
+	m_typeCombo->addItem("NoSet");
 
 	if (currentValue.type == Scene::Fade)
 	{
-		m_typeCombo->setCurrentItem(0);
+		m_typeCombo->setCurrentIndex(0);
 		m_type = QString("Fade");
 	}
 	else if (currentValue.type == Scene::Set)
 	{
-		m_typeCombo->setCurrentItem(1);
+		m_typeCombo->setCurrentIndex(1);
 		m_type = QString("Set");
 	}
 	else
 	{
-		m_typeCombo->setCurrentItem(2);
+		m_typeCombo->setCurrentIndex(2);
 		m_type = QString("NoSet");
 	}
 
@@ -81,45 +77,53 @@ EditSceneValue::~EditSceneValue()
 
 void EditSceneValue::slotValueChanged(int value)
 {
-	if (m_updateValue == false)
-	{
-		return;
-	}
+	QLCCapability* cap;
+	int index;
 
+	if (m_updateValue == false)
+		return;
 	m_updateValue = false;
 
-	QLCCapability* c = m_channel->searchCapability(value);
-	ASSERT(c != NULL);
-
-	for (int i = 0; i < m_presetCombo->count(); i++)
+	cap = m_channel->searchCapability(value);
+	if (cap == NULL)
 	{
-		if (m_presetCombo->text(i) == c->name())
-		{
-			m_presetCombo->setCurrentItem(i);
-			break;
-		}
+		/* Capability by the entered DMX value was not found. Select
+		   the first capability as fallback... */
+		m_presetCombo->setCurrentIndex(0);
+	}
+	else
+	{
+		/* Select a capability that matches the entered DMX value. */
+		index = m_presetCombo->findText(cap->name());
+		m_presetCombo->setCurrentIndex(index);
 	}
 
 	m_value = value;
-
 	m_updateValue = true;
 }
 
 void EditSceneValue::slotPresetComboActivated(const QString &text)
 {
-	if (m_updateValue == false)
-	{
-		return;
-	}
+	QLCCapability* cap;
 
+	if (m_updateValue == false)
+		return;
 	m_updateValue = false;
 
-	QLCCapability* c = m_channel->searchCapability(text);
-	Q_ASSERT(c != NULL);
-
-	int value = (int) floor((c->min() + c->max()) / 2);
-	m_valueSpin->setValue(value);
-	m_value = value;
+	cap = m_channel->searchCapability(text);
+	if (cap == NULL)
+	{
+		/* Selected capability not found. Weird. Set value to zero. */
+		m_valueSpin->setValue(0);
+	}
+	else
+	{
+		/* Set the DMX value from the middle of the capability's
+		   minimum and maximum values. */
+		t_value value = (t_value) floor((cap->min() + cap->max()) / 2);
+		m_valueSpin->setValue(value);
+		m_value = value;
+	}
 
 	m_updateValue = true;
 }

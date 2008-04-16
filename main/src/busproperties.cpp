@@ -19,74 +19,60 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qlistview.h>
-#include <qwidget.h>
-#include <qstring.h>
-#include <qpixmap.h>
-#include <qevent.h>
+#include <QTreeWidgetItem>
+#include <QInputDialog>
+#include <QTreeWidget>
+#include <QString>
+#include <QIcon>
 
 #include "app.h"
 #include "bus.h"
 #include "busproperties.h"
 
-const int KColumnID                   ( 0 );
-const int KColumnName                 ( 1 );
+#define KColumnID   0
+#define KColumnName 1
 
-BusProperties::BusProperties(QWidget* parent) 
-	: UI_BusProperties(parent, "Bus Properties")
+BusProperties::BusProperties(QWidget* parent) : QWidget(parent)
 {
+	setupUi(this);
+	fillTree();
 }
 
 BusProperties::~BusProperties()
 {
 }
 
-void BusProperties::init()
-{
-	fillTree();
-	setIcon(QPixmap(QString(PIXMAPS) + QString("/bus.png")));
-}
-
-void BusProperties::slotItemRenamed(QListViewItem* item, int col,
-				    const QString &text)
-{
-	if (col != KColumnName || item == NULL)
-		return;
-	else
-		Bus::setName(item->text(KColumnID).toInt() - 1, text);
-}
-
-void BusProperties::slotItemDoubleClicked(QListViewItem* item)
-{
-	if (item != NULL)
-		item->startRename(KColumnName);
-}
-
 void BusProperties::slotEditClicked()
 {
-	QListViewItem* item = m_list->currentItem();
+	QTreeWidgetItem* item = m_list->currentItem();
 
 	if (item != NULL)
-		item->startRename(KColumnName);
-}
+	{
+		QString label;
+		QString name;
+		t_bus_id id;
+		bool ok = false;
 
-void BusProperties::closeEvent(QCloseEvent* e)
-{
-	emit closed();
+		id = item->text(KColumnID).toInt() - 1;
+		label.sprintf("Bus #%d name:", id + 1);
+		name = QInputDialog::getText(this, "Rename bus", label,
+					     QLineEdit::Normal, Bus::name(id),
+					     &ok);
+		if (ok == true)
+			Bus::setName(id, name);
+		item->setText(KColumnID, name);
+	}
 }
 
 void BusProperties::fillTree()
 {
-	QListViewItem* item = NULL;
-	QString text;
-
-	for (t_bus_id i = KBusIDMin; i < KBusCount; i++)
+	for (t_bus_id id = KBusIDMin; id < KBusCount; id++)
 	{
-		item = new QListViewItem(m_list);
-		text.sprintf("%.2d", i + 1);
-		item->setText(KColumnID, text);
-		item->setText(KColumnName, Bus::name(i));
+		QTreeWidgetItem* item = new QTreeWidgetItem(m_list);
+		QString str;
 
-		item->setRenameEnabled(KColumnName, true);
+		str.sprintf("%.2d", id + 1);
+		item->setText(KColumnID, str);
+		item->setText(KColumnName, Bus::name(id));
 	}
 }

@@ -20,20 +20,18 @@
 */
 
 #include <linux/input.h>
-
-#include <qobject.h>
-#include <qstring.h>
-#include <qfile.h>
 #include <errno.h>
+
+#include <QString>
 
 #include "hiddevice.h"
 #include "hidinput.h"
 
 HIDDevice::HIDDevice(HIDInput* parent, const char* name, const QString& path)
-	: QObject(parent, name)
+	: QObject(parent)
 {
 	Q_ASSERT(path.length() > 0);
-	m_file.setName(path);
+	m_file.setFileName(path);
 }
 
 HIDDevice::~HIDDevice()

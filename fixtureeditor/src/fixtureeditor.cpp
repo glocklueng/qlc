@@ -1,5 +1,5 @@
 /*
-  Q Light Controller - Fixture Editor
+  Q Light Controller - Fixture Definition Editor
   qlcfixtureeditor.cpp
 
   Copyright (C) Heikki Junnila
@@ -19,27 +19,29 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qtoolbutton.h>
-#include <qcombobox.h>
-#include <qlistview.h>
-#include <qlineedit.h>
-#include <qevent.h>
-#include <qmessagebox.h>
-#include <qfiledialog.h>
-#include <qinputdialog.h>
-#include <qspinbox.h>
-#include <qtabwidget.h>
-#include <qpopupmenu.h>
-
-#include <errno.h>
-#include <string.h>
+#include <QTreeWidgetItem>
+#include <QInputDialog>
+#include <QTreeWidget>
+#include <QMessageBox>
+#include <QToolButton>
+#include <QFileDialog>
+#include <QCloseEvent>
+#include <QComboBox>
+#include <QLineEdit>
+#include <QSpinBox>
+#include <QTabWidget>
+#include <QMenu>
+#include <QIcon>
 
 #include "common/qlcfixturedef.h"
 #include "common/qlcfixturemode.h"
 #include "common/qlcchannel.h"
 #include "common/qlccapability.h"
 #include "common/qlcphysical.h"
-#include "common/filehandler.h"
+#include "common/qlcfile.h"
+
+#include "errno.h"
+#include "string.h"
 
 #include "app.h"
 #include "fixtureeditor.h"
@@ -60,16 +62,22 @@ static const int KModesColumnPointer  ( 2 );
 
 static const int KMenuEdit ( 0 );
 static const int KMenuCopy ( 1 );
-static const int KMenuClone ( 1 );
 static const int KMenuPaste ( 3 );
 static const int KMenuRemove ( 4 );
 
-QLCFixtureEditor::QLCFixtureEditor(QWidget* parent, QLCFixtureDef* fixtureDef)
-	: UI_FixtureEditor(parent, "Fixture Editor"),
-
-	  m_fixtureDef(fixtureDef),
-	  m_modified(false)
+QLCFixtureEditor::QLCFixtureEditor(QWidget* parent,
+				   QLCFixtureDef* fixtureDef,
+				   const QString& fileName) : QWidget(parent)
 {
+	m_fixtureDef = fixtureDef;
+	m_fileName = fileName;
+	m_modified = false;
+
+	setupUi(this);
+	init();
+	setCaption();
+
+	setModified(false);
 }
 
 QLCFixtureEditor::~QLCFixtureEditor()
@@ -79,34 +87,66 @@ QLCFixtureEditor::~QLCFixtureEditor()
 
 void QLCFixtureEditor::init()
 {
-	setIcon(QPixmap(QString(PIXMAPS) + QString("/fixture.png")));
-
-	/* Channel buttons */
-	m_addChannelButton->setIconSet(QPixmap(QString(PIXMAPS) + 
-				       QString("/edit_add.png")));
-	m_removeChannelButton->setIconSet(QPixmap(QString(PIXMAPS) + 
-					  QString("/edit_remove.png")));
-	m_editChannelButton->setIconSet(QPixmap(QString(PIXMAPS) + 
-					QString("/edit.png")));
-
-	/* Mode buttons */
-	m_removeModeButton->setIconSet(QPixmap(QString(PIXMAPS) + 
-				       QString("/edit_remove.png")));
-	m_addModeButton->setIconSet(QPixmap(QString(PIXMAPS) + 
-				    QString("/edit_add.png")));
-	m_editModeButton->setIconSet(QPixmap(QString(PIXMAPS) + 
-				     QString("/edit.png")));
-
+	/* General page */
 	m_manufacturerEdit->setText(m_fixtureDef->manufacturer());
-	m_modelEdit->setText(m_fixtureDef->model());
+	connect(m_manufacturerEdit, SIGNAL(textEdited(const QString&)),
+		this, SLOT(slotManufacturerTextEdited(const QString&)));
 
-	m_typeCombo->setCurrentText(m_fixtureDef->type());
+	m_modelEdit->setText(m_fixtureDef->model());
+	connect(m_modelEdit, SIGNAL(textEdited(const QString&)),
+		this, SLOT(slotModelTextEdited(const QString&)));
+
+	m_typeCombo->setEditText(m_fixtureDef->type());
+	connect(m_typeCombo, SIGNAL(activated(const QString&)),
+		this, SLOT(slotTypeActivated(const QString&)));
+
+	/* Channel page */
+	m_addChannelButton->setIcon(QIcon(PIXMAPS "/edit_add.png"));
+	connect(m_addChannelButton, SIGNAL(clicked()),
+		this, SLOT(slotAddChannel()));
+
+	m_removeChannelButton->setIcon(QIcon(PIXMAPS "/edit_remove.png"));
+	connect(m_removeChannelButton, SIGNAL(clicked()),
+		this, SLOT(slotRemoveChannel()));
+
+	m_editChannelButton->setIcon(QIcon(PIXMAPS "/edit.png"));
+	connect(m_editChannelButton, SIGNAL(clicked()),
+		this, SLOT(slotEditChannel()));
+
+	connect(m_channelList, SIGNAL(currentItemChanged(QTreeWidgetItem*,
+							 QTreeWidgetItem*)),
+		this, SLOT(slotChannelListSelectionChanged(QTreeWidgetItem*,
+							   QTreeWidgetItem*)));
+	connect(m_channelList,
+		SIGNAL(customContextMenuRequested(const QPoint&)),
+		this,
+		SLOT(slotChannelListContextMenuRequested(const QPoint&)));
 
 	refreshChannelList();
-	refreshModeList();
-	setCaption();
 
-	setModified(false);
+	/* Mode page */
+	m_addModeButton->setIcon(QIcon(PIXMAPS "/edit_add.png"));
+	connect(m_addModeButton, SIGNAL(clicked()),
+		this, SLOT(slotAddMode()));
+
+	m_removeModeButton->setIcon(QIcon(PIXMAPS "/edit_remove.png"));
+	connect(m_removeModeButton, SIGNAL(clicked()),
+		this, SLOT(slotRemoveMode()));
+
+	m_editModeButton->setIcon(QIcon(PIXMAPS "/edit.png"));
+	connect(m_editModeButton, SIGNAL(clicked()),
+		this, SLOT(slotEditMode()));
+
+	connect(m_modeList, SIGNAL(currentItemChanged(QTreeWidgetItem*,
+						      QTreeWidgetItem*)),
+		this, SLOT(slotModeListSelectionChanged(QTreeWidgetItem*,
+							QTreeWidgetItem*)));
+	connect(m_modeList,
+		SIGNAL(customContextMenuRequested(const QPoint&)),
+		this,
+		SLOT(slotModeListContextMenuRequested(const QPoint&)));
+
+	refreshModeList();
 }
 
 void QLCFixtureEditor::closeEvent(QCloseEvent* e)
@@ -115,35 +155,26 @@ void QLCFixtureEditor::closeEvent(QCloseEvent* e)
 
 	if (m_modified)
 	{
-		r = QMessageBox::information(this,
-					     "Closing...",
+		r = QMessageBox::information(this, tr("Close"),
 				"Do you want to save changes to fixture\n\""
 				+ m_fixtureDef->name() + "\"\nbefore closing?",
 				QMessageBox::Yes,
 				QMessageBox::No,
 				QMessageBox::Cancel);
+
 		if (r == QMessageBox::Yes)
-		{
 			if (save())
-			{
 				e->accept();
-				emit closed(this);
-			}
-		}
+			else
+				e->ignore();
 		else if (r == QMessageBox::No)
-		{
 			e->accept();
-			emit closed(this);
-		}
 		else
-		{
 			e->ignore();
-		}
 	}
 	else
 	{
 		e->accept();
-		emit closed(this);
 	}
 }
 
@@ -157,7 +188,7 @@ bool QLCFixtureEditor::checkManufacturerModel()
 				     "Missing important information",
 				     "Missing manufacturer name.\n" \
 				     "Unable to save fixture.");
-		m_tab->setCurrentPage(0);
+		m_tab->setCurrentIndex(0);
 		m_manufacturerEdit->setFocus();
 		return false;
 	}
@@ -167,7 +198,7 @@ bool QLCFixtureEditor::checkManufacturerModel()
 				     "Missing important information",
 				     "Missing fixture model name.\n" \
 				     "Unable to save fixture.");
-		m_tab->setCurrentPage(0);
+		m_tab->setCurrentIndex(0);
 		m_modelEdit->setFocus();
 		return false;
 	}
@@ -186,14 +217,6 @@ bool QLCFixtureEditor::save()
 	}
 	else
 	{
-		/* If the current filename has .deviceclass extension, remind
-		   the user that the new extension & format will be .qxf */
-		if (newExtensionReminder() == false)
-			return false;
-
-		/* Ensure that the file will have the .qxf extension */
-		ensureNewExtension();
-		
 		if (m_fixtureDef->saveXML(m_fileName) == true)
 		{
 			setModified(false);
@@ -224,18 +247,10 @@ bool QLCFixtureEditor::saveAs()
 	}
 	else
 	{
-		/* If the current filename has .deviceclass extension, remind
-		   the user that the new extension & format will be .qxf */
-		if (newExtensionReminder() == FALSE)
-			return false;
-
-		/* Ensure that the file will have the .qxf extension */
-		ensureNewExtension();
-
 		path = m_fileName;
 	}
 
-	path = QFileDialog::getSaveFileName(path, "Fixtures (*.qxf)", this);
+	path = QFileDialog::getSaveFileName(this, path, "Fixtures (*.qxf)");
 	if (path.length() != 0)
 	{
 		if (path.right(strlen(KExtFixture)) != QString(KExtFixture))
@@ -278,7 +293,7 @@ void QLCFixtureEditor::setCaption()
 	else
 		caption = fileName;
 
-	UI_FixtureEditor::setCaption(caption);
+	parentWidget()->setWindowTitle(caption);
 }
 
 void QLCFixtureEditor::setModified(bool modified)
@@ -287,57 +302,23 @@ void QLCFixtureEditor::setModified(bool modified)
 	setCaption();
 }
 
-void QLCFixtureEditor::ensureNewExtension()
-{
-	if (m_fileName.right(strlen(KExtLegacyDeviceClass))
-		== KExtLegacyDeviceClass)
-	{
-		/* Rename the file extension to the new one */
-		m_fileName = m_fileName.left(m_fileName.length() -
-			strlen(KExtLegacyDeviceClass)) +
-			QString(KExtFixture);
-		setCaption();
-	}
-}
-
-bool QLCFixtureEditor::newExtensionReminder()
-{
-	int res = QMessageBox::Ok;
-	
-	if (m_fileName.right(strlen(KExtLegacyDeviceClass))
-		== KExtLegacyDeviceClass)
-	{
-		if (QMessageBox::question(this, "Convert file",
-			"The old file format will be converted " \
-			"to the new QXF format\nand the file extension " \
-			"will be changed to " KExtFixture ". OK to continue?",
-			QMessageBox::Ok, QMessageBox::Cancel) 
-			== QMessageBox::Cancel)
-		{
-			return false;
-		}
-	}
-	
-	return true;
-}
-
 /*****************************************************************************
  * General tab functions
  *****************************************************************************/
 
-void QLCFixtureEditor::slotManufacturerEditTextChanged(const QString &text)
+void QLCFixtureEditor::slotManufacturerTextEdited(const QString &text)
 {
 	m_fixtureDef->setManufacturer(text);
 	setModified();
 }
 
-void QLCFixtureEditor::slotModelEditTextChanged(const QString &text)
+void QLCFixtureEditor::slotModelTextEdited(const QString &text)
 {
 	m_fixtureDef->setModel(text);
 	setModified();
 }
 
-void QLCFixtureEditor::slotTypeSelected(const QString &text)
+void QLCFixtureEditor::slotTypeActivated(const QString &text)
 {
 	m_fixtureDef->setType(text);
 	setModified();
@@ -347,7 +328,8 @@ void QLCFixtureEditor::slotTypeSelected(const QString &text)
  * Channels tab functions
  *****************************************************************************/
 
-void QLCFixtureEditor::slotChannelListSelectionChanged(QListViewItem* item)
+void QLCFixtureEditor::slotChannelListSelectionChanged(QTreeWidgetItem* item,
+						       QTreeWidgetItem* prev)
 {
 	if (item == NULL)
 	{
@@ -361,29 +343,26 @@ void QLCFixtureEditor::slotChannelListSelectionChanged(QListViewItem* item)
 	}
 }
 
-void QLCFixtureEditor::slotAddChannelClicked()
+void QLCFixtureEditor::slotAddChannel()
 {
-	EditChannel* ec = NULL;
+	EditChannel ec(this);
+	
 	bool ok = false;
-	
-	ec = new EditChannel(this);
-	ec->init();
-	
 	while (ok == false)
 	{
-		if (ec->exec() == QDialog::Accepted)
+		if (ec.exec() == QDialog::Accepted)
 		{
-			if (m_fixtureDef->channel(ec->channel()->name()) != NULL)
+			if (m_fixtureDef->channel(ec.channel()->name()) != NULL)
 			{
 				QMessageBox::warning(this, 
 					QString("Channel already exists"),
 					QString("A channel by the name \"") + 
-					ec->channel()->name() + 
+					ec.channel()->name() + 
 					QString("\" already exists!"));
 				
 				ok = false;
 			}
-			else if (ec->channel()->name().length() == 0)
+			else if (ec.channel()->name().length() == 0)
 			{
 				QMessageBox::warning(this, 
 					QString("Channel has no name"),
@@ -394,7 +373,8 @@ void QLCFixtureEditor::slotAddChannelClicked()
 			else
 			{
 				/* Create a new channel to the fixture */
-				m_fixtureDef->addChannel(new QLCChannel(ec->channel()));
+				m_fixtureDef->addChannel(
+					new QLCChannel(ec.channel()));
 				refreshChannelList();
 				setModified();
 				
@@ -406,11 +386,9 @@ void QLCFixtureEditor::slotAddChannelClicked()
 			ok = true;
 		}
 	}
-
-	delete ec;
 }
 
-void QLCFixtureEditor::slotRemoveChannelClicked()
+void QLCFixtureEditor::slotRemoveChannel()
 {
 	QLCChannel* channel = currentChannel();
 	
@@ -425,11 +403,10 @@ void QLCFixtureEditor::slotRemoveChannelClicked()
 	}
 }
 
-void QLCFixtureEditor::slotEditChannelClicked()
+void QLCFixtureEditor::slotEditChannel()
 {
-	EditChannel* ec = NULL;
 	QLCChannel* real = NULL;
-	QListViewItem* item = NULL;
+	QTreeWidgetItem* item = NULL;
 
 	// Initialize the dialog with the selected logical channel or
 	// bail out if there is no current selection
@@ -437,13 +414,11 @@ void QLCFixtureEditor::slotEditChannelClicked()
 	if (real == NULL)
 		return;
 	
-	ec = new EditChannel(this, real);
-	ec->init();
-	
-	if (ec->exec() == QDialog::Accepted)
+	EditChannel ec(this, real);
+	if (ec.exec() == QDialog::Accepted)
 	{
 		// Copy the channel's contents to the real channel
-		*real = *ec->channel();
+		*real = *(ec.channel());
 
 		item = m_channelList->currentItem();
 		item->setText(KChannelsColumnName, real->name());
@@ -451,141 +426,14 @@ void QLCFixtureEditor::slotEditChannelClicked()
 		
 		setModified();
 	}
-
-	delete ec;
 }
 
-void QLCFixtureEditor::refreshChannelList()
+void QLCFixtureEditor::slotCopyChannel()
 {
-	QPtrListIterator <QLCChannel> it(*m_fixtureDef->channels());
-	QLCChannel* ch = NULL;
-	QListViewItem* item = NULL;
-	QString str;
-
-	m_channelList->clear();
-
-	// Fill channels list
-	while ( (ch = it.current()) != 0)
-	{
-		item = new QListViewItem(m_channelList);
-		item->setText(KChannelsColumnName, ch->name());
-		item->setText(KChannelsColumnGroup, ch->group());
-
-		// Store the channel pointer to the listview as a string
-		str.sprintf("%d", (unsigned long) ch);
-		item->setText(KChannelsColumnPointer, str);
-		
-		++it;
-	}
-	
-	slotChannelListSelectionChanged(m_channelList->currentItem());
+	_app->setCopyChannel(currentChannel());
 }
 
-QLCChannel* QLCFixtureEditor::currentChannel()
-{
-	QLCChannel* ch = NULL;
-	QListViewItem* item = NULL;
-
-	// Convert the string-form ulong to a QLCChannel pointer and return it
-	item = m_channelList->currentItem();
-	if (item != NULL)
-		ch = (QLCChannel*) item->text(KChannelsColumnPointer).toULong();
-
-	return ch;
-}
-
-void QLCFixtureEditor::slotChannelListContextMenuRequested(QListViewItem* item,
-							   const QPoint& pos,
-							   int col)
-{
-	QStringList::Iterator it;
-	QStringList groups;
-	QPopupMenu* menu = NULL;
-	QPopupMenu* groupMenu = NULL;
-
-	/* Master edit menu */
-	menu = new QPopupMenu();
-	menu->insertItem(QPixmap(QString(PIXMAPS) + QString("/edit.png")),
-			 "Edit...", KMenuEdit);
-	menu->insertItem(QPixmap(QString(PIXMAPS) + QString("/editcopy.png")),
-			 "Copy", KMenuCopy);
-	menu->insertItem(QPixmap(QString(PIXMAPS) + QString("/editpaste.png")),
-			 "Paste", KMenuPaste);
-	menu->insertSeparator();
-	menu->insertItem(QPixmap(QString(PIXMAPS) + QString("/editdelete.png")),
-			 "Remove", KMenuRemove);
-
-	/* Group menu */
-	groupMenu = new QPopupMenu();
-	groups = QLCChannel::groupList();
-	for (it = groups.begin(); it != groups.end(); ++it)
-		groupMenu->insertItem(*it,
-				      10000 + QLCChannel::groupToIndex(*it));
-	menu->insertSeparator();
-	menu->insertItem("Set group", groupMenu);
-
-	if (item == NULL)
-	{
-		menu->setItemEnabled(KMenuCopy, false);
-		menu->setItemEnabled(KMenuRemove, false);
-	}
-
-	if (_app->copyChannel() == NULL)
-	{
-		menu->setItemEnabled(KMenuPaste, false);
-	}
-
-	connect(menu, SIGNAL(activated(int)),
-		this, SLOT(slotChannelListMenuActivated(int)));
-	connect(groupMenu, SIGNAL(activated(int)),
-		this, SLOT(slotChannelListMenuActivated(int)));
-
-	menu->exec(pos);
-
-	delete groupMenu;
-	delete menu;
-}
-
-void QLCFixtureEditor::slotChannelListMenuActivated(int item)
-{
-	switch (item)
-	{
-
-	case KMenuEdit:
-		slotEditChannelClicked();
-		break;
-
-	case KMenuCopy:
-		_app->setCopyChannel(currentChannel());
-		break;
-
-	case KMenuPaste:
-		pasteChannel();
-		break;
-
-	case KMenuRemove:
-		slotRemoveChannelClicked();
-		break;
-
-	default:
-	{
-		QString group;
-		QLCChannel* ch = NULL;
-		QListViewItem* node = NULL;
-
-		group = QLCChannel::indexToGroup(item - 10000);
-		ch = currentChannel();
-		if (ch != NULL)
-			ch->setGroup(group);
-		node = m_channelList->currentItem();
-		if (node != NULL)
-			node->setText(KChannelsColumnGroup, group);
-		setModified();
-	}
-	}
-}
-
-void QLCFixtureEditor::pasteChannel()
+void QLCFixtureEditor::slotPasteChannel()
 {
 	QLCChannel* ch = _app->copyChannel();
 	if (ch != NULL && m_fixtureDef != NULL)
@@ -596,11 +444,114 @@ void QLCFixtureEditor::pasteChannel()
 	}
 }
 
+void QLCFixtureEditor::refreshChannelList()
+{
+	QLCChannel* ch = NULL;
+	QTreeWidgetItem* item = NULL;
+	QString str;
+
+	m_channelList->clear();
+
+	// Fill channels list
+	QListIterator <QLCChannel*> it(*m_fixtureDef->channels());
+	while (it.hasNext() == true)
+	{
+		ch = it.next();
+
+		item = new QTreeWidgetItem(m_channelList);
+		item->setText(KChannelsColumnName, ch->name());
+		item->setText(KChannelsColumnGroup, ch->group());
+
+		// Store the channel pointer to the listview as a string
+		str.sprintf("%d", (unsigned long) ch);
+		item->setText(KChannelsColumnPointer, str);
+	}
+	
+	slotChannelListSelectionChanged(m_channelList->currentItem());
+}
+
+void QLCFixtureEditor::slotChannelListContextMenuRequested(const QPoint& pos)
+{
+	QAction editAction(QIcon(PIXMAPS "/edit.png"), tr("Edit"), this);
+	QAction copyAction(QIcon(PIXMAPS "/editcopy.png"), tr("Copy"), this);
+	QAction pasteAction(QIcon(PIXMAPS "/editpaste.png"), tr("Paste"), this);
+	QAction removeAction(QIcon(PIXMAPS "/editdelete.png"), tr("Remove"), this);
+
+	/* Group menu */
+	QMenu groupMenu;
+	groupMenu.setTitle("Set group");
+	QStringListIterator it(QLCChannel::groupList());
+	while (it.hasNext() == true)
+		groupMenu.addAction(it.next());
+
+	/* Master edit menu */
+	QMenu menu;
+	menu.setTitle(tr("Channels"));
+	menu.addAction(&editAction);
+	menu.addAction(&copyAction);
+	menu.addAction(&pasteAction);
+	menu.addSeparator();
+	menu.addAction(&removeAction);
+	menu.addSeparator();
+	menu.addMenu(&groupMenu);
+
+	if (m_channelList->currentItem() == NULL)
+	{
+		copyAction.setEnabled(false);
+		removeAction.setEnabled(false);
+	}
+
+	if (_app->copyChannel() == NULL)
+		pasteAction.setEnabled(false);
+
+	QAction* selectedAction = menu.exec(pos);
+	if (selectedAction == NULL)
+		return;
+	else if (selectedAction->text() == tr("Edit"))
+		slotEditChannel();
+	else if (selectedAction->text() == tr("Copy"))
+		slotCopyChannel();
+	else if (selectedAction->text() == tr("Paste"))
+		slotPasteChannel();
+	else if (selectedAction->text() == tr("Remove"))
+		slotRemoveChannel();
+	else
+	{
+		/* Group menu hook */
+		QLCChannel* ch = NULL;
+		QTreeWidgetItem* node = NULL;
+
+		ch = currentChannel();
+		if (ch != NULL)
+			ch->setGroup(selectedAction->text());
+		node = m_channelList->currentItem();
+		if (node != NULL)
+			node->setText(KChannelsColumnGroup,
+				      selectedAction->text());
+	}
+
+	setModified();
+}
+
+QLCChannel* QLCFixtureEditor::currentChannel()
+{
+	QLCChannel* ch = NULL;
+	QTreeWidgetItem* item = NULL;
+
+	// Convert the string-form ulong to a QLCChannel pointer and return it
+	item = m_channelList->currentItem();
+	if (item != NULL)
+		ch = (QLCChannel*) item->text(KChannelsColumnPointer).toULong();
+
+	return ch;
+}
+
 /*****************************************************************************
  * Modes tab functions
  *****************************************************************************/
 
-void QLCFixtureEditor::slotModeListSelectionChanged(QListViewItem* item)
+void QLCFixtureEditor::slotModeListSelectionChanged(QTreeWidgetItem* item,
+						    QTreeWidgetItem* prev)
 {
 	if (item == NULL)
 	{
@@ -614,42 +565,38 @@ void QLCFixtureEditor::slotModeListSelectionChanged(QListViewItem* item)
 	}
 }
 
-void QLCFixtureEditor::slotAddModeClicked()
+void QLCFixtureEditor::slotAddMode()
 {
-	QLCFixtureMode* mode = NULL;
-	EditMode* em = NULL;
+	EditMode em(_app, m_fixtureDef);
 	bool ok = false;
-	
-	em = new EditMode(_app, m_fixtureDef);
-	em->init();
-
 	while (ok == false)
 	{
-		if (em->exec() == QDialog::Accepted)
+		if (em.exec() == QDialog::Accepted)
 		{
-			if (m_fixtureDef->mode(em->mode()->name()) != NULL)
+			if (m_fixtureDef->mode(em.mode()->name()) != NULL)
 			{
-				QMessageBox::warning(this, 
-					QString("Mode already exists"),
-					QString("A mode by the name \"") + 
-					em->mode()->name() + 
-					QString("\" already exists!"));
+				QMessageBox::warning(
+					this, 
+					tr("Unable to add mode"),
+					tr("Another mode by that name already exists"));
 				
 				// User must rename the mode to continue
 				ok = false;
 			}
-			else if (em->mode()->name().length() == 0)
+			else if (em.mode()->name().length() == 0)
 			{
-				QMessageBox::warning(this, 
-					QString("Mode has no name"),
-					QString("You must give the mode a name!"));
+				QMessageBox::warning(
+					this, 
+					tr("Unable to add mode"),
+					tr("You must give a name to the mode"));
 				
 				ok = false;
 			}
 			else
 			{
 				ok = true;
-				m_fixtureDef->addMode(new QLCFixtureMode(em->mode()));
+				m_fixtureDef->addMode(
+					new QLCFixtureMode(em.mode()));
 				refreshModeList();
 				setModified();
 			}
@@ -659,11 +606,9 @@ void QLCFixtureEditor::slotAddModeClicked()
 			ok = true;
 		}
 	}
-	
-	delete em;
 }
 
-void QLCFixtureEditor::slotRemoveModeClicked()
+void QLCFixtureEditor::slotRemoveMode()
 {
 	QLCFixtureMode* mode = currentMode();
 	
@@ -677,22 +622,19 @@ void QLCFixtureEditor::slotRemoveModeClicked()
 	}
 }
 
-void QLCFixtureEditor::slotEditModeClicked()
+void QLCFixtureEditor::slotEditMode()
 {
 	QLCFixtureMode* mode = currentMode();
-	EditMode* em = NULL;
 	QString str;
 
 	if (mode == NULL)
 		return;
 	
-	em = new EditMode(_app, mode);
-	em->init();
-
-	if (em->exec() == QDialog::Accepted)
+	EditMode em(this, mode);
+	if (em.exec() == QDialog::Accepted)
 	{
-		QListViewItem* item = NULL;
-		*mode = *em->mode();
+		QTreeWidgetItem* item = NULL;
+		*mode = *(em.mode());
 		
 		item = m_modeList->currentItem();
 		item->setText(KModesColumnName, mode->name());
@@ -701,102 +643,9 @@ void QLCFixtureEditor::slotEditModeClicked()
 		
 		setModified();
 	}
-	
-	delete em;
 }
 
-void QLCFixtureEditor::slotModeListContextMenuRequested(QListViewItem* item,
-							const QPoint& pos,
-							int col)
-{
-	QPopupMenu* menu = NULL;
-
-	menu = new QPopupMenu();
-	menu->insertItem(QPixmap(QString(PIXMAPS) + QString("/edit.png")),
-			 "Edit...", KMenuEdit);
-	menu->insertItem(QPixmap(QString(PIXMAPS) + QString("/editcopy.png")),
-			 "Clone", KMenuClone);
-	menu->insertSeparator();
-	menu->insertItem(QPixmap(QString(PIXMAPS) + QString("/editdelete.png")),
-			 "Remove", KMenuRemove);
-
-	if (item == NULL)
-	{
-		menu->setItemEnabled(KMenuEdit, false);
-		menu->setItemEnabled(KMenuClone, false);
-		menu->setItemEnabled(KMenuRemove, false);
-	}
-
-	connect(menu, SIGNAL(activated(int)),
-		this, SLOT(slotModeListMenuActivated(int)));
-
-	menu->exec(pos);
-	delete menu;
-}
-
-void QLCFixtureEditor::slotModeListMenuActivated(int item)
-{
-	switch (item)
-	{
-
-	case KMenuEdit:
-		slotEditModeClicked();
-		break;
-
-	case KMenuClone:
-		cloneCurrentMode();
-		break;
-
-	case KMenuRemove:
-		slotRemoveModeClicked();
-		break;
-
-	default:
-		break;
-	}
-}
-
-void QLCFixtureEditor::refreshModeList()
-{
-	QPtrListIterator <QLCFixtureMode> it(*m_fixtureDef->modes());
-	QLCFixtureMode* mode = NULL;
-	QListViewItem* item = NULL;
-	QString str;
-
-	m_modeList->clear();
-
-	// Fill channels list
-	while ( (mode = it.current()) != 0)
-	{
-		item = new QListViewItem(m_modeList);
-		item->setText(KModesColumnName, mode->name());
-		str.sprintf("%d", mode->channels());
-		item->setText(KModesColumnChannels, str);
-
-		// Store the channel pointer to the listview as a string
-		str.sprintf("%d", (unsigned long) mode);
-		item->setText(KModesColumnPointer, str);
-		
-		++it;
-	}
-	
-	slotModeListSelectionChanged(m_modeList->currentItem());
-}
-
-QLCFixtureMode* QLCFixtureEditor::currentMode()
-{
-	QLCFixtureMode* mode = NULL;
-	QListViewItem* item = NULL;
-
-	// Convert the string-form ulong to a QLCChannel pointer and return it
-	item = m_modeList->currentItem();
-	if (item != NULL)
-		mode = (QLCFixtureMode*) item->text(KModesColumnPointer).toULong();
-
-	return mode;
-}
-
-void QLCFixtureEditor::cloneCurrentMode()
+void QLCFixtureEditor::slotCloneMode()
 {
 	QLCFixtureMode* mode = NULL;
 	QLCFixtureMode* clone = NULL;
@@ -809,12 +658,11 @@ void QLCFixtureEditor::cloneCurrentMode()
 	
 	while (1)
 	{
-		text = QInputDialog::getText("Rename new mode",
-					     "Enter a UNIQUE name for the new mode",
+		text = QInputDialog::getText(this, tr("Rename new mode"),
+					     tr("Give a unique name for the mode"),
 					     QLineEdit::Normal,
 					     "Copy of " + mode->name(),
-					     &ok,
-					     this);
+					     &ok);
 
 		if (ok == true && text.isEmpty() == false)
 		{
@@ -822,9 +670,10 @@ void QLCFixtureEditor::cloneCurrentMode()
 			   the fixture definition -> again */
 			if (mode->fixtureDef()->mode(text) != NULL)
 			{
-				QMessageBox::information(this, "Invalid name",
-					 "That name is already in use!\n" \
-					 "Try something else...");
+				QMessageBox::information(
+					this,
+					tr("Invalid name"),
+					tr("Another mode by that name already exists."));
 				ok = false;
 				continue;
 			}
@@ -841,4 +690,73 @@ void QLCFixtureEditor::cloneCurrentMode()
 			break;
 		}
 	}
+}
+
+void QLCFixtureEditor::slotModeListContextMenuRequested(const QPoint& pos)
+{
+	QAction editAction(QIcon(PIXMAPS "/edit.png"), tr("Edit"), this);
+	connect(&editAction, SIGNAL(triggered(bool)),
+		this, SLOT(slotEditMode()));
+	QAction cloneAction(QIcon(PIXMAPS "/editcopy.png"), tr("Clone"), this);
+	connect(&cloneAction, SIGNAL(triggered(bool)),
+		this, SLOT(slotCloneMode()));
+	QAction removeAction(QIcon(PIXMAPS "/editdelete.png"), tr("Remove"), this);
+	connect(&removeAction, SIGNAL(triggered(bool)),
+		this, SLOT(slotRemoveMode()));
+
+	QMenu menu;
+	menu.setTitle(tr("Modes"));
+	menu.addAction(&editAction);
+	menu.addAction(&cloneAction);
+	menu.addSeparator();
+	menu.addAction(&removeAction);
+
+	if (m_channelList->currentItem() == NULL)
+	{
+		editAction.setEnabled(false);
+		cloneAction.setEnabled(false);
+		removeAction.setEnabled(false);
+	}
+
+	menu.exec(pos);
+}
+
+void QLCFixtureEditor::refreshModeList()
+{
+	QTreeWidgetItem* item;
+	QLCFixtureMode* mode;
+	QString str;
+
+	m_modeList->clear();
+
+	// Fill channels list
+	QListIterator <QLCFixtureMode*> it(*m_fixtureDef->modes());
+	while (it.hasNext() == true)
+	{
+		mode = it.next();
+
+		item = new QTreeWidgetItem(m_modeList);
+		item->setText(KModesColumnName, mode->name());
+		str.sprintf("%d", mode->channels());
+		item->setText(KModesColumnChannels, str);
+
+		// Store the channel pointer to the listview as a string
+		str.sprintf("%d", (unsigned long) mode);
+		item->setText(KModesColumnPointer, str);
+	}
+	
+	slotModeListSelectionChanged(m_modeList->currentItem());
+}
+
+QLCFixtureMode* QLCFixtureEditor::currentMode()
+{
+	QLCFixtureMode* mode = NULL;
+	QTreeWidgetItem* item = NULL;
+
+	// Convert the string-form ulong to a QLCChannel pointer and return it
+	item = m_modeList->currentItem();
+	if (item != NULL)
+		mode = (QLCFixtureMode*) item->text(KModesColumnPointer).toULong();
+
+	return mode;
 }

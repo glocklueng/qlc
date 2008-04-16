@@ -22,17 +22,17 @@
 #ifndef EFXEDITOR_H
 #define EFXEDITOR_H
 
-#include <qpointarray.h>
-#include <qframe.h>
+#include <QPolygon>
+#include <QFrame>
+#include "common/qlctypes.h"
 
-#include "common/types.h"
-#include "uic_efxeditor.h"
+#include "ui_efxeditor.cpp"
 #include "efx.h"
 
 class QPaintEvent;
 class EFXPreviewArea;
 
-class EFXEditor : public UI_EFXEditor
+class EFXEditor : public QDialog, public Ui_EFXEditor
 {
 	Q_OBJECT
 
@@ -60,12 +60,6 @@ protected:
 	 */
 	void fillSceneLists();
 
-	/**
-	 * Update the list of available buses
-	 *
-	 */
-	void updateModulationBusCombo();
-
 protected slots:
 	void slotNameChanged(const QString &text);
 
@@ -87,15 +81,15 @@ protected slots:
 	void slotStartSceneCheckboxToggled(bool);
 	void slotStopSceneCheckboxToggled(bool);
 
-	void slotStartSceneListSelectionChanged(QListViewItem* item);
-	void slotStopSceneListSelectionChanged(QListViewItem* item);
+	void slotStartSceneListSelectionChanged();
+	void slotStopSceneListSelectionChanged();
 
 	void slotDirectionClicked(int item);
 	void slotRunOrderClicked(int item);
 
 protected:
 	EFXPreviewArea* m_previewArea;
-	QPointArray* m_pointArray;
+	QPolygon* m_points;
 
 	EFX* m_efx;
 };
@@ -118,7 +112,7 @@ public:
 	 *
 	 * @return The point array
 	 */
-	QPointArray* pointArray();
+	QPolygon* points();
 
 protected:
 	/**
@@ -129,7 +123,9 @@ protected:
 	 */
 	void paintEvent(QPaintEvent* e);
 
-	QPointArray* m_pointArray;
+protected:
+	/** Points that are drawn in the preview area */
+	QPolygon* m_points;
 };
 
 

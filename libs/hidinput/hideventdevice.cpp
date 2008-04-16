@@ -20,11 +20,12 @@
 */
 
 #include <linux/input.h>
-
-#include <qobject.h>
-#include <qstring.h>
-#include <qfile.h>
 #include <errno.h>
+
+#include <iostream>
+#include <QObject>
+#include <QString>
+#include <QFile>
 
 #include "hideventdevice.h"
 #include "hidinput.h"
@@ -55,22 +56,28 @@ bool HIDEventDevice::open()
 {
 	bool result = false;
 
-	qDebug("************************************************************");
-	qDebug("* Device file:" + m_file.name());
+	std::cout << "**********************************************"
+		  << std::endl;
+	std::cout << "* Device file: " << m_file.fileName().toStdString()
+		  << std::endl;
 
-	result = m_file.open(IO_Raw | IO_ReadWrite);
+	result = m_file.open(QIODevice::Unbuffered | QIODevice::ReadWrite);
 	if (result == false)
 	{
-		qWarning("Unable to open %s in R/W mode: %s.",
-			 (const char*) m_file.name(),
-			 (const char*) m_file.errorString());
+		std::cout << "Unable to open "
+			  << m_file.fileName().toStdString()
+			  << " in Read/Write mode: "
+			  << m_file.errorString().toStdString()
+			  << std::endl;
 		
-		result = m_file.open(IO_Raw | IO_ReadOnly);
+		result = m_file.open(QIODevice::Unbuffered | QIODevice::ReadOnly);
 		if (result == false)
 		{
-			qWarning("Unable to open %s in R/O mode: %s.\n",
-				 (const char*) m_file.name(),
-				 (const char*) m_file.errorString());
+			std::cout << "Unable to open "
+				  << m_file.fileName().toStdString()
+				  << " in Read Only mode: "
+				  << m_file.errorString().toStdString()
+				  << std::endl;
 		}
 	}
 
@@ -89,7 +96,8 @@ bool HIDEventDevice::open()
 		else
 		{
 			m_name = QString(name);
-			qDebug("* Device name:" + m_name);
+			std::cout << "* Device name:" << m_name.toStdString()
+				  << std::endl;
 		}
 
 		/* Device info */
@@ -111,7 +119,7 @@ void HIDEventDevice::getCapabilities()
 {
 	int i = 0;
 
-	printf("* Supported event types:\n");
+	std::cout << "* Supported event types:" << std::endl;
 
 	for (i = 0; i < EV_MAX; i++)
 	{
@@ -119,23 +127,27 @@ void HIDEventDevice::getCapabilities()
 		{
 			/* this means that the bit is set in the
 			   event types list */
-			printf("\tEvent type 0x%02x ", i);
+			QString s;
+			s.sprintf("0x%02x", i);
+			std::cout << "\tEvent type 0x%02x " << s.toStdString();
 			switch (i)
 			{
 			case EV_KEY:
-				printf("\t (Keys or Buttons)\n");
+				std::cout << "\t (Keys or Buttons)" << std::endl;
 				break;
 			case EV_ABS:
-				printf("\t (Absolute Axes)\n");
+				std::cout << "\t (Absolute Axes)" << std::endl;
 				break;
 			case EV_LED:
-				printf("\t (LEDs)\n");
+				std::cout << "\t (LEDs)" << std::endl;
 				break;
 			case EV_REP:
-				printf("\t (Repeat)\n");
+				std::cout << "\t (Repeat)" << std::endl;
 				break;
 			default:
-				printf("\t (Unknown event type: 0x%04hx)\n", i);
+				s.sprintf("0x%04hx", i);
+				std::cout << "\t (Unknown event type: "
+					  << s.toStdString() << std::endl;
 			}
 		}
 	}
@@ -148,7 +160,7 @@ void HIDEventDevice::close()
 
 QString HIDEventDevice::path() const
 {
-	return m_file.name();
+	return m_file.fileName();
 }
 
 /*****************************************************************************
@@ -165,7 +177,7 @@ QString HIDEventDevice::infoText()
 
 	/* File name */
 	info += QString("<TD>");
-	info += m_file.name();
+	info += m_file.fileName();
 	info += QString("</TD>");
 
 	if (m_file.isOpen() == true)

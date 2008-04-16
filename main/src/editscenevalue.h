@@ -22,18 +22,20 @@
 #ifndef EDITSCENEVALUE_H
 #define EDITSCENEVALUE_H
 
-#include "uic_editscenevalue.h"
+#include <QDialog>
+
+#include "ui_editscenevalue.cpp"
+#include "common/qlctypes.h"
 #include "scene.h"
-#include "common/types.h"
 
 class QWidget;
 class QLCChannel;
 
-class EditSceneValue : public UI_EditSceneValue
+class EditSceneValue : public QDialog, public Ui_EditSceneValue
 {
 	Q_OBJECT
 
- public:
+public:
 	EditSceneValue(QWidget* parent, QLCChannel* ch,
 		       SceneValue &currentValue);
 	virtual ~EditSceneValue();
@@ -41,12 +43,12 @@ class EditSceneValue : public UI_EditSceneValue
 	t_value value() { return m_value; }
 	QString type() { return m_type; }
 
- private slots:
+protected slots:
 	void slotValueChanged(int);
 	void slotPresetComboActivated(const QString &);
 	void slotTypeActivated(const QString &text);
 
- private:
+protected:
 	bool m_updateValue;
 
 	QLCChannel* m_channel;

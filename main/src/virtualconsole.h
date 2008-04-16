@@ -22,9 +22,9 @@
 #ifndef VIRTUALCONSOLE_H
 #define VIRTUALCONSOLE_H
 
-#include <qwidget.h>
-#include <qframe.h>
-#include <qptrlist.h>
+#include <QWidget>
+#include <QFrame>
+#include <QList>
 
 #include "app.h"
 
@@ -33,7 +33,6 @@ class QPopupMenu;
 class QToolBar;
 class QHBoxLayout;
 class QFile;
-class QFrame;
 class QDomDocument;
 class QDomElement;
 
@@ -283,7 +282,7 @@ public:
 	 *
 	 * @param widgets A list of widget pointers to cut
 	 */
-	void cut(QPtrList<QWidget> *widgets);
+	void cut(QList <QWidget*> *widgets);
 
 	/**
 	 * Copy the given widgets from their parents to get pasted to another
@@ -291,7 +290,7 @@ public:
 	 *
 	 * @param widgets A list of widget pointers to copy
 	 */
-	void copy(QPtrList<QWidget> *widgets);
+	void copy(QList <QWidget*> *widgets);
 
 	/**
 	 * Paste clipboard contents to the given parent widget. Items can be
@@ -333,7 +332,7 @@ protected:
 	} ClipboardAction;
 
 	ClipboardAction m_clipboardAction;
-	QPtrList<QWidget> m_clipboard;
+	QList <QWidget*> m_clipboard;
 
 	/*********************************************************************
 	 * Draw area
@@ -459,7 +458,7 @@ protected:
 	QMenuBar* m_menuBar;
 
 	// Key receiver bind objects
-	QPtrList <KeyBind> m_keyReceivers;
+	QList <KeyBind*> m_keyReceivers;
 };
 
 #endif

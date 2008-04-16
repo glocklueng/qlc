@@ -19,31 +19,34 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qlistview.h>
-#include <qpushbutton.h>
+#include <QTreeWidgetItem>
+#include <QTreeWidget>
 
 #include "common/qlcchannel.h"
-#include "fixturelist.h"
+
 #include "consolechannel.h"
-#include "app.h"
+#include "fixturelist.h"
 #include "fixture.h"
+#include "app.h"
 #include "doc.h"
 
 extern App* _app;
 
-const int KColumnFixtureName ( 0 );
-const int KColumnChannelName ( 1 );
+#define KColumnFixtureName 0
+#define KColumnChannelName 1
+#define KColumnFixtureID   2
+#define KColumnChannelNum  3
 
-const int KColumnFixtureID   ( 2 );
-const int KColumnChannelNum  ( 3 );
-
-FixtureList::FixtureList(QWidget* parent)
-	: UI_FixtureList(parent, "Fixture List", true),
-	  m_fixture ( KNoID ),
-	  m_channel ( KChannelInvalid)
+/*****************************************************************************
+ * Initialization
+ *****************************************************************************/
+FixtureList::FixtureList(QWidget* parent) : QDialog(parent)
 {
-}
+	m_fixture = KNoID;
+	m_channel = KChannelInvalid;
 
+	init();
+}
 
 FixtureList::~FixtureList()
 {
@@ -51,27 +54,28 @@ FixtureList::~FixtureList()
 
 void FixtureList::init()
 {
-	QListViewItem* item = NULL;
-	QLCChannel* channel = NULL;
-	Fixture* fxi = NULL;
-	unsigned int n = 0;
-	QString fxi_id;
-	QString s;
+	QTreeWidgetItem* item;
 	
 	m_listView->clear();
+
+	connect(m_listView, SIGNAL(itemSelectionChanged()),
+		this, SLOT(slotSelectionChanged()));
+	connect(m_listView, SIGNAL(itemDoubleClicked(QTreeWidgetItem*)),
+		this, SLOT(slotItemDoubleClicked()));
 	
-	for (t_fixture_id i = 0; i < KFixtureArraySize; i++)
+	for (t_fixture_id fxi_id = 0; fxi_id < KFixtureArraySize; fxi_id++)
 	{
-		fxi = _app->doc()->fixture(i);
+		Fixture* fxi = _app->doc()->fixture(fxi_id);
 		if (fxi == NULL)
 			continue;
 
-		fxi_id.setNum(fxi->id());
-		
-		for (n = 0; n < fxi->channels(); n++)
+		for (unsigned int n = 0; n < fxi->channels(); n++)
 		{
+			QLCChannel* channel;
+			QString s;
+
 			// Create a new item for a channel
-			item = new QListViewItem(m_listView);
+			item = new QTreeWidgetItem(m_listView);
 
 			// Fixture name
 			item->setText(KColumnFixtureName, fxi->name());
@@ -95,15 +99,24 @@ void FixtureList::init()
 			item->setText(KColumnChannelNum, s);
 			
 			// Fixture ID (not shown)
-			item->setText(KColumnFixtureID, fxi_id);
+			item->setText(KColumnFixtureID,
+				      QString("%1").arg(fxi_id));
 		}   
 	}
 	
-	m_listView->setSelected(m_listView->firstChild(), true);
+	/* Select the first item */
+	item = m_listView->topLevelItem(0);
+	if (item != NULL)
+		item->setSelected(true);
 }
 
-void FixtureList::slotSelectionChanged(QListViewItem* item)
+/*****************************************************************************
+ * Fixture list slots
+ *****************************************************************************/
+
+void FixtureList::slotSelectionChanged()
 {
+	QTreeWidgetItem* item = m_listView->currentItem();
 	if (item != NULL)
 	{
 		m_fixture = static_cast<t_fixture_id> (
@@ -111,20 +124,16 @@ void FixtureList::slotSelectionChanged(QListViewItem* item)
 		
 		m_channel = static_cast<t_channel> (
 			item->text(KColumnChannelNum).toInt());
-		
-		m_ok->setEnabled(true);
 	}
 	else
 	{
 		m_fixture = KNoID;
 		m_channel = KChannelInvalid;
-		
-		m_ok->setEnabled(false);
 	}
 }
 
-void FixtureList::slotItemDoubleClicked(QListViewItem* item)
+void FixtureList::slotItemDoubleClicked()
 {
-	slotSelectionChanged(item);
+	slotSelectionChanged();
 	accept();
 }

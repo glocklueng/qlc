@@ -23,13 +23,13 @@
 #include <linux/rtc.h>
 #endif
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <sys/ioctl.h>
-#include <sys/time.h>
 #include <sys/types.h>
-#include <fcntl.h>
+#include <sys/time.h>
+#include <stdlib.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <fcntl.h>
 #include <errno.h>
 
 #include "app.h"
@@ -378,7 +378,6 @@ int FunctionConsumer::runningFunctions()
 	return n;
 }
 
-
 void FunctionConsumer::cue(Function* function)
 {
 	Q_ASSERT(function != NULL);
@@ -388,25 +387,22 @@ void FunctionConsumer::cue(Function* function)
 	m_functionListMutex.unlock();
 }
 
-
 void FunctionConsumer::purge()
 {
-	QPtrListIterator <Function> it(m_functionList);
+	QListIterator <Function*> it(m_functionList);
 	
+	/* Issue a stop command to all running functions */
 	m_functionListMutex.lock();
-	it.toFirst();
-	while (it.current())
+	while (it.hasNext() == true)
 	{
 		m_functionListMutex.unlock();
-		it.current()->stop();
-		
+		it.next()->stop();
 		m_functionListMutex.lock();
-		++it;
 	}
 	m_functionListMutex.unlock();
 	
 	/* Wait until all functions have been stopped */
-	while (m_functionList.count())
+	while (runningFunctions() > 0)
 	{
 #ifndef __APPLE__
 		pthread_yield();
@@ -414,21 +410,18 @@ void FunctionConsumer::purge()
 		pthread_yield_np();
 #endif
 	}
-
 }
 
-
-void FunctionConsumer::timeCode(t_bus_value& timeCode)
+t_bus_value FunctionConsumer::timeCode()
 {
-	timeCode = m_timeCode;
+	return m_timeCode;
 }
-
 
 void FunctionConsumer::stop()
 {
 	m_running = false;
 	
-	while (running())
+	while (runningFunctions() > 0)
 		pthread_yield();
 }
 
@@ -461,10 +454,11 @@ void FunctionConsumer::event(time_t)
 	/* Lock before accessing the running functions list */
 	m_functionListMutex.lock();
 	
-	for (m_function = m_functionList.first();
-	     m_function != NULL;
-	     m_function = m_functionList.next())
+	QMutableListIterator <Function*> it(m_functionList);
+	while (it.hasNext() == true)
 	{
+		m_function = it.next();
+
 		/* Unlock after accessing the running functions list */
 		m_functionListMutex.unlock(); 
 		
@@ -476,7 +470,7 @@ void FunctionConsumer::event(time_t)
 				m_functionListMutex.lock(); 
 
 				/* Remove the current function */
-				m_functionList.remove();
+				it.remove();
 
 				/* Cleanup after removal */
 				m_function->cleanup();

@@ -19,64 +19,59 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qobjectlist.h>
-#include <qlayout.h>
-#include <assert.h>
-#include <qpixmap.h>
+#include <QHBoxLayout>
+#include <iostream>
+#include <QIcon>
+#include <QtXml>
 
-#include "common/filehandler.h"
+#include "common/qlcfile.h"
 
-#include "app.h"
-#include "doc.h"
-#include "sceneeditor.h"
 #include "fixtureconsole.h"
 #include "consolechannel.h"
+#include "sceneeditor.h"
+#include "app.h"
+#include "doc.h"
 
 extern App* _app;
 
-FixtureConsole::FixtureConsole(QWidget *parent)
-	: QWidget(parent, "Fixture Console"),
-	
-	m_layout      ( NULL ),
-	m_sceneEditor ( NULL )
+using namespace std;
+
+FixtureConsole::FixtureConsole(QWidget *parent) : QWidget(parent)
 {
+	m_sceneEditor = NULL;
 }
 
 FixtureConsole::~FixtureConsole()
 {
 	while (m_unitList.isEmpty() == false)
-	{
-		delete m_unitList.take(0);
-	}
+		delete m_unitList.takeFirst();
 	
 	if (m_sceneEditor != NULL)
-	{
 		delete m_sceneEditor;
-		m_sceneEditor = NULL;
-	}
+	m_sceneEditor = NULL;
 }
 
 void FixtureConsole::setFixture(t_fixture_id id)
 {
-	unsigned int i = 0;
-	Fixture* fxi = NULL;
 	ConsoleChannel* unit = NULL;
+	Fixture* fxi = NULL;
 	
 	m_fixture = id;
 
 	fxi = _app->doc()->fixture(m_fixture);
-	assert(fxi);
+	Q_ASSERT(fxi != NULL);
 
-	// Set an icon
-	setIcon(QPixmap(PIXMAPS + QString("/console.png")));
+	// Set an icon -- TODO: this is done in App now...?
+	setWindowIcon(QIcon(PIXMAPS "/console.png"));
 
 	// Set the main horizontal layout
-	m_layout = new QHBoxLayout(this);
-	m_layout->setAutoAdd(true);
+	new QHBoxLayout(this);
 
 	// Create scene editor widget
-	if (m_sceneEditor) delete m_sceneEditor;
+	if (m_sceneEditor != NULL)
+		delete m_sceneEditor;
 	m_sceneEditor = new SceneEditor(this);
+	layout()->addWidget(m_sceneEditor);
 	m_sceneEditor->setFixture(m_fixture);
 	m_sceneEditor->show();
 
@@ -93,10 +88,10 @@ void FixtureConsole::setFixture(t_fixture_id id)
 		m_sceneEditor, SLOT(slotFunctionChanged(t_function_id)));
 
 	// Create channel units
-	for (i = 0; i < fxi->channels(); i++)
+	for (unsigned int i = 0; i < fxi->channels(); i++)
 	{
 		unit = new ConsoleChannel(this, m_fixture, i);
-		unit->init();
+		layout()->addWidget(unit);
 		unit->update();
 
 		// Channel updates to scene editor
@@ -126,21 +121,20 @@ void FixtureConsole::setFixture(t_fixture_id id)
 
 bool FixtureConsole::loadXML(QDomDocument* doc, QDomElement* root)
 {
-	bool visible = false;
+	QDomNode node;
+	QDomElement tag;
 	int x = 0;
 	int y = 0;
 	int w = 0;
 	int h = 0;
-
-	QDomNode node;
-	QDomElement tag;
+	bool visible = false;
 	
 	Q_ASSERT(doc != NULL);
 	Q_ASSERT(root != NULL);
 
 	if (root->tagName() != KXMLQLCFixtureConsole)
 	{
-		qWarning("Fixture console node not found!");
+		cout << "Fixture console node not found!" << endl;
 		return false;
 	}
 
@@ -150,13 +144,14 @@ bool FixtureConsole::loadXML(QDomDocument* doc, QDomElement* root)
 		tag = node.toElement();
 		if (tag.tagName() == KXMLQLCWindowState)
 		{
-			FileHandler::loadXMLWindowState(&tag, &x, &y, &w, &h,
-							&visible);
+			QLCFile::loadXMLWindowState(&tag, &x, &y, &w, &h,
+						    &visible);
 		}
 		else
 		{
-			qDebug("Unknown fixture console tag: %s",
-			       (const char*) tag.tagName());
+			cout << "Unknown fixture console tag: "
+			     << tag.tagName().toStdString()
+			     << endl;
 		}
 		
 		node = node.nextSibling();
@@ -187,10 +182,5 @@ bool FixtureConsole::saveXML(QDomDocument* doc, QDomElement* fxi_root)
 	fxi_root->appendChild(root);
 
 	/* Save window state */
-	return FileHandler::saveXMLWindowState(doc, &root, parentWidget());
-}
-
-void FixtureConsole::closeEvent(QCloseEvent* e)
-{
-	emit closed();
+	return QLCFile::saveXMLWindowState(doc, &root, parentWidget());
 }

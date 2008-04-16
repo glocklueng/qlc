@@ -19,21 +19,24 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qstring.h>
-#include <qapplication.h>
-#include <qmessagebox.h>
-#include <assert.h>
-#include <qpixmap.h>
-#include <qdom.h>
+#include <QApplication>
+#include <QMessageBox>
+#include <iostream>
+#include <QString>
+#include <QPixmap>
+#include <QtXml>
 
-#include "common/filehandler.h"
-#include "function.h"
-#include "scene.h"
-#include "chaser.h"
+#include "common/qlcfile.h"
+
 #include "functioncollection.h"
+#include "function.h"
+#include "chaser.h"
+#include "scene.h"
 #include "bus.h"
 #include "app.h"
 #include "doc.h"
+
+using namespace std;
 
 extern App* _app;
 
@@ -54,23 +57,21 @@ const QString KForwardString    (    "Forward" );
 //
 // Standard constructor (protected)
 //
-Function::Function(Type type) :
-	QThread(),
-	m_name              ( QString::null ),
-	m_type              (          type ),
-	m_id                (         KNoID ),
-	m_fixture           (         KNoID ),
-	m_busID             ( KBusIDInvalid ),
-	m_channels          (             0 ),
-	m_eventBuffer       (          NULL ),
-	m_virtualController (          NULL ),
-	m_parentFunction    (          NULL ),
-	m_running           (         false ),
-	m_stopped           (         false ),
-	m_removeAfterEmpty  (         false ),
-	m_startMutex        (         false ),
-	m_listener          (          NULL )
+Function::Function(Type type) : QThread()
 {
+	m_name = QString::null;
+	m_type = type;
+	m_id = KNoID;
+	m_fixture = KNoID;
+	m_busID = KBusIDInvalid;
+	m_channels = 0;
+	m_eventBuffer = NULL;
+	m_virtualController = NULL;
+	m_parentFunction = NULL;
+	m_running = false;
+	m_stopped = false;
+	m_removeAfterEmpty = false;
+	m_listener = NULL;
 }
 
 
@@ -94,6 +95,14 @@ void Function::setID(t_function_id id)
 		delete m_listener;
 
 	m_listener = new FunctionNS::BusListener(m_id);
+}
+
+//
+// Return the type of this function as a string
+//
+QString Function::typeString() const
+{
+	return Function::typeToString(type());
 }
 
 //
@@ -173,7 +182,7 @@ Function::Direction Function::stringToDirection(QString str)
 //
 // Return the type as a string
 //
-QString Function::typeToString(Type type)
+QString Function::typeToString(const Type type)
 {
 	switch (type)
 	{
@@ -421,13 +430,14 @@ Function* Function::loader(QDomDocument* doc, QDomElement* root)
 //
 bool Function::engage(QObject* virtualController)
 {
-	ASSERT(virtualController);
+	Q_ASSERT(virtualController != NULL);
 	
 	m_startMutex.lock();
 	if (m_running)
 	{
 		m_startMutex.unlock();
-		qDebug("Function " + name() + " is already running!");
+		cout << "Function " << name().toStdString()
+		     << " is already running!" << endl;
 		return false;
 	}
 	else
@@ -448,13 +458,14 @@ bool Function::engage(QObject* virtualController)
 //
 bool Function::engage(Function* parentFunction)
 {
-	ASSERT(parentFunction);
+	Q_ASSERT(parentFunction != NULL);
 	
 	m_startMutex.lock();
-	if (m_running)
+	if (m_running == true)
 	{
 		m_startMutex.unlock();
-		qDebug("Function " + name() + " is already running!");
+		cout << "Function " << name().toStdString()
+		     << " is already running!" << endl;
 		return false;
 	}
 	else
@@ -487,8 +498,8 @@ void Function::stop()
 // Bus Listener Constructor
 //
 FunctionNS::BusListener::BusListener(t_function_id id)
-	: m_functionID(id)
 {
+	m_functionID = id;
 	connect(Bus::emitter(), SIGNAL(valueChanged(t_bus_id, t_bus_value)),
 		this, SLOT(slotBusValueChanged(t_bus_id, t_bus_value)));
 }

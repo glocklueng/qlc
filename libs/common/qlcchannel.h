@@ -22,9 +22,9 @@
 #ifndef QLC_CHANNEL_H
 #define QLC_CHANNEL_H
 
-#include <qstring.h>
-#include <qptrlist.h>
-#include "common/types.h"
+#include <QList>
+
+#include "common/qlctypes.h"
 
 #define KXMLQLCChannel          QString("Channel")
 #define KXMLQLCChannelNumber    QString("Number")
@@ -46,10 +46,10 @@
 #define KQLCChannelGroupNothing     QString("Nothing")
 
 class QFile;
+class QString;
 class QDomDocument;
 class QDomElement;
 class QStringList;
-class LogicalChannel;
 class QLCCapability;
 class QLCChannel;
 
@@ -65,9 +65,6 @@ class QLCChannel
 	/** Create contents from an XML tag */
 	QLCChannel(QDomElement* tag);
 
-	/** Create contents from an old LogicalChannel */
-	QLCChannel(LogicalChannel* lch);
- 
 	/** Destructor */
 	~QLCChannel();
 
@@ -113,7 +110,7 @@ class QLCChannel
 	 *********************************************************************/
 
 	/** Get a list of channel's capabilities */
-	QPtrList <QLCCapability> *capabilities() { return &m_capabilities; }
+	QList <QLCCapability*> *capabilities() { return &m_capabilities; }
 
 	/** Search for a particular capability by its channel value */
 	QLCCapability* searchCapability(t_value value);
@@ -146,7 +143,7 @@ class QLCChannel
 	QString m_name;
 
 	/** List of channel's capabilities */
-	QPtrList <QLCCapability> m_capabilities;
+	QList <QLCCapability*> m_capabilities;
 
 	/** Channel's group */
 	QString m_group;

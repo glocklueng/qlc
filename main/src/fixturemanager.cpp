@@ -19,73 +19,70 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qwidget.h>
-#include <qtoolbar.h>
-#include <qtoolbutton.h>
-#include <qlayout.h>
-#include <qpixmap.h>
-#include <qevent.h>
-#include <qdockarea.h>
-#include <qtextview.h>
-#include <qsplitter.h>
-#include <qlistview.h>
-#include <qstring.h>
-#include <qmessagebox.h>
-#include <qheader.h>
-#include <qpopupmenu.h>
-#include <qtooltip.h>
-#include <assert.h>
+#include <QTreeWidgetItem>
+#include <QTextBrowser>
+#include <QVBoxLayout>
+#include <QTreeWidget>
+#include <QMessageBox>
+#include <QByteArray>
+#include <QSplitter>
+#include <QToolBar>
+#include <iostream>
+#include <QAction>
+#include <QWidget>
+#include <QString>
+#include <QIcon>
+#include <QMenu>
+#include <QtXml>
 
-#include "common/qlcfixturedef.h"
 #include "common/qlcfixturemode.h"
+#include "common/qlcfixturedef.h"
 #include "common/qlccapability.h"
 #include "common/qlcchannel.h"
-#include "common/logicalchannel.h"
-#include "common/capability.h"
-#include "common/filehandler.h"
+#include "common/qlcfile.h"
 
-#include "fixturemanager.h"
+#include "functioncollection.h"
 #include "fixtureproperties.h"
+#include "consolechannel.h"
+#include "fixturemanager.h"
+#include "addfixture.h"
+#include "fixture.h"
+#include "chaser.h"
+#include "scene.h"
 #include "app.h"
 #include "doc.h"
-#include "addfixture.h"
-#include "consolechannel.h"
-#include "fixture.h"
-
-#include "scene.h"
-#include "chaser.h"
-#include "functioncollection.h"
 #include "efx.h"
 
 extern App* _app;
 
+using namespace std;
+
 // List view column numbers
-const int KColumnUniverse ( 0 );
-const int KColumnAddress  ( 1 );
-const int KColumnName     ( 2 );
-const int KColumnID       ( 3 );
+#define KColumnUniverse 0
+#define KColumnAddress  1
+#define KColumnName     2
+#define KColumnID       3
 
-// List view item menu callback id's
-const int KMenuItemAdd          ( 0 );
-const int KMenuItemClone        ( 1 );
-const int KMenuItemDelete       ( 2 );
-const int KMenuItemProperties   ( 3 );
-const int KMenuItemConsole      ( 4 );
-const int KMenuItemAutoFunction ( 5 );
+// Default window size
+#define KDefaultWidth  600
+#define KDefaultHeight 300
 
-const int KDefaultWidth  ( 600 );
-const int KDefaultHeight ( 300 );
+/*****************************************************************************
+ * Initialization
+ *****************************************************************************/
 
-FixtureManager::FixtureManager(QWidget* parent)
-	: QWidget(parent, "Fixture Manager"),
-	  
-	  m_layout   ( NULL ),
-	  m_dockArea ( NULL ),
-	  m_toolbar  ( NULL ),
-	  m_splitter ( NULL ),
-	  m_listView ( NULL ),
-	  m_textView ( NULL )
+FixtureManager::FixtureManager(QWidget* parent) : QWidget(parent)
 {
+	new QVBoxLayout(this);
+
+	// Name and icon
+	setWindowTitle(QString("Fixture Manager"));
+	setWindowIcon(QIcon(PIXMAPS "/fixture.png"));
+
+	initActions();
+	initToolBar();
+	initDataView();
+	updateView();
 }
 
 FixtureManager::~FixtureManager()
@@ -93,146 +90,138 @@ FixtureManager::~FixtureManager()
 }
 
 /*****************************************************************************
- * Initialization
+ * Doc signal handlers
  *****************************************************************************/
 
-void FixtureManager::initView()
+void FixtureManager::slotFixtureAdded(t_fixture_id id)
 {
-	// Create a vertical layout to this widget
-	m_layout = new QVBoxLayout(this);
+	Fixture* fxi;
 
-	// Init the title and icon
-	initTitle();
+	fxi = _app->doc()->fixture(id);
+	if (fxi != NULL)
+	{
+		// Create a new list view item
+		QTreeWidgetItem* item = new QTreeWidgetItem(m_listView);
 
-	// Set up toolbar
-	initToolBar();
+		// Fill fixture information to the item
+		updateItem(item, fxi);
 
-	// Init the fixture view and text view
-	initDataView();
-
-	// Update the list of fixtures
-	updateView();
+		// Select the item
+		item->setSelected(true);
+	}
 }
 
-void FixtureManager::initTitle()
+void FixtureManager::slotFixtureRemoved(t_fixture_id id)
 {
-	// Set the name
-	setCaption(QString("Fixture Manager"));
+	QTreeWidgetItemIterator it(m_listView);
+	while (*it != NULL)
+	{
+		if ((*it)->text(KColumnID).toInt() == id)
+		{
+			if ((*it)->isSelected() == true)
+			{
+				QTreeWidgetItem* nextItem;
 
-	// Set an icon
-	setIcon(QString(PIXMAPS) + QString("/fixture.png"));
+				// Try to select the closest neighbour
+				if (m_listView->itemAbove(*it) != NULL)
+					nextItem = m_listView->itemAbove(*it);
+				else
+					nextItem = m_listView->itemBelow(*it);
+
+				if (nextItem != NULL)
+					nextItem->setSelected(true);
+
+				slotSelectionChanged();
+			}
+
+			delete (*it);
+			break;
+		}
+
+		++it;
+	}
 }
 
-void FixtureManager::initToolBar()
+void FixtureManager::slotModeChanged()
 {
-	// Create a dock area for the toolbar
-	m_dockArea = new QDockArea(Horizontal, QDockArea::Normal, this);
-	m_dockArea->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+	if (_app->mode() == App::Operate)
+	{
+		m_addAction->setEnabled(false);
+		m_propertiesAction->setEnabled(false);
+		m_cloneAction->setEnabled(false);
+		m_removeAction->setEnabled(false);
+	}
+	else
+	{
+		m_addAction->setEnabled(true);
+		m_propertiesAction->setEnabled(true);
+		m_cloneAction->setEnabled(true);
+		m_removeAction->setEnabled(true);
+	}
 
-	// Add the dock area to the top of the vertical layout
-	m_layout->addWidget(m_dockArea);
-
-	//
-	// Add a toolbar to the dock area
-	//
-	m_toolbar = new QToolBar("Fixture Manager", _app, m_dockArea);
-	m_toolbar->setMovingEnabled(false);
-
-	m_addButton = new QToolButton(
-		QIconSet(QPixmap(QString(PIXMAPS) + QString("/wizard.png"))),
-		"Add", 0, this,
-		SLOT(slotAdd()), m_toolbar);
-	m_addButton->setUsesTextLabel(true);
-	QToolTip::add(m_addButton,  "Add fixture");
-
-	m_cloneButton = new QToolButton(
-		QIconSet(QPixmap(QString(PIXMAPS) + QString("/editcopy.png"))),
-		"Clone", 0, this,
-		SLOT(slotClone()), m_toolbar);
-	m_cloneButton->setUsesTextLabel(true);
-	QToolTip::add(m_cloneButton, "Clone a fixture and its functions" );
-
-	m_deleteButton = new QToolButton(
-		QIconSet(QPixmap(QString(PIXMAPS) + QString("/editdelete.png"))),
-		"Delete", 0, this,
-		SLOT(slotDelete()), m_toolbar);
-	m_deleteButton->setUsesTextLabel(true);
-	QToolTip::add(m_deleteButton, "Delete fixture");
-
-	m_toolbar->addSeparator();
-
-	m_propertiesButton = new QToolButton(
-		QIconSet(QPixmap(QString(PIXMAPS) + QString("/configure.png"))),
-		"Properties", 0, this,
-		SLOT(slotProperties()), m_toolbar);
-	m_propertiesButton->setUsesTextLabel(true);
-	QToolTip::add(m_propertiesButton, "Fixture properties");
-
-	m_consoleButton = new QToolButton(
-		QIconSet(QPixmap(QString(PIXMAPS) + QString("/console.png"))),
-		"Console", 0, this,
-		SLOT(slotConsole()), m_toolbar);
-	m_consoleButton->setUsesTextLabel(true);
-	QToolTip::add(m_consoleButton, "View fixture console");
+	slotSelectionChanged();
 }
+
+/*****************************************************************************
+ * Data view
+ *****************************************************************************/
 
 void FixtureManager::initDataView()
 {
 	// Create a splitter to divide list view and text view
-	m_splitter = new QSplitter(this);
+	m_splitter = new QSplitter(Qt::Horizontal, this);
+	layout()->addWidget(m_splitter);
 	m_splitter->setSizePolicy(QSizePolicy::Expanding,
 				  QSizePolicy::Expanding);
-	m_layout->addWidget(m_splitter);
-	
+
 	// Create the list view
-	m_listView = new QListView(m_splitter);
-	m_splitter->setResizeMode(m_listView, QSplitter::Auto);
-	
+	m_listView = new QTreeWidget(this);
+	m_splitter->addWidget(m_listView);
+	//m_splitter->setResizeMode(m_listView, QSplitter::Auto);
+
+	QStringList labels;
+	labels << "Universe" << "Address" << "Name";
+	m_listView->setHeaderLabels(labels);
+/*
 	m_listView->setMultiSelection(false);
 	m_listView->setAllColumnsShowFocus(true);
 	m_listView->setSorting(KColumnAddress, true);
 	m_listView->setShowSortIndicator(true);
 	m_listView->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
-	
+
 	m_listView->header()->setClickEnabled(true);
 	m_listView->header()->setResizeEnabled(true);
 	m_listView->header()->setMovingEnabled(false);
-	
-	m_listView->addColumn("Universe");
-	m_listView->addColumn("Address");
-	m_listView->addColumn("Name");
 	m_listView->setResizeMode(QListView::LastColumn);
-	
-	connect(m_listView, SIGNAL(selectionChanged(QListViewItem*)),
-		this, SLOT(slotSelectionChanged(QListViewItem*)));
-	
-	connect(m_listView, SIGNAL(doubleClicked(QListViewItem*)),
-		this, SLOT(slotDoubleClicked(QListViewItem*)));
-	
-	connect(m_listView, SIGNAL(rightButtonClicked(QListViewItem*,
-						      const QPoint&, int)),
-		this, SLOT(slotRightButtonClicked(QListViewItem*,
-						  const QPoint&, int)));
+*/
+	connect(m_listView, SIGNAL(selectionChanged()),
+		this, SLOT(slotSelectionChanged()));
+
+	connect(m_listView, SIGNAL(doubleClicked(QTreeWidgetItem*)),
+		this, SLOT(slotDoubleClicked(QTreeWidgetItem*)));
+
+	connect(m_listView, SIGNAL(customContextMenuRequested(const QPoint&)),
+		this, SLOT(slotContextMenuRequested(const QPoint&)));
 
 	// Create the text view
-	m_textView = new QTextView(m_splitter);
-	m_splitter->setResizeMode(m_textView, QSplitter::Auto);
+	m_textView = new QTextBrowser(this);
+	m_splitter->addWidget(m_textView);
+	//m_splitter->setResizeMode(m_textView, QSplitter::Auto);
 
-	slotSelectionChanged(NULL);
+	slotSelectionChanged();
 }
 
 void FixtureManager::updateView()
 {
+	QTreeWidgetItem* item;
 	t_fixture_id currentId = KNoID;
 	t_fixture_id id = KNoID;
-	QListViewItem* item = NULL;
 	Fixture* fxt = NULL;
 
 	// Store the currently selected fixture's ID
-	if (m_listView->currentItem() != NULL)
-	{
-		currentId = m_listView->currentItem()->text(KColumnID).toInt();
-	}
+	item = m_listView->currentItem();
+	if (item != NULL)
+		currentId = item->text(KColumnID).toInt();
 
 	// Clear the view
 	m_listView->clear();
@@ -242,49 +231,41 @@ void FixtureManager::updateView()
 	{
 		fxt = _app->doc()->fixture(id);
 		if (fxt == NULL)
-		{
 			continue;
-		}
-		else
-		{
-			item = new QListViewItem(m_listView);
-			
-			// Update fixture information to the item
-			updateItem(item, fxt);
 
-			// Select this if it was selected before update
-			if (currentId == id)
-			{
-				m_listView->setSelected(item, true);
-			}
-		}
+		item = new QTreeWidgetItem(m_listView);
+
+		// Update fixture information to the item
+		updateItem(item, fxt);
+
+		// Select this if it was selected before update
+		if (currentId == id)
+			item->setSelected(true);
 	}
 
-	slotSelectionChanged(m_listView->currentItem());
+	slotSelectionChanged();
 }
 
-void FixtureManager::updateItem(QListViewItem* item, Fixture* fxi)
+void FixtureManager::updateItem(QTreeWidgetItem* item, Fixture* fxi)
 {
-	QString s;
-	
 	Q_ASSERT(item != NULL);
 	Q_ASSERT(fxi != NULL);
-	
+
 	// Universe column
-	s.sprintf("%d", fxi->universe() + 1);
-	item->setText(KColumnUniverse, s);
+	item->setText(KColumnUniverse,
+		      QString("%1").arg(fxi->universe() + 1));
 
 	// Address column
+	QString s;
 	s.sprintf("%.3d - %.3d", fxi->address() + 1,
 		  fxi->address() + fxi->channels());
 	item->setText(KColumnAddress, s);
-	
+
 	// Name column
 	item->setText(KColumnName, fxi->name());
 
 	// ID column
-	s.setNum(fxi->id());
-	item->setText(KColumnID, s);
+	item->setText(KColumnID, QString("%1").arg(fxi->id()));
 }
 
 void FixtureManager::copyFunction(Function* function, Fixture* fxi)
@@ -333,203 +314,142 @@ void FixtureManager::copyFunction(Function* function, Fixture* fxi)
 	}
 }
 
-/*****************************************************************************
- * Load & save
- *****************************************************************************/
-
-void FixtureManager::loader(QDomDocument* doc, QDomElement* root)
+void FixtureManager::slotSelectionChanged()
 {
-	_app->createFixtureManager();
-	_app->fixtureManager()->loadXML(doc, root);
-}
-
-bool FixtureManager::loadXML(QDomDocument* doc, QDomElement* root)
-{
-	bool visible = false;
-	int x = 0;
-	int y = 0;
-	int w = 0;
-	int h = 0;
-	int splitter_left = 0;
-	int splitter_right = 0;
-	QValueList<int> list;
-
-	QDomNode node;
-	QDomElement tag;
-	
-	Q_ASSERT(doc != NULL);
-	Q_ASSERT(root != NULL);
-	
-	if (root->tagName() != KXMLQLCFixtureManager)
+	QTreeWidgetItem* item = m_listView->currentItem();
+	if (item == NULL)
 	{
-		qWarning("Fixture Manager node not found!");
-		return false;
+		// Add is not available in operate mode
+		if (_app->mode() == App::Design)
+			m_addAction->setEnabled(true);
+		else
+			m_addAction->setEnabled(false);
+
+		// Disable all other actions
+		m_removeAction->setEnabled(false);
+		m_consoleAction->setEnabled(false);
+		m_cloneAction->setEnabled(false);
+		m_propertiesAction->setEnabled(false);
+
+		QString info;
+		info = QString("<HTML><BODY>");
+		info += QString("<H1>No fixtures</H1>");
+		info += QString("Click \"Add\" on the ");
+		info += QString("toolbar to add a new fixture.");
+		info += QString("</BODY></HTML>");
+		m_textView->setText(info);
 	}
-
-	// Splitter sizes
-	list.append(root->attribute(KXMLQLCFixtureManagerSplitterLeft).toInt());
-	list.append(root->attribute(KXMLQLCFixtureManagerSplitterRight).toInt());
-
-	node = root->firstChild();
-	while (node.isNull() == false)
+	else
 	{
-		tag = node.toElement();
-		if (tag.tagName() == KXMLQLCWindowState)
+		Fixture* fxi;
+		t_fixture_id id;
+
+		// Set the text view's contents
+		id = item->text(KColumnID).toInt();
+		fxi = _app->doc()->fixture(id);
+		Q_ASSERT(fxi != NULL);
+
+		m_textView->setText(fxi->status());
+
+		// Enable/disable actions
+		if (_app->mode() == App::Design)
 		{
-			FileHandler::loadXMLWindowState(&tag, &x, &y, &w, &h,
-							&visible);
+			m_addAction->setEnabled(true);
+			m_removeAction->setEnabled(true);
+			m_cloneAction->setEnabled(true);
+			m_propertiesAction->setEnabled(true);
 		}
 		else
 		{
-			qDebug("Unknown fixture manager tag: %s",
-			       (const char*) tag.tagName());
+			m_addAction->setEnabled(false);
+			m_removeAction->setEnabled(false);
+			m_cloneAction->setEnabled(false);
+			m_propertiesAction->setEnabled(false);
 		}
-		
-		node = node.nextSibling();
 	}
-
-	hide();
-	setGeometry(x, y, w, h);
-	if (visible == false)
-		showMinimized();
-	else
-		showNormal();
-
-	m_splitter->setSizes(list);
-
-	return true;
 }
 
-bool FixtureManager::saveXML(QDomDocument* doc, QDomElement* fxi_root)
+void FixtureManager::slotDoubleClicked(QTreeWidgetItem* item)
 {
-	QDomElement root;
-	QDomElement tag;
-	QDomText text;
-	QString str;
-
-	Q_ASSERT(doc != NULL);
-	Q_ASSERT(fxi_root != NULL);
-
-	/* Fixture Manager entry */
-	root = doc->createElement(KXMLQLCFixtureManager);
-	fxi_root->appendChild(root);
-
-	/* Splitter sizes */
-	QValueList<int> list = m_splitter->sizes();
-	QValueList<int>::Iterator it = list.begin();
-
-	// Left side
-	str.setNum(*it);
-	root.setAttribute(KXMLQLCFixtureManagerSplitterLeft, str);
-
-	// Right side
-	++it;
-	str.setNum(*it);
-	root.setAttribute(KXMLQLCFixtureManagerSplitterRight, str);
-
-	/* Save window state. parentWidget() should be used for all
-	   widgets within the workspace. */
-	return FileHandler::saveXMLWindowState(doc, &root, parentWidget());
+	if (item != NULL && _app->mode() != App::Operate)
+		slotProperties();
 }
 
 /*****************************************************************************
- * Public slots
+ * Menu, toolbar and actions
  *****************************************************************************/
 
-void FixtureManager::slotFixtureAdded(t_fixture_id id)
+void FixtureManager::initActions()
 {
-	Fixture* fxi = NULL;
-	QListViewItem* item = NULL;
+	m_addAction = new QAction(QIcon(PIXMAPS "/wizard.png"),
+				  tr("Add fixture..."), this);
+	connect(m_addAction, SIGNAL(triggered(bool)),
+		this, SLOT(slotAdd()));
 
-	fxi = _app->doc()->fixture(id);
-	if (fxi != NULL)
-	{
-		// Create a new list view item
-		item = new QListViewItem(m_listView);
+	m_propertiesAction = new QAction(QIcon(PIXMAPS "/configure.png"),
+					 tr("Configure fixture..."), this);
+	connect(m_propertiesAction, SIGNAL(triggered(bool)),
+		this, SLOT(slotProperties()));
 
-		// Fill fixture information to the item
-		updateItem(item, fxi);
+	m_cloneAction = new QAction(QIcon(PIXMAPS "/editcopy.png"),
+				    tr("Clone fixture"), this);
+	connect(m_cloneAction, SIGNAL(triggered(bool)),
+		this, SLOT(slotClone()));
 
-		// Select the item
-		m_listView->setSelected(item, true);
-	}
+	m_consoleAction = new QAction(QIcon(PIXMAPS "/console.png"),
+				      tr("Fixture console"), this);
+	connect(m_consoleAction, SIGNAL(triggered(bool)),
+		this, SLOT(slotConsole()));
+
+	m_removeAction = new QAction(QIcon(PIXMAPS "/editdelete.png"),
+				     tr("Remove fixture"), this);
+	connect(m_removeAction, SIGNAL(triggered(bool)),
+		this, SLOT(slotRemove()));
 }
 
-void FixtureManager::slotFixtureRemoved(t_fixture_id id)
+void FixtureManager::initToolBar()
 {
-	QListViewItemIterator it(m_listView);
-	QListViewItem* item = NULL;
-	QListViewItem* nextItem = NULL;
-
-	while ((item = it.current()) != NULL)
-	{
-		if (item->text(KColumnID).toInt() == id)
-		{
-			if (item->isSelected())
-			{
-				// Try to select the closest neighbour
-				if (item->itemAbove())
-					nextItem = item->itemAbove();
-				else
-					nextItem = item->itemBelow();
-
-				// Select the neighbour
-				m_listView->setSelected(nextItem, true);
-				slotSelectionChanged(nextItem);
-			}
-
-			delete item;
-		}
-
-		++it;
-	}
+	m_toolbar = new QToolBar("Fixture Manager", this);
+	layout()->addWidget(m_toolbar);
+	m_toolbar->addAction(m_addAction);
+	m_toolbar->addSeparator();
+	m_toolbar->addAction(m_propertiesAction);
+	m_toolbar->addAction(m_cloneAction);
+	m_toolbar->addAction(m_consoleAction);
+	m_toolbar->addSeparator();
+	m_toolbar->addAction(m_removeAction);
 }
-
-void FixtureManager::slotModeChanged()
-{
-	slotSelectionChanged(m_listView->currentItem());
-}
-
-/*****************************************************************************
- * Protected slots
- *****************************************************************************/
 
 void FixtureManager::slotAdd()
 {
-	AddFixture* af = NULL;
-	int i = 0;
-	
-	af = new AddFixture(_app);
-	af->init();
-	
-	if (af->exec() == QDialog::Accepted)
+	AddFixture af(this);
+	if (af.exec() == QDialog::Accepted)
 	{
-		QString name = af->name();
-		t_channel address = af->address();
-		t_channel universe = af->universe();
-		int gap = af->addressGap();
-		t_channel channels = af->channels();
+		QString name = af.name();
+		t_channel address = af.address();
+		t_channel universe = af.universe();
+		t_channel channels = af.channels();
+		int gap = af.gap();
 
-		QLCFixtureDef* fixtureDef = af->fixtureDef();
-		QLCFixtureMode* mode = af->mode();
-		
+		QLCFixtureDef* fixtureDef = af.fixtureDef();
+		QLCFixtureMode* mode = af.mode();
+
 		if (fixtureDef != NULL && mode != NULL)
 		{
 			/* Add a normal fixture with an existing definition */
 
-			/* If an empty name was given use the model name instead */
-			if (name.stripWhiteSpace() == QString::null)
+			/* If an empty name was given use the model instead */
+			if (name.simplified() == QString::null)
 				name = fixtureDef->model();
-			
+
 			// Add the first fixture without gap
 			_app->doc()->newFixture(fixtureDef, mode, address,
 						universe, name);
-			
+
 			// Add the rest (if any) with address gap
-			for (i = 1; i < af->multipleNumber(); i++)
+			for (int i = 1; i < af.amount(); i++)
 			{
-				_app->doc()->newFixture(
-					fixtureDef, mode, 
+				_app->doc()->newFixture(fixtureDef, mode,
 					address + (i * channels) + gap,
 					universe, name);
 			}
@@ -539,7 +459,7 @@ void FixtureManager::slotAdd()
 			/* Add a generic fixture without definition */
 
 			/* If an empty name was given use Generic instead */
-			if (name.stripWhiteSpace() == QString::null)
+			if (name.simplified() == QString::null)
 				name = KXMLFixtureGeneric;
 
 			// Add the first fixture without gap
@@ -547,7 +467,7 @@ void FixtureManager::slotAdd()
 						       channels, name);
 
 			// Add the rest (if any) with address gap
-			for (i = 1; i < af->multipleNumber(); i++)
+			for (int i = 1; i < af.amount(); i++)
 			{
 				_app->doc()->newGenericFixture(
 					address + (i * channels) + gap,
@@ -555,42 +475,51 @@ void FixtureManager::slotAdd()
 			}
 		}
 	}
-
-	delete af;
 }
 
-void FixtureManager::slotDelete()
+void FixtureManager::slotProperties()
 {
-	QListViewItem* item = m_listView->currentItem();
-
-	// Get the fixture id
-	t_fixture_id id = item->text(KColumnID).toInt();
-
-	// Display a warning
-	QString msg;
-	msg = ("Do you want to delete fixture \"");
-	msg += item->text(KColumnName) + QString("\"?");
-	if (QMessageBox::question(this, "Delete", msg,
-				  QMessageBox::Yes,
-				  QMessageBox::No)
-	    == QMessageBox::No)
+	QTreeWidgetItem* item = m_listView->currentItem();
+	if (item != NULL)
 	{
-		return;
+		t_fixture_id id = item->text(KColumnID).toInt();
+		Fixture* fixture = _app->doc()->fixture(id);
+		Q_ASSERT(fixture != NULL);
+
+		// View properties dialog
+		FixtureProperties prop(this, id);
+		if (prop.exec() == QDialog::Accepted)
+		{
+			// Update changes to view
+			updateItem(item, fixture);
+
+			// Update changes to the info view
+			slotSelectionChanged();
+		}
 	}
-	else
+}
+
+void FixtureManager::slotConsole()
+{
+	QTreeWidgetItem* item = m_listView->currentItem();
+	if (item != NULL)
 	{
-		_app->doc()->deleteFixture(id);
+		t_fixture_id id = item->text(KColumnID).toInt();
+		Fixture* fxi = _app->doc()->fixture(id);
+		Q_ASSERT(fxi != NULL);
+
+		fxi->viewConsole();
 	}
 }
 
 void FixtureManager::slotClone()
 {
-	QListViewItem* item = NULL;
-	QLCFixtureMode* fixtureMode = NULL;
-	Fixture* old_fxi = NULL;
-	Fixture* new_fxi = NULL;
-	QLCFixtureDef* fixtureDef = NULL;
-	t_fixture_id old_id = 0;
+	QLCFixtureMode* fixtureMode;
+	QLCFixtureDef* fixtureDef;
+	QTreeWidgetItem* item;
+	t_fixture_id old_id;
+	Fixture* old_fxi;
+	Fixture* new_fxi;
 	QString new_name;
 
 	/* Get the selected listview item */
@@ -614,122 +543,98 @@ void FixtureManager::slotClone()
 	new_name += item->text(KColumnName);
 
 	// Add new fixture
-	new_fxi = _app->doc()->newFixture(fixtureDef, fixtureMode, 0, 0, new_name);
+	new_fxi = _app->doc()->newFixture(fixtureDef, fixtureMode,
+					  0, 0, new_name);
 	if (new_fxi != NULL)
 	{
 		for (t_function_id id = 0; id < KFunctionArraySize; id++)
 		{
 			Function* function = _app->doc()->function(id);
 			if (function == NULL)
-			{
 				continue;
-			}
-			
-			// Copy only functions that belong to the parent fixture
+
+			// Copy only functions that belong to the old fixture
 			if (function->fixture() == old_id)
-			{
 				copyFunction(function, new_fxi);
-			}
 		}
 
-		QString newid;
-		newid.setNum(new_fxi->id());
-		m_listView->setCurrentItem(m_listView->findItem(newid, KColumnID));
+		// Select the newly-created clone
+		QString new_id;
+		QList <QTreeWidgetItem*> list;
+		new_id.setNum(new_fxi->id());
+		list = m_listView->findItems(new_id, Qt::MatchExactly,
+					     KColumnID);
+		item = list.takeFirst();
+		if (item != NULL)
+			item->setSelected(true);
+
+		/* Open properties so that the user can rename the fixture,
+		   set its address, etc... */
 		slotProperties();
 	}
 }
 
-void FixtureManager::slotProperties()
+void FixtureManager::slotRemove()
 {
-	QListViewItem* item = NULL;
-	Fixture* fixture = NULL;
-	FixtureProperties* prop = NULL;
-	t_fixture_id id = 0;
+	QTreeWidgetItem* item = m_listView->currentItem();
+	if (item == NULL)
+		return;
 
-	item = m_listView->currentItem();
-	if (item != NULL)
+	// Get the fixture id
+	t_fixture_id id = item->text(KColumnID).toInt();
+
+	// Display a question
+	if (QMessageBox::question(this, "Remove fixture",
+				  QString("Do you want to remove %1?")
+					.arg(item->text(KColumnName)),
+				  QMessageBox::Yes, QMessageBox::No)
+	    == QMessageBox::Yes)
 	{
-		id = item->text(KColumnID).toInt();
-		fixture = _app->doc()->fixture(id);
-		Q_ASSERT(fixture != NULL);
-		
-		// View properties dialog
-		prop = new FixtureProperties(_app, id);
-		prop->init();
-
-		if (prop->exec() == QDialog::Accepted)
-		{
-			// Update changes to view
-			updateItem(item, fixture);
-		
-			// Update changes to the info view
-			slotSelectionChanged(item);
-		}
-
-		delete prop;
+		_app->doc()->deleteFixture(id);
 	}
 }
 
-void FixtureManager::slotConsole()
-{
-	QListViewItem* item = m_listView->currentItem();
-	t_fixture_id id = item->text(KColumnID).toInt();
-
-	Fixture* fxi = _app->doc()->fixture(id);
-	Q_ASSERT(fxi != NULL);
-
-	fxi->viewConsole();
-}
-
-//
-// Autocreate functions
-//
 void FixtureManager::slotAutoFunction()
 {
-	Fixture* fxi = NULL;
-	Scene* sc = NULL;
-	QLCChannel* channel = NULL;
-	QLCCapability* cap = NULL;
-	QListViewItem* item = NULL;
-	t_fixture_id fxi_id = KNoID;
-	unsigned int i = 0;
+	QTreeWidgetItem* item;
+	t_fixture_id fxi_id;
+	Fixture* fxi;
 
 	item = m_listView->currentItem();
 	if (item == NULL)
 		return;
 
 	fxi_id = item->text(KColumnID).toInt();
-
 	fxi = _app->doc()->fixture(fxi_id);
 	Q_ASSERT(fxi != NULL);
-  
+
 	// Loop over all channels
 	for (int i = 0; i < fxi->channels(); i++)
 	{
-		channel = fxi->channel(i);
+		QLCChannel* channel = fxi->channel(i);
 		Q_ASSERT(channel != NULL);
 
-		QPtrListIterator<QLCCapability> cap_it(*channel->capabilities());
+		QListIterator <QLCCapability*> 
+			cap_it(*channel->capabilities());
 
 		// Loop over all capabilities
-		while ((cap = cap_it.current()) != NULL)
+		while (cap_it.hasNext() == true)
 		{
-			sc = static_cast<Scene*> 
-				(_app->doc()->newFunction(Function::Scene, fxi_id));
-	  
+			QLCCapability* cap = cap_it.next();
+			Q_ASSERT(cap != NULL);
+
+			Scene* sc = static_cast<Scene*> 
+				(_app->doc()->newFunction(Function::Scene,
+							  fxi_id));
 			sc->setName(channel->name() + " - " + cap->name());
 
 			// Set the unused channels to NoSet and zero.
 			for (int j = 0; j < fxi->channels(); j++)
-			{
 				sc->set(j, 0, Scene::NoSet);
-			}
 
 			// Set only the capability
 			sc->set(i, (t_value) ((cap->min() + cap->max()) / 2),
 				Scene::Set);
-
-			++cap_it;
 		}
 	}
 
@@ -737,156 +642,103 @@ void FixtureManager::slotAutoFunction()
 	fxi->viewConsole();
 }
 
-void FixtureManager::slotSelectionChanged(QListViewItem* item)
+void FixtureManager::slotContextMenuRequested(const QPoint& point)
 {
-	Fixture* fxi = NULL;
-	t_fixture_id id = 0;
-	QString info;
+	QMenu menu(this);
+	menu.addAction(m_addAction);
+	menu.addSeparator();
+	menu.addAction(m_propertiesAction);
+	menu.addAction(m_cloneAction);
+	menu.addAction(m_consoleAction);
+	menu.addSeparator();
+	menu.addAction(m_removeAction);
+	menu.exec(point);
+}
 
-	if (item == NULL)
+/*****************************************************************************
+ * Load & save
+ *****************************************************************************/
+
+void FixtureManager::loader(QDomDocument* doc, QDomElement* root)
+{
+	/* TODO !!! */
+	//_app->createFixtureManager();
+	//_app->fixtureManager()->loadXML(doc, root);
+}
+
+bool FixtureManager::loadXML(QDomDocument* doc, QDomElement* root)
+{
+	bool visible = false;
+	int x = 0;
+	int y = 0;
+	int w = 0;
+	int h = 0;
+	int splitter_left = 0;
+	int splitter_right = 0;
+
+	QDomNode node;
+	QDomElement tag;
+
+	Q_ASSERT(doc != NULL);
+	Q_ASSERT(root != NULL);
+
+	if (root->tagName() != KXMLQLCFixtureManager)
 	{
-		// Disable all
-		if (_app->mode() == App::Design)
+		cout << "Fixture Manager node not found!" << endl;
+		return false;
+	}
+
+	node = root->firstChild();
+	while (node.isNull() == false)
+	{
+		tag = node.toElement();
+		if (tag.tagName() == KXMLQLCWindowState)
 		{
-			m_addButton->setEnabled(true);
+			QLCFile::loadXMLWindowState(&tag, &x, &y, &w, &h,
+						    &visible);
 		}
 		else
 		{
-			m_addButton->setEnabled(false);
+			cout << "Unknown fixture manager tag: "
+			     << tag.tagName().toStdString()
+			     << endl;
 		}
 
-		m_deleteButton->setEnabled(false);
-		m_propertiesButton->setEnabled(false);
-		m_consoleButton->setEnabled(false);
-		m_cloneButton->setEnabled(false);
-
-		info = QString("<HTML><BODY>");
-		info += QString("<H1>No fixtures</H1>");
-		info += QString("Click \"Add\" on the ");
-		info += QString("toolbar to add a new fixture.");
-		info += QString("</BODY></HTML>");
-
-		m_textView->setText(info);
+		node = node.nextSibling();
 	}
+
+	hide();
+	setGeometry(x, y, w, h);
+	if (visible == false)
+		showMinimized();
 	else
-	{
-		// Set the text view's contents
-		id = item->text(KColumnID).toInt();
-		fxi = _app->doc()->fixture(id);
-		Q_ASSERT(fxi != NULL);
+		showNormal();
 
-		info = fxi->status();
-		m_textView->setText(info);
+	m_splitter->restoreState(
+		root->attribute(KXMLQLCFixtureManagerSplitterSize).toAscii());
 
-		// Enable console always
-		m_consoleButton->setEnabled(true);
-
-		if (_app->mode() == App::Design)
-		{
-			m_addButton->setEnabled(true);
-			m_deleteButton->setEnabled(true);
-			m_propertiesButton->setEnabled(true);
-			m_cloneButton->setEnabled(true);
-		}
-		else
-		{
-			m_addButton->setEnabled(false);
-			m_deleteButton->setEnabled(false);
-			m_propertiesButton->setEnabled(false);
-			m_cloneButton->setEnabled(false);
-		}
-	}
+	return true;
 }
 
-void FixtureManager::slotDoubleClicked(QListViewItem* item)
+bool FixtureManager::saveXML(QDomDocument* doc, QDomElement* fxi_root)
 {
-	if (item != NULL)
-		slotProperties();
+	QDomElement root;
+	QDomElement tag;
+	QDomText text;
+	QString str;
+
+	Q_ASSERT(doc != NULL);
+	Q_ASSERT(fxi_root != NULL);
+
+	/* Fixture Manager entry */
+	root = doc->createElement(KXMLQLCFixtureManager);
+	fxi_root->appendChild(root);
+
+	// Splitter size
+	root.setAttribute(KXMLQLCFixtureManagerSplitterSize,
+			  (const char*) m_splitter->saveState());
+
+	/* Save window state. parentWidget() should be used for all
+	   widgets within the workspace. */
+	return QLCFile::saveXMLWindowState(doc, &root, parentWidget());
 }
-
-void FixtureManager::slotRightButtonClicked(QListViewItem* item,
-					    const QPoint& point, int col)
-{
-	QPopupMenu* menu = new QPopupMenu();
-	menu->setCheckable(false);
-
-	menu->insertItem(QPixmap(QString(PIXMAPS) + QString("/wizard.png")),
-			 "Add...", KMenuItemAdd);
-	menu->insertItem(QPixmap(QString(PIXMAPS) + QString("/editcopy.png")),
-			 "Clone", KMenuItemClone);
-	menu->insertItem(QPixmap(QString(PIXMAPS) + QString("/editdelete.png")),
-			 "Delete", KMenuItemDelete);
-	menu->insertSeparator();
-	menu->insertItem(QPixmap(QString(PIXMAPS) + QString("/configure.png")),
-			 "Properties...", KMenuItemProperties);
-	menu->insertItem(QPixmap(QString(PIXMAPS) + QString("/console.png")),
-			 "View Console...", KMenuItemConsole);
-	menu->insertSeparator();
-	menu->insertItem( QPixmap(QString(PIXMAPS) + QString("/function.png")),
-			  "Autocreate Functions", KMenuItemAutoFunction);
-
-	if (_app->mode() == App::Operate)
-	{
-		// Operate mode, delete and edit impossible
-		menu->setItemEnabled(KMenuItemAdd, false);
-		menu->setItemEnabled(KMenuItemDelete, false);
-		menu->setItemEnabled(KMenuItemProperties, false);
-		menu->setItemEnabled(KMenuItemClone, false);
-		menu->setItemEnabled(KMenuItemAutoFunction, false);
-	}
-
-	// No item selected, unable to do other things either
-	if (!item)
-	{
-		menu->setItemEnabled(KMenuItemDelete, false);
-		menu->setItemEnabled(KMenuItemConsole, false);
-		menu->setItemEnabled(KMenuItemProperties, false);
-		menu->setItemEnabled(KMenuItemClone, false);
-		menu->setItemEnabled(KMenuItemAutoFunction, false);
-	}
-
-	connect(menu, SIGNAL(activated(int)), 
-		this, SLOT(slotMenuCallBack(int)));
-	menu->exec(point, 0);
-	delete menu;
-}
-
-void FixtureManager::slotMenuCallBack(int item)
-{
-	switch (item)
-	{
-	case KMenuItemAdd:
-		slotAdd();
-		break;
-
-	case KMenuItemDelete:
-		slotDelete();
-		break;
-
-	case KMenuItemClone:
-		slotClone();
-		break;
-
-	case KMenuItemProperties:
-		slotProperties();
-		break;
-
-	case KMenuItemConsole:
-		slotConsole();
-		break;
-
-	case KMenuItemAutoFunction:
-		slotAutoFunction();
-		break;
-	default:
-		break;
-	}
-}
-
-void FixtureManager::closeEvent(QCloseEvent* e)
-{
-	e->accept();
-	emit closed();
-}
-
-

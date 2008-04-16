@@ -22,17 +22,20 @@
 #ifndef ADVANCEDSCENEEDITOR_H
 #define ADVANCEDSCENEEDITOR_H
 
-#include "uic_advancedsceneeditor.h"
-
+#include <QDialog>
+#include "ui_advancedsceneeditor.cpp"
 #include "function.h"
+
+class QTreeWidgetItem;
+class QPoint;
 
 class Scene;
 class QLCChannel;
 class QLCFixtureDef;
 
-typedef QValueList<t_channel> ChannelList;
+typedef QList <t_channel> ChannelList;
 
-class AdvancedSceneEditor : public UI_AdvancedSceneEditor
+class AdvancedSceneEditor : public QDialog, public Ui_AdvancedSceneEditor
 {
 	Q_OBJECT
     
@@ -51,7 +54,7 @@ protected:
 	 * Menu
 	 *********************************************************************/
 protected slots:
-	void slotContextMenu(QListViewItem* item, const QPoint &point, int col);
+	void slotContextMenu(const QPoint &point);
 
 	void slotCapabilityMenuActivated(int);
 	void slotValueMenuActivated(int);
@@ -74,11 +77,11 @@ protected:
 
 	/** Update the given list view item to reflect the given channel value
 	    in the currently edited scene */
-	void updateChannelItem(QListViewItem* item, t_channel ch);
+	void updateChannelItem(QTreeWidgetItem* item, t_channel ch);
 
 protected slots:
-	void slotSelectionChanged();
-	void slotDoubleClicked(QListViewItem*);
+	void slotItemSelectionChanged();
+	void slotDoubleClicked(QTreeWidgetItem*);
 
 protected:
 	/** List of selected channel numbers */
@@ -89,9 +92,6 @@ protected:
 	 *********************************************************************/
 protected slots:
 	void slotEditValueClicked();
-
-	void slotOKClicked();
-	void slotCancelClicked();
 };
 
 #endif

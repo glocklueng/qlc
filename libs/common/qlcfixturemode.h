@@ -19,26 +19,32 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#ifndef QLC_FIXTUREMODE_H
-#define QLC_FIXTUREMODE_H
+#ifndef QLCFIXTUREMODE_H
+#define QLCFIXTUREMODE_H
 
-#include <qstring.h>
-#include <qdom.h>
+#include <QString>
+#include <QList>
 
-#include "common/qlcchannel.h"
+#include "common/qlcfixturedef.h"
 #include "common/qlcphysical.h"
+#include "common/qlcchannel.h"
+#include "common/qlctypes.h"
 
 #define KXMLQLCFixtureMode              "Mode"
 #define KXMLQLCFixtureModeName          "Name"
 #define KXMLQLCFixtureModeChannel       "Channel"
 #define KXMLQLCFixtureModeChannelNumber "Number"
 
-class QLCFixtureDef;
+class QDomDocument;
+class QDomElement;
 class QLCFixtureMode;
+class QLCFixtureDef;
+class QLCPhysical;
+class QLCChannel;
 
 class QLCFixtureMode
 {
- public:
+public:
 	/** Default constructor */
 	QLCFixtureMode(QLCFixtureDef* fixtureDef);
 
@@ -54,30 +60,55 @@ class QLCFixtureMode
 	/** Assignment operator */
 	QLCFixtureMode& operator=(QLCFixtureMode& mode);
  
-	/** Get the fixture that this mode is associated to */
-	QLCFixtureDef* fixtureDef() const { return m_fixtureDef; }
- 
+	/*********************************************************************
+	 * Name
+	 *********************************************************************/
+public:
 	void setName(const QString &name) { m_name = name; }
 	QString name() const { return m_name; }
 
+protected:
+	QString m_name;
+
+	/*********************************************************************
+	 * Fixture definition
+	 *********************************************************************/
+public:
+	/** Get the fixture that this mode is associated to */
+	QLCFixtureDef* fixtureDef() const { return m_fixtureDef; }
+ 
+protected:
+	QLCFixtureDef* m_fixtureDef;
+
+	/*********************************************************************
+	 * Channels
+	 *********************************************************************/
+public:
 	/** Insert a channel at the given position */
 	void insertChannel(QLCChannel* channel, t_channel index);
 	
 	/** Remove a channel (doesn't delete it) */
 	bool removeChannel(QLCChannel* channel);
 	
-	/** Search for a named channel */
-	QLCChannel* searchChannel(const QString& name);
-	
-	/** Get the number of channels */
-	t_channel channels() { return m_channels.count(); }
+	/** Get a channel by its name */
+	QLCChannel* channel(const QString& name);
 	
 	/** Get a channel by its index */
 	QLCChannel* channel(t_channel ch);
 	
+	/** Get the number of channels */
+	t_channel channels() { return m_channels.count(); }
+	
 	/** Get a channel's index */
 	t_channel channelNumber(QLCChannel* channel);
+
+protected:
+	QList <QLCChannel*> m_channels;
 	
+	/*********************************************************************
+	 * Physical
+	 *********************************************************************/
+public:
 	/** Set physical properties */
 	void setPhysical(const QLCPhysical &physical);
 	
@@ -90,12 +121,8 @@ class QLCFixtureMode
 	/** Save to an XML document */
 	bool saveXML(QDomDocument* doc, QDomElement* root);
 		
- private:
-	QLCFixtureDef* m_fixtureDef;
-	QString m_name;
+protected:
 	QLCPhysical m_physical;
- 
-	QPtrList <QLCChannel> m_channels;
 };
 
 #endif

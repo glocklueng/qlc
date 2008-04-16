@@ -19,31 +19,35 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qwidget.h>
-#include <qspinbox.h>
-#include <qcombobox.h>
-#include <qlineedit.h>
-#include <qlistview.h>
-#include <qpushbutton.h>
-#include <qpixmap.h>
-#include <qinputdialog.h>
-#include <qmessagebox.h>
+#include <QTreeWidgetItem>
+#include <QInputDialog>
+#include <QMessageBox>
+#include <QTreeWidget>
+#include <QPushButton>
+#include <QComboBox>
+#include <QLineEdit>
+#include <QSpinBox>
+#include <QIcon>
 
+#include "common/qlcfixturemode.h"
 #include "common/qlcfixturedef.h"
 #include "common/qlcphysical.h"
-#include "common/qlcfixturemode.h"
+#include "common/qlcchannel.h"
 #include "editmode.h"
 
 #define KChannelsColumnNumber 0
 #define KChannelsColumnName 1
 #define KChannelsColumnPointer 2
 
-EditMode::EditMode(QWidget* parent, QLCFixtureMode* mode)
+EditMode::EditMode(QWidget* parent, QLCFixtureMode* mode) : QDialog(parent)
 {
 	Q_ASSERT(mode != NULL);
 	
 	/* Edit the given mode */
 	m_mode = new QLCFixtureMode(mode);
+
+	setupUi(this);
+	init();
 }
 
 EditMode::EditMode(QWidget* parent, QLCFixtureDef* fixtureDef)
@@ -64,45 +68,44 @@ void EditMode::init()
 	QString str;
 	QLCPhysical physical = m_mode->physical();
 	
-	/* Channel buttons */
-	m_addChannelButton->setIconSet(QPixmap(QString(PIXMAPS) + 
-				       QString("/edit_add.png")));
-	m_removeChannelButton->setIconSet(QPixmap(QString(PIXMAPS) + 
-					  QString("/edit_remove.png")));
-	m_raiseChannelButton->setIconSet(QPixmap(QString(PIXMAPS) + 
-					 QString("/up.png")));
-	m_lowerChannelButton->setIconSet(QPixmap(QString(PIXMAPS) + 
-					 QString("/down.png")));
+	/* Channels page */
+	m_addChannelButton->setIcon(QIcon(PIXMAPS "/edit_add.png"));
+	connect(m_addChannelButton, SIGNAL(clicked()),
+		this, SLOT(slotAddChannelClicked()));
+
+	m_removeChannelButton->setIcon(QIcon(PIXMAPS "/edit_remove.png"));
+	connect(m_removeChannelButton, SIGNAL(clicked()),
+		this, SLOT(slotRemoveChannelClicked()));
+
+	m_raiseChannelButton->setIcon(QIcon(PIXMAPS "/up.png"));
+	connect(m_raiseChannelButton, SIGNAL(clicked()),
+		this, SLOT(slotRaiseChannelClicked()));
+
+	m_lowerChannelButton->setIcon(QIcon(PIXMAPS "/down.png"));
+	connect(m_lowerChannelButton, SIGNAL(clicked()),
+		this, SLOT(slotLowerChannelClicked()));
 	
-	/* Mode name */
 	m_modeNameEdit->setText(m_mode->name());
 	
-	/* Channels */
 	refreshChannelList();
 
-	/* Physical properties */
-	m_bulbTypeCombo->setCurrentText(physical.bulbType());
+	/* Physical page */
+	m_bulbTypeCombo->setEditText(physical.bulbType());
 	m_bulbLumensSpin->setValue(physical.bulbLumens());
-	str.sprintf("%d", physical.bulbColourTemperature());
-	m_bulbTempCombo->setCurrentText(str);
+	m_bulbTempCombo->setEditText(str.setNum(physical.bulbColourTemperature()));
 	
 	m_weightSpin->setValue(physical.weight());
 	m_widthSpin->setValue(physical.width());
 	m_heightSpin->setValue(physical.height());
 	m_depthSpin->setValue(physical.depth());
 
-	m_lensNameCombo->setCurrentText(physical.lensName());
-	m_lensMinDegreesSpin->setValue(physical.lensDegreesMin());
-	m_lensMaxDegreesSpin->setValue(physical.lensDegreesMax());
+	m_lensNameCombo->setEditText(physical.lensName());
+	m_lensDegreesMinSpin->setValue(physical.lensDegreesMin());
+	m_lensDegreesMaxSpin->setValue(physical.lensDegreesMax());
 	
-	m_focusTypeCombo->setCurrentText(physical.focusType());
+	m_focusTypeCombo->setEditText(physical.focusType());
 	m_panMaxSpin->setValue(physical.focusPanMax());
 	m_tiltMaxSpin->setValue(physical.focusTiltMax());
-}
-
-void EditMode::slotModeNameChanged(const QString& text)
-{
-	m_mode->setName(text);
 }
 
 /****************************************************************************
@@ -110,44 +113,42 @@ void EditMode::slotModeNameChanged(const QString& text)
  ****************************************************************************/
 
 void EditMode::slotAddChannelClicked()
-{
-	QPtrListIterator<QLCChannel> it(*m_mode->fixtureDef()->channels());
-	QLCChannel* ch = NULL;
-	QStringList list;
-	bool ok = false;
-	QString name;
-	int index = 0;
+{	
+	QLCChannel* ch;
 
-	/* Create a list of channels that have not been added to this mode yet */
-	while ( (ch = it.current()) != 0 )
+	/* Create a list of channels that haven't been added to this mode yet */
+	QStringList chlist;
+	QListIterator <QLCChannel*> it(*m_mode->fixtureDef()->channels());
+	while (it.hasNext() == true)
 	{
-		++it;
-		if (m_mode->searchChannel(ch->name()) != NULL)
+		ch = it.next();
+		if (m_mode->channel(ch->name()) != NULL)
 			continue;
 		else
-			list.append(ch->name());
+			chlist << ch->name();
 	}
 	
-	name = QInputDialog::getItem("Add channel to mode", 
-				     "Select a channel to add",
-				     list, 0, false, &ok, this);
+	bool ok = false;
+	QString name = QInputDialog::getItem(this, "Add channel to mode", 
+					     "Select a channel to add",
+					     chlist, 0, false, &ok);
 	
 	if (ok == true && name.isEmpty() == false)
 	{
-		QListViewItem* item = NULL;
-		int insertat = 0;
-		
+		QTreeWidgetItem* item;
+		int index;
+
 		ch = m_mode->fixtureDef()->channel(name);
 
 		// Find out the current channel number
 		item = m_channelList->currentItem();
 		if (item != NULL)
-			insertat = item->text(KChannelsColumnNumber).toInt() - 1;
+			index = item->text(KChannelsColumnNumber).toInt() - 1;
 		else
-			insertat = 0;
+			index = 0;
 		
 		// Insert the item at current selection
-		m_mode->insertChannel(ch, insertat);
+		m_mode->insertChannel(ch, index);
 		
 		// Easier to refresh the whole list than to increment all
 		// channel numbers after the inserted item
@@ -164,13 +165,13 @@ void EditMode::slotRemoveChannelClicked()
 	
 	if (ch != NULL)
 	{
-		QListViewItem* item = NULL;
+		QTreeWidgetItem* item;
 		QString select;
 
 		// Pick the item above or below to be selected next
-		item = m_channelList->currentItem()->itemAbove();
+		item = m_channelList->itemAbove(m_channelList->currentItem());
 		if (item == NULL)
-			item = m_channelList->currentItem()->itemBelow();
+			item = m_channelList->itemBelow(m_channelList->currentItem());
 		if (item != NULL)
 			select = item->text(KChannelsColumnName);
 
@@ -231,16 +232,14 @@ void EditMode::slotLowerChannelClicked()
 
 void EditMode::refreshChannelList()
 {
-	QListViewItem* item = NULL;
-	QLCChannel* ch = NULL;
-	QString str;
-	
 	m_channelList->clear();
 	
 	for (int i = 0; i < m_mode->channels(); i++)
 	{
-		ch = m_mode->channel(i);
-		item = new QListViewItem(m_channelList);
+		QTreeWidgetItem* item = new QTreeWidgetItem(m_channelList);
+		QLCChannel* ch = m_mode->channel(i);
+		QString str;
+	
 		str.sprintf("%.3d", i + 1);
 		item->setText(KChannelsColumnNumber, str);
 		item->setText(KChannelsColumnName, ch->name());
@@ -253,8 +252,8 @@ void EditMode::refreshChannelList()
 
 QLCChannel* EditMode::currentChannel()
 {
-	QLCChannel* ch = NULL;
-	QListViewItem* item = NULL;
+	QTreeWidgetItem* item;
+	QLCChannel* ch;
 
 	// Convert the string-form ulong to a QLCChannel pointer and return it
 	item = m_channelList->currentItem();
@@ -266,110 +265,43 @@ QLCChannel* EditMode::currentChannel()
 
 void EditMode::selectChannel(const QString &name)
 {
-	QListViewItemIterator it(m_channelList);
-	
-	while (it.current() != NULL)
+	QTreeWidgetItemIterator it(m_channelList);
+	while (*it != NULL)
 	{
-		if (it.current()->text(KChannelsColumnName) == name)
+		if ((*it)->text(KChannelsColumnName) == name)
 		{
-			m_channelList->setSelected(it.current(), true);
+			m_channelList->setCurrentItem((*it));
 			break;
 		}
-		
+
 		++it;
 	}
 }
 
-/****************************************************************************
- * Physical page functions
- ****************************************************************************/
-void EditMode::slotBulbTypeChanged(const QString &type)
-{
-	QLCPhysical physical = m_mode->physical();
-	physical.setBulbType(type);
-	m_mode->setPhysical(physical);
-}
+/*****************************************************************************
+ * Accept
+ *****************************************************************************/
 
-void EditMode::slotBulbLumensChanged(int lumens)
+void EditMode::accept()
 {
 	QLCPhysical physical = m_mode->physical();
-	physical.setBulbLumens(lumens);
-	m_mode->setPhysical(physical);
-}
 
-void EditMode::slotBulbColourTemperatureChanged(const QString &kelvins)
-{
-	QLCPhysical physical = m_mode->physical();
-	physical.setBulbColourTemperature(kelvins.toInt());
-	m_mode->setPhysical(physical);
-}
+	physical.setBulbType(m_bulbTypeCombo->currentText());
+	physical.setBulbLumens(m_bulbLumensSpin->value());
+	physical.setBulbColourTemperature(m_bulbTempCombo->currentText().toInt());
+	physical.setWeight(m_weightSpin->value());
+	physical.setWidth(m_widthSpin->value());
+	physical.setHeight(m_heightSpin->value());
+	physical.setDepth(m_depthSpin->value());
+	physical.setLensName(m_lensNameCombo->currentText());
+	physical.setLensDegreesMin(m_lensDegreesMinSpin->value());
+	physical.setLensDegreesMax(m_lensDegreesMaxSpin->value());
+	physical.setFocusType(m_focusTypeCombo->currentText());
+	physical.setFocusPanMax(m_panMaxSpin->value());
+	physical.setFocusTiltMax(m_tiltMaxSpin->value());
 
-void EditMode::slotWeightChanged(int weight)
-{
-	QLCPhysical physical = m_mode->physical();
-	physical.setWeight(weight);
 	m_mode->setPhysical(physical);
-}
+	m_mode->setName(m_modeNameEdit->text());
 
-void EditMode::slotWidthChanged(int width)
-{
-	QLCPhysical physical = m_mode->physical();
-	physical.setWidth(width);
-	m_mode->setPhysical(physical);
-}
-
-void EditMode::slotHeightChanged(int height)
-{
-	QLCPhysical physical = m_mode->physical();
-	physical.setHeight(height);
-	m_mode->setPhysical(physical);
-}
-
-void EditMode::slotDepthChanged(int depth)
-{
-	QLCPhysical physical = m_mode->physical();
-	physical.setDepth(depth);
-	m_mode->setPhysical(physical);
-}
-	
-void EditMode::slotLensNameChanged(const QString &name)
-{
-	QLCPhysical physical = m_mode->physical();
-	physical.setLensName(name);
-	m_mode->setPhysical(physical);
-}
-
-void EditMode::slotLensDegreesMinChanged(int degrees)
-{
-	QLCPhysical physical = m_mode->physical();
-	physical.setLensDegreesMin(degrees);
-	m_mode->setPhysical(physical);
-}
-
-void EditMode::slotLensDegreesMaxChanged(int degrees)
-{
-	QLCPhysical physical = m_mode->physical();
-	physical.setLensDegreesMax(degrees);
-	m_mode->setPhysical(physical);
-}
-
-void EditMode::slotFocusTypeChanged(const QString &type)
-{
-	QLCPhysical physical = m_mode->physical();
-	physical.setFocusType(type);
-	m_mode->setPhysical(physical);
-}
-
-void EditMode::slotFocusPanMaxChanged(int degrees)
-{
-	QLCPhysical physical = m_mode->physical();
-	physical.setFocusPanMax(degrees);
-	m_mode->setPhysical(physical);
-}
-
-void EditMode::slotFocusTiltMaxChanged(int degrees)
-{
-	QLCPhysical physical = m_mode->physical();
-	physical.setFocusTiltMax(degrees);
-	m_mode->setPhysical(physical);
+	QDialog::accept();
 }

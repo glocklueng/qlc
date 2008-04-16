@@ -19,39 +19,42 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <dlfcn.h>
-#include <qdir.h>
-#include <qstringlist.h>
+#include <QStringList>
+#include <QDir>
 
-#include "common/plugin.h"
-#include "common/inputplugin.h"
-#include "common/outputplugin.h"
+#include <iostream>
+#include <dlfcn.h>
+
+#include "common/qlcplugin.h"
+#include "common/qlcinplugin.h"
+#include "common/qlcoutplugin.h"
 
 #include "pluginloader.h"
 #include "dmxmap.h"
 #include "inputmap.h"
 
+using namespace std;
+
 void PluginLoader::load(const QString& pluginPath,
 			DMXMap* outputMap, InputMap* inputMap)
 {
+	QDir pluginDir(pluginPath, "*.so", QDir::Name, QDir::Files);
 	Plugin* plugin = NULL;
 
 	Q_ASSERT(outputMap != NULL);
 	Q_ASSERT(inputMap != NULL);
 
-	QDir pluginDir(pluginPath);
-	pluginDir.setFilter(QDir::Files);
-	pluginDir.setNameFilter("*.so");
-
 	/* Check that we can access the directory */
 	if (pluginDir.exists() == false)
 	{
-		qDebug(pluginPath + QString(" doesn't exist"));
+		cout << pluginPath.toStdString() << " doesn't exist" << endl;
 		return;
 	}
 	else if (pluginDir.isReadable() == false)
 	{
-		qDebug(pluginPath + QString(" is not accessible"));
+		cout << pluginPath.toStdString()
+		     << " is not accessible"
+		     << endl;
 		return;
 	}
 
@@ -59,7 +62,10 @@ void PluginLoader::load(const QString& pluginPath,
 	QStringList dirlist(pluginDir.entryList());
 	QStringList::Iterator it;
 	for (it = dirlist.begin(); it != dirlist.end(); ++it)
-		create(pluginPath + QString("/") + *it, outputMap, inputMap);
+	{
+		create(pluginPath + QDir::separator() + *it,
+		       outputMap, inputMap);
+	}
 }
 
 void PluginLoader::create(const QString& path,
@@ -68,15 +74,16 @@ void PluginLoader::create(const QString& path,
 	QLCPluginCreateFunction create;
 
 	void* pluginHandle = NULL;
-	Plugin* plugin = NULL;
+	QLCPlugin* plugin = NULL;
 
 	/* Load the (presumed) shared object into memory. Don't resolve
 	   symbols until they're needed */
-	pluginHandle = ::dlopen(static_cast<const char*> (path), RTLD_LAZY);
+	pluginHandle = ::dlopen((const char*) path.toAscii(), RTLD_LAZY);
 	if (pluginHandle == NULL)
 	{
-		qDebug("Unable to open %s with dlopen(): %s\n", 
-		       (const char*) path, ::dlerror());
+		cout << "Unable to open " << path.toStdString()
+		     << " with dlopen(): " << dlerror()
+		     << endl;
 		return;
 	}
 	
@@ -85,8 +92,9 @@ void PluginLoader::create(const QString& path,
 	if (create == NULL)
 	{
 		::dlclose(pluginHandle);
-		qDebug("Unable to resolve symbols for %s. dlsym(): %s", 
-		       (const char*) path, ::dlerror());
+		cout << "Unable to resolve symbols for "
+		     << path.toStdString() << ": " << ::dlerror()
+		     << endl;
 		return;
 	}
 
@@ -95,23 +103,23 @@ void PluginLoader::create(const QString& path,
 	Q_ASSERT(plugin != NULL);
 	
 	/* We accept only output plugins here */
-	if (plugin->type() == Plugin::OutputType)
+	if (plugin->type() == QLCPlugin::Output)
 	{
 		plugin->setHandle(pluginHandle);
 
 		if (outputMap->appendPlugin(
-			    static_cast<OutputPlugin*> (plugin)) == false)
+			    static_cast<QLCOutPlugin*> (plugin)) == false)
 		{
 			/* Plugin already exists, delete it */
 			delete plugin;
 		}
 	}
-	else if (plugin->type() == Plugin::InputType)
+	else if (plugin->type() == QLCPlugin::Input)
 	{
 		plugin->setHandle(pluginHandle);
 
 		if (inputMap->appendPlugin(
-			    static_cast<InputPlugin*> (plugin)) == false)
+			    static_cast<QLCInPlugin*> (plugin)) == false)
 		{
 			/* Plugin already exists, delete it */
 			delete plugin;
@@ -119,7 +127,8 @@ void PluginLoader::create(const QString& path,
 	}
 	else
 	{
-		qWarning("Unknown plugin type: %d", plugin->type());
+		cout << QString("Unknown plugin type: %1")
+			.arg(plugin->type()).toStdString() << endl;
 		delete plugin;
 		::dlclose(pluginHandle);
 	}

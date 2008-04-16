@@ -9,54 +9,56 @@ libqlccommon_la_CXXFLAGS += -DVERSION=\"$(VERSION)\"
 
 libqlccommon_la_LIBS  = @QT_LIBS@
 
+# Legacy classes
+# capability.h
+# configitem.h
+# deviceclass.h
+# ledbar.h
+# logicalchannel.h
+# qlcimagepreview.h
+# settings.h
+# qlcworkspace.h
+# capability.cpp
+# deviceclass.cpp
+# ledbar.cpp
+# logicalchannel.cpp
+# qlcimagepreview.cpp
+# qlcworkspace.cpp
+# settings.cpp
+# moc_ledbar.cpp
+# moc_settings.cpp
+# moc_qlcimagepreview.cpp
+# moc_qlcworkspace.cpp
+
 noinst_HEADERS = \
-	capability.h \
-	configitem.h \
-	deviceclass.h \
-	documentbrowser.h \
-	filehandler.h \
-	inputplugin.h \
-	ledbar.h \
-	logicalchannel.h \
-	outputplugin.h \
-	plugin.h \
-	qlcfixturemode.h \
-	qlcfixturedef.h \
-	qlcchannel.h \
 	qlccapability.h \
-	qlcimagepreview.h \
+	qlcchannel.h \
+	qlcdocbrowser.h \
+	qlcfile.h \
+	qlcfixturedef.h \
+	qlcfixturemode.h \
+	qlcinplugin.h \
+	qlcoutplugin.h \
 	qlcphysical.h \
-	qlcworkspace.h \
-	settings.h
+	qlcplugin.h \
+	qlctypes.h
 
 libqlccommon_la_SOURCES = \
-	capability.cpp \
-	deviceclass.cpp \
-	documentbrowser.cpp \
-	filehandler.cpp \
-	inputplugin.cpp \
-	ledbar.cpp \
-	logicalchannel.cpp \
-	outputplugin.cpp \
-	plugin.cpp \
-	qlcfixturemode.cpp \
-	qlcfixturedef.cpp \
-	qlcchannel.cpp \
 	qlccapability.cpp \
-	qlcimagepreview.cpp \
+	qlcchannel.cpp \
+	qlcdocbrowser.cpp \
+	qlcfile.cpp \
+	qlcfixturedef.cpp \
+	qlcfixturemode.cpp \
+	qlcinplugin.cpp \
+	qlcoutplugin.cpp \
 	qlcphysical.cpp \
-	qlcworkspace.cpp \
-	settings.cpp \
+	qlcplugin.cpp \
 	\
-	moc_documentbrowser.cpp \
-	moc_filehandler.cpp \
-	moc_inputplugin.cpp \
-	moc_ledbar.cpp \
-	moc_outputplugin.cpp \
-	moc_plugin.cpp \
-	moc_qlcimagepreview.cpp \
-	moc_qlcworkspace.cpp \
-	moc_settings.cpp
+	moc_qlcdocbrowser.cpp \
+	moc_qlcinplugin.cpp \
+	moc_qlcoutplugin.cpp \
+	moc_qlcplugin.cpp
 
 moc_%.cpp: %.h
 	$(MOC) $< -o $@

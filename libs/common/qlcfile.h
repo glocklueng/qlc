@@ -1,6 +1,6 @@
 /*
   Q Light Controller
-  filehandler.h
+  qlcfile.h
   
   Copyright (C) Heikki Junnila
   
@@ -19,21 +19,16 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#ifndef FILEHANDLER_H
-#define FILEHANDLER_H
-
-#include <qobject.h>
-#include <qstring.h>
-#include <qptrlist.h>
+#ifndef QLCFILE_H
+#define QLCFILE_H
 
 class QDomDocument;
 class QDomElement;
+class QString;
 
 // File extensions
-#define KExtLegacyDeviceClass ".deviceclass"
-#define KExtLegacyWorkspace   ".qlc"
-#define KExtFixture           ".qxf" // 'Q'lc 'X'ml 'F'ixture
-#define KExtWorkspace         ".qxw" // 'Q'lc 'X'ml 'W'orkspace
+#define KExtFixture   ".qxf" // 'Q'lc 'X'ml 'F'ixture
+#define KExtWorkspace ".qxw" // 'Q'lc 'X'ml 'W'orkspace
 
 // Generic XML tags common for all documents
 #define KXMLQLCCreator "Creator"
@@ -53,21 +48,9 @@ class QDomElement;
 #define KXMLQLCWindowStateWidth "Width"
 #define KXMLQLCWindowStateHeight "Height"
 
-class FileHandler : public QObject
+class QLCFile
 {
-	Q_OBJECT
-
 public:
-	/**
-	 * Read an old QLC-style file to a list of key-value pairs
-	 *
-	 * @param fileName The name of the file to read
-	 * @param list The resulting string list of key-value pairs
-	 *
-	 * @return true if succesful, otherwise false
-	 */
-	static bool readFileToList(QString &fileName, QPtrList <QString> &list);
-	
 	/**
 	 * Read an XML file to a QDomDocument structure
 	 *

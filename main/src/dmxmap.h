@@ -22,16 +22,16 @@
 #ifndef DMXMAP_H
 #define DMXMAP_H
 
-#include <qptrvector.h>
-#include <qptrlist.h>
-#include <qobject.h>
-#include "common/types.h"
+#include <QObject>
+#include <QVector>
+#include <QList>
+#include "common/qlctypes.h"
 
 class QString;
 class QDomDocument;
 class QDomElement;
 
-class OutputPlugin;
+class QLCOutPlugin;
 class DMXMap;
 class DMXPatch;
 class DMXMapEditor;
@@ -58,7 +58,7 @@ class DMXPatch
 	friend class PluginLoader;
 
 public:
-	DMXPatch(OutputPlugin* p, int o) { plugin = p; output = o; }
+	DMXPatch(QLCOutPlugin* p, int o) { plugin = p; output = o; }
 	virtual ~DMXPatch() {}
 
 protected:
@@ -83,7 +83,7 @@ protected:
 	 */
 	static bool loader(QDomDocument* doc, QDomElement* root, DMXMap* dmxMap);
 
-	OutputPlugin* plugin;
+	QLCOutPlugin* plugin;
 	int output;
 };
 
@@ -254,7 +254,7 @@ protected:
 
 protected:
 	/** Vector containing all active plugins */
-	QPtrVector<DMXPatch> m_patch;
+	QVector <DMXPatch*> m_patch;
 
 	/*********************************************************************
 	 * Plugins
@@ -299,23 +299,23 @@ public:
 	 * @param outputPlugin The output plugin to append
 	 * @return true if successful, otherwise false
 	 */
-	bool appendPlugin(OutputPlugin* outputPlugin);
+	bool appendPlugin(QLCOutPlugin* outputPlugin);
 
 protected:
 	/**
 	 * Get a plugin instance by the plugin's name
 	 *
 	 * @param name The name of the plugin to search for
-	 * @return OutputPlugin or NULL
+	 * @return QLCOutPlugin or NULL
 	 */
-	OutputPlugin* plugin(const QString& name);
+	QLCOutPlugin* plugin(const QString& name);
 
 protected:
 	/** The dummy out plugin that is used for unused universes */
-	OutputPlugin* m_dummyOut;
+	QLCOutPlugin* m_dummyOut;
 
 	/** List containing all available plugins */
-	QPtrList<OutputPlugin> m_plugins;
+	QList <QLCOutPlugin*> m_plugins;
 
 	/*********************************************************************
 	 * Save & Load

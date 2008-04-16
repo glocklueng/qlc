@@ -19,41 +19,45 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qapplication.h>
-#include <qstring.h>
-#include <unistd.h>
+#include <QApplication>
+#include <iostream>
+#include <QString>
+
 #include <sys/types.h>
-#include <assert.h>
+#include <unistd.h>
 
 #include "app.h"
 #include "doc.h"
 
 #include <X11/Xlib.h>
 
+using namespace std;
+
 App* _app;
 QApplication* _qapp;
 
 void print_version()
 {
-	qDebug(" ");
-	qDebug(KApplicationNameLong + " " + KApplicationVersion);
-	qDebug("This program is licensed under the terms of the GNU GPL.");
-	qDebug("Copyright (c) Heikki Junnila (hjunnila@users.sf.net)");
-	qDebug(" ");
+	cout << endl;
+	cout << KApplicationNameLong.toStdString();
+	cout << " " << KApplicationVersion.toStdString() << endl;
+	cout << "This program is licensed under the terms of GNU GPL." << endl;
+	cout << "Copyright (c) Heikki Junnila (hjunnila@users.sf.net)" << endl;
+	cout << endl;
 }
 
 void print_usage()
 {
 	print_version();
 
-	qDebug("Usage:");
-	qDebug("  qlc [options]");
-        qDebug("\nOptions:");
-        qDebug("  -o <file> or --open <file>    Open the specified workspace file");
-	qDebug("  -p or --operate               Start in operate mode");
-        qDebug("  -h or --help                  Print this help");
-        qDebug("  -v or --version               Print version information");
-	qDebug(" ");
+	cout << "Usage:" << endl;
+	cout << "  qlc [options]" << endl;
+	cout << "\nOptions:" << endl;
+	cout << "  -o <file> or --open <file>    Open the specified workspace file" << endl;
+	cout << "  -p or --operate               Start in operate mode" << endl;
+	cout << "  -h or --help                  Print this help" << endl;
+	cout << "  -v or --version               Print version information" << endl;
+	cout << endl;
 }
 
 /**
@@ -87,7 +91,7 @@ bool parseArgs(int argc, char **argv)
 		else if (::strcmp(argv[i], "-p") == 0 ||
 			 ::strcmp(argv[i], "--operate") == 0)
 		{
-			_app->setMode(App::Operate);
+			_app->slotSetMode(App::Operate);
 			result = true;
 		}
 		else if (::strcmp(argv[i], "-o") == 0 ||
@@ -113,10 +117,10 @@ bool parseArgs(int argc, char **argv)
  *
  * @param argc Number of arguments in array argv
  * @param argv Arguments array
- *
  */
 int main(int argc, char **argv)
 {
+	Display* display;
 	int result = 0;
 
 	/* Initialize QApplication object */
@@ -124,34 +128,24 @@ int main(int argc, char **argv)
 
 	/* Construct the main application class */
 	_app = new App();
-	_qapp->setMainWidget(_app);
-	_app->setCaption(KApplicationNameLong);
-	_app->init();
 
 	/* Parse command line arguments */
 	if (parseArgs(argc, argv) == false)
-	{
 		return 0;
-	}
 
 	_app->show();
 
-	//
 	// Main application loop
-	//
 	result = _qapp->exec();
 
-	//
 	// Delete main application
 	delete _app;
 	delete _qapp;
 
-	//
 	// Set key repeat on in case QLC is set to turn it off in operate mode.
 	// It's pretty safe to assume that most users have it always turned on.
-	//
-	Display* display = XOpenDisplay(NULL);
-	ASSERT(display != NULL);
+	display = XOpenDisplay(NULL);
+	Q_ASSERT(display != NULL);
 	XAutoRepeatOn(display);
 	XCloseDisplay(display);
 

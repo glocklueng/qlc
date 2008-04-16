@@ -1,8 +1,8 @@
 /*
   Q Light Controller
-  selectjoystick.h
+  qlcdocbrowser.h
 
-  Copyright (C) 2000, 2001, 2002 Heikki Junnila
+  Copyright (C) Heikki Junnila
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -19,38 +19,38 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#ifndef SELECTJOYSTICK_H
-#define SELECTJOYSTICK_H
+#ifndef QLCDOCBROWSER_H
+#define QLCDOCBROWSER_H
 
-#include "uic_selectjoystick.h"
+#include <QWidget>
 
-class JoystickPlugin;
-class Joystick;
+class QTextBrowser;
+class QToolBar;
+class QAction;
 
-class SelectJoystick : public UI_SelectJoystick
+class QLCDocBrowser : public QWidget
 {
-  Q_OBJECT
+	Q_OBJECT
 
- public:
-  SelectJoystick(JoystickPlugin* plugin);
-  virtual ~SelectJoystick();
+public:
+	QLCDocBrowser(QWidget* parent);
+	~QLCDocBrowser();
+	
+	void init();
+	void updateButtons();
+	
+public slots:
+	void slotPrevious();
+	void slotBackwardAvailable(bool);
+	void slotNext();
+	void slotForwardAvailable(bool);
 
-  void initView();
+protected:
+	QToolBar* m_toolbar;
+	QAction* m_previousAction;
+	QAction* m_nextAction;
 
-  Joystick* joystick() { return m_currentJoystick; }
-
- public slots:
-  void slotJoystickSelected(QListViewItem* item);
-  void slotOKClicked();
-  void slotCancelClicked();
-  void slotCalibrateClicked();
-
- private:
-  void fillList();
-
- private:
-  JoystickPlugin* m_plugin;
-  Joystick* m_currentJoystick;
+	QTextBrowser* m_browser;
 };
 
 #endif

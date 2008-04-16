@@ -22,8 +22,13 @@
 #ifndef EFX_H
 #define EFX_H
 
-#include "common/types.h"
+#include "common/qlctypes.h"
 #include "function.h"
+
+class QDomDocument;
+class QDomElement;
+class QPolygon;
+class QString;
 
 #define KXMLQLCFunctionEFXAlgorithm "Algorithm"
 #define KXMLQLCFunctionEFXWidth "Width"
@@ -39,16 +44,13 @@
 #define KXMLQLCFunctionEFXStartScene "StartScene"
 #define KXMLQLCFunctionEFXStopScene "StopScene"
 
-class QPointArray;
-class QDomDocument;
-
 /**
  * An EFX (effects) function that is used to create
  * more complex automation especially for moving lights
  */
 class EFX : public Function
 {
- public:
+public:
 	EFX();
 	~EFX();
   
@@ -60,7 +62,7 @@ class EFX : public Function
 	 *
 	 * @param array The array to save the preview points to
 	 */
-	void setPreviewPointArray(QPointArray* array);
+	void setPreviewPointArray(QPolygon* array);
 
 	/**
 	 * Get the supported algorithms as a string list
@@ -339,7 +341,7 @@ class EFX : public Function
 	 */
 	bool copyFrom(EFX* efx, t_fixture_id to);
 
- public:
+public:
 	/**
 	 * Save the function's contents to an XML document
 	 *
@@ -356,7 +358,7 @@ class EFX : public Function
 	 */
 	bool loadXML(QDomDocument* doc, QDomElement* root);
 
- protected:
+protected:
 	/**
 	 * Load an axis' contents from an XML document
 	 *
@@ -365,7 +367,7 @@ class EFX : public Function
 	 */
 	bool loadXMLAxis(QDomDocument* doc, QDomElement* root);
 
- public:
+public:
 	/**
 	 * This is called by buses for each function when the
 	 * bus value is changed.
@@ -395,7 +397,7 @@ class EFX : public Function
 	 */
 	void cleanup();
 
- protected:
+protected:
 	/**
 	 * Pre-run initialization that is run just before the function is started.
 	 */
@@ -510,7 +512,7 @@ class EFX : public Function
 	 */
 	void rotateAndScale(EFX* efx, float *x, float *y, int rot);
 
- protected:
+protected:
 	/**
 	 * Pattern width, see \ref setWidth
 	 */
@@ -614,7 +616,7 @@ class EFX : public Function
 	 * used only from the EFX Editor and set to NULL after finished
 	 * editing.
 	 */
-	QPointArray* m_previewPointArray;
+	QPolygon* m_previewPointArray;
 
 	/**
 	 * Algorithm used by the current EFX function

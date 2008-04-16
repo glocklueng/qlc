@@ -19,10 +19,9 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qstring.h>
-#include <qpopupmenu.h>
-#include <qmessagebox.h>
-#include <qapplication.h>
+#include <QApplication>
+#include <QMessageBox>
+#include <QString>
 
 #include "dummyoutplugin.h"
 
@@ -30,7 +29,7 @@
  * Initialization
  *****************************************************************************/
 
-DummyOutPlugin::DummyOutPlugin() : OutputPlugin()
+DummyOutPlugin::DummyOutPlugin() : QLCOutPlugin()
 {
 	m_version = 0x00010100;
 	m_name = QString("Dummy Output");
@@ -92,10 +91,10 @@ QString DummyOutPlugin::infoText()
 	str += QString("<TABLE COLS=\"1\" WIDTH=\"100%\">");
 	str += QString("<TR>");
 	str += QString("<TD BGCOLOR=\"");
-	str += QApplication::palette().active().highlight().name();
+	//str += QApplication::palette().active().highlight().name();
 	str += QString("\">");
 	str += QString("<FONT COLOR=\"");
-	str += QApplication::palette().active().highlightedText().name();
+	//str += QApplication::palette().active().highlightedText().name();
 	str += QString("\" SIZE=\"5\">");
 	str += name();
 	str += QString("</FONT>");

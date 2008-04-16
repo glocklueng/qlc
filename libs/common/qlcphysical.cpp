@@ -19,8 +19,9 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qstring.h>
-#include <qdom.h>
+#include <iostream>
+#include <QString>
+#include <QtXml>
 
 #include "common/qlcphysical.h"
 
@@ -92,8 +93,9 @@ bool QLCPhysical::loadXML(QDomElement* root)
 		}
 		else
 		{
-			qDebug("Unknown Physical tag: %s",
-				(const char*) tag.tagName());
+			std::cout << "Unknown Physical tag: "
+				  << tag.tagName().toStdString()
+				  << endl;
 		}
 
 		node = node.nextSibling();
@@ -109,8 +111,8 @@ bool QLCPhysical::saveXML(QDomDocument* doc, QDomElement* root)
 	QDomText text;
 	QString str;
 	
-	if (doc == NULL || root == NULL)
-		return false;
+	Q_ASSERT(doc != NULL);
+	Q_ASSERT(root != NULL);
 	
 	/* Physical entry */
 	tag = doc->createElement(KXMLQLCPhysical);

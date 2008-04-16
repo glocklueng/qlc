@@ -19,12 +19,12 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#ifndef QLC_CAPABILITY_H
-#define QLC_CAPABILITY_H
+#ifndef QLCCAPABILITY_H
+#define QLCCAPABILITY_H
 
-#include <qptrlist.h>
+#include <QList>
 
-#include "common/types.h"
+#include "common/qlctypes.h"
 
 #define KXMLQLCCapability    "Capability"
 #define KXMLQLCCapabilityMin "Min"
@@ -34,7 +34,6 @@ class QString;
 class QFile;
 class QDomDocument;
 class QDomElement;
-class Capability;
 class QLCCapability;
 
 class QLCCapability
@@ -51,9 +50,6 @@ class QLCCapability
 	/** Create contents from an XML tag */
 	QLCCapability(QDomElement* tag);
 
-	/** Create contents from an old Capability */
-	QLCCapability(Capability* cap);
- 
 	/** Destructor */
 	virtual ~QLCCapability();
   

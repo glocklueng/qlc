@@ -22,14 +22,14 @@
 #ifndef HIDEVENTDEVICE_H
 #define HIDEVENTDEVICE_H
 
-#include <qobject.h>
-#include <qfile.h>
+#include <QObject>
+#include <QFile>
 
 #include <sys/ioctl.h>
 #include <linux/input.h>
 #include <linux/types.h>
 
-#include "common/types.h"
+#include "common/qlctypes.h"
 #include "hiddevice.h"
 
 class HIDInput;

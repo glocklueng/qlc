@@ -19,33 +19,26 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qlineedit.h>
-#include <qlabel.h>
-#include <qspinbox.h>
-#include <qpushbutton.h>
-#include <qmessagebox.h>
-
-#include "fixtureproperties.h"
+#include <QMessageBox>
+#include <QLineEdit>
+#include <QSpinBox>
+#include <QLabel>
 
 #include "common/qlcfixturedef.h"
+
+#include "fixtureproperties.h"
+#include "fixture.h"
 #include "app.h"
 #include "doc.h"
-#include "fixture.h"
 
 extern App* _app;
 
 FixtureProperties::FixtureProperties(QWidget* parent, t_fixture_id fixture)
-	: UI_FixtureProperties(parent, "Fixture Properties", true)
+	: QDialog(parent)
 {
+	setupUi(this);
+
 	m_fixture = fixture;
-}
-
-FixtureProperties::~FixtureProperties()
-{
-}
-
-void FixtureProperties::init()
-{
 	Fixture* fxi = _app->doc()->fixture(m_fixture);
 	Q_ASSERT(fxi != NULL);
 
@@ -61,19 +54,23 @@ void FixtureProperties::init()
 	m_universeSpin->setValue(fxi->universe() + 1);
 }
 
-void FixtureProperties::slotOKClicked()
+FixtureProperties::~FixtureProperties()
+{
+}
+
+void FixtureProperties::accept()
 {
 	Fixture* fxi = _app->doc()->fixture(m_fixture);
 	Q_ASSERT(fxi != NULL);
 
 	// Name
 	fxi->setName(m_nameEdit->text());
-  
+
 	// Address
 	fxi->setAddress(m_addressSpin->value() - 1);
 
 	// Universe
 	fxi->setUniverse(m_universeSpin->value() - 1);
-  
-	accept();
+
+	QDialog::accept();
 }

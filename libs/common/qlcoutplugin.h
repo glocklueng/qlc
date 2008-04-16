@@ -1,6 +1,6 @@
 /*
   Q Light Controller
-  outputplugin.h
+  qlcoutplugin.h
 
   Copyright (c) Heikki Junnila
 
@@ -19,13 +19,13 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#ifndef OUTPUTPLUGIN_H
-#define OUTPUTPLUGIN_H
+#ifndef QLCOUTPLUGIN_H
+#define QLCOUTPLUGIN_H
 
-#include "common/plugin.h"
-#include "common/types.h"
+#include "common/qlcplugin.h"
+#include "common/qlctypes.h"
 
-class OutputPlugin : public Plugin
+class QLCOutPlugin : public QLCPlugin
 {
 	Q_OBJECT
 		
@@ -33,12 +33,12 @@ public:
 	/**
 	 * Create a new output plugin
 	 */
-	OutputPlugin();
+	QLCOutPlugin();
 
 	/**
 	 * Destroy an output plugin
 	 */
-	virtual ~OutputPlugin();
+	virtual ~QLCOutPlugin();
 	
 	/**
 	 * Get the number of outputs provided by the plugin.

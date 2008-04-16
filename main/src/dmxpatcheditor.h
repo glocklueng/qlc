@@ -22,13 +22,14 @@
 #ifndef DMXPATCHEDITOR_H
 #define DMXPATCHEDITOR_H
 
-#include "uic_dmxpatcheditor.h"
+#include <QDialog>
+#include "ui_dmxpatcheditor.cpp"
 
 class DMXMap;
 class DMXPatch;
 class QStringList;
 
-class DMXPatchEditor : public UI_DMXPatchEditor
+class DMXPatchEditor : public QDialog, public Ui_DMXPatchEditor
 {
 	Q_OBJECT
 

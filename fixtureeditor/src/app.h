@@ -1,8 +1,8 @@
 /*
-  Q Light Controller
+  Q Light Controller - Fixture Definition Editor
   app.h
 
-  Copyright (C) 2000, 2001, 2002 Heikki Junnila
+  Copyright (C) Heikki Junnila
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -22,21 +22,16 @@
 #ifndef APP_H
 #define APP_H
 
-#include <qmainwindow.h>
+#include <QMainWindow>
 
 class QToolBar;
-class QPopupMenu;
+class QAction;
+class QMenu;
 
-class DocumentBrowser;
-class QLCFixture;
 class QLCChannel;
-class QLCFixtureEditor;
-class QLCWorkspace;
 
-class DeviceClass;
-
-const QString KApplicationNameLong  = "QLC Fixture Definition Editor";
-const QString KApplicationVersion   = "Version 2.4";
+const QString KApplicationName = "QLC Fixture Definition Editor";
+const QString KApplicationVersion = "Version 2.5";
 
 //////////////////////////////////////////////////////////////////
 // Class definition
@@ -45,69 +40,63 @@ class App : public QMainWindow
 {
 	Q_OBJECT
 
- public:
-	App();
+public:
+	App(QWidget* parent);
 	~App();
 
- public:
-	void initView();
+protected:
+	void loadDefaults();
+	void saveDefaults();
 
-	QLCWorkspace* workspace() { return m_workspace; }
+	void closeEvent(QCloseEvent*);
 
+protected:
+	QString m_lastPath;
+
+	/*********************************************************************
+	 * Copy channel
+	 *********************************************************************/
+public:
 	void setCopyChannel(QLCChannel* ch);
-	QLCChannel* copyChannel() { return m_copyChannel; }
+	QLCChannel* copyChannel() const;
 
- private slots:
-	void slotEmpty();
+protected:
+	QLCChannel* m_copyChannel;
 
+	/*********************************************************************
+	 * Actions, toolbar & menubar
+	 *********************************************************************/
+protected:
+	void initActions();
+	void initMenuBar();
+	void initToolBar();
+
+protected:
+	QAction* m_fileNewAction;
+	QAction* m_fileOpenAction;
+	QAction* m_fileSaveAction;
+	QAction* m_fileSaveAsAction;
+	QAction* m_fileQuitAction;
+
+	QAction* m_helpIndexAction;
+	QAction* m_helpAboutAction;
+	QAction* m_helpAboutQtAction;
+
+protected:
+	QMenu* m_fileMenu;
+	QMenu* m_helpMenu;
+	QToolBar* m_toolBar;
+
+protected slots:
 	void slotFileNew();
 	void slotFileOpen();
 	void slotFileSave();
 	void slotFileSaveAs();
 	void slotFileQuit();
 
-	void slotWindowCascade();
-	void slotWindowTile();
-
-	void slotRefreshWindowMenu();
-
 	void slotHelpIndex();
-	void slotDocumentBrowserClosed();
 	void slotHelpAbout();
 	void slotHelpAboutQt();
-
-	void slotEditorClosed(QLCFixtureEditor* editor);
-
- private:
-	/** Open an old .deviceclass file */
-	DeviceClass* openLegacyFile(QString path);
-
-	void initWorkspace();
-
-	void initMenuBar();
-	void initStatusBar();
-	void initToolBar();
-
- private slots:
-	void slotWindowMenuCallback(int item);
-
- private:
-	QLCWorkspace* m_workspace;
-	DocumentBrowser* m_documentBrowser;
-
-	QPopupMenu* m_fileMenu;
-	QPopupMenu* m_toolsMenu;
-	QPopupMenu* m_windowMenu;
-	QPopupMenu* m_helpMenu;
-
-	QToolBar* m_toolbar;
-	QString m_lastPath;
-
-	QLCChannel* m_copyChannel;
-
- protected:
-	void closeEvent(QCloseEvent*);
-	bool event(QEvent* e);
 };
 
 #endif

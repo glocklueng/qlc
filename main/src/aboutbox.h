@@ -25,10 +25,9 @@
 #include <qdialog.h>
 
 class QPushButton;
-class QLabel;
-class QListBox;
+class QListWidget;
 class QPixmap;
-class QColor;
+class QLabel;
 
 class AboutBox : public QDialog
 {
@@ -37,20 +36,17 @@ class AboutBox : public QDialog
 public:
 	AboutBox(QWidget* parent);
 	~AboutBox();
-
-protected slots:
-	void slotOKClicked();
   
 protected:
 	void initDialog();
 
 protected:
 	QPixmap* m_pm;
-	QPushButton* m_ok;
 	QLabel* m_logo;
 	QLabel* m_version;
 	QLabel* m_copyright;
-	QListBox* m_people;
+	QListWidget* m_people;
+	QPushButton* m_ok;
 };
 
 #endif

@@ -24,17 +24,13 @@
 #ifndef USBDMXOUT_H
 #define USBDMXOUT_H
 
-#include <qptrlist.h>
-#include <qstring.h>
-#include <qvaluevector.h>
-
-#include "common/outputplugin.h"
-#include "common/types.h"
+#include "common/qlcoutplugin.h"
+#include "common/qlctypes.h"
 
 class ConfigureUsbDmxOut;
-class QPoint;
+class QString;
 
-extern "C" OutputPlugin* create();
+extern "C" QLCOutPlugin* create();
 
 /* Maximum number of supported device entries (/dev/usbdmx*) */
 #define MAX_USBDMX_DEVICES 8
@@ -43,7 +39,7 @@ extern "C" OutputPlugin* create();
  * USBDMXOut
  *****************************************************************************/
 
-class USBDMXOut : public OutputPlugin
+class USBDMXOut : public QLCOutPlugin
 {
 	Q_OBJECT
 

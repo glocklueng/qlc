@@ -22,14 +22,13 @@
 #ifndef INPUTMAP_H
 #define INPUTMAP_H
 
-#include <qptrvector.h>
-#include <qptrlist.h>
-#include <qobject.h>
+#include <QObject>
+#include <QList>
 
-#include "common/types.h"
+#include "common/qlctypes.h"
 
-class InputPlugin;
 class PluginLoader;
+class QLCInPlugin;
 
 class InputMap : public QObject
 {
@@ -84,20 +83,20 @@ public:
 	 * @param inputPlugin The input plugin to append
 	 * @return true if successful, otherwise false
 	 */
-	bool appendPlugin(InputPlugin* inputPlugin);
+	bool appendPlugin(QLCInPlugin* inputPlugin);
 
 protected:
 	/**
 	 * Get a plugin instance by the plugin's name
 	 *
 	 * @param name The name of the plugin to search for
-	 * @return InputPlugin or NULL
+	 * @return QLCInPlugin or NULL
 	 */
-	InputPlugin* plugin(const QString& name);
+	QLCInPlugin* plugin(const QString& name);
 
 protected:
-	/** List containing all available plugins */
-	QPtrList<InputPlugin> m_plugins;
+	/** List containing all available input plugins */
+	QList <QLCInPlugin*> m_plugins;
 
 	/*********************************************************************
 	 * Defaults

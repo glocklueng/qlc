@@ -19,56 +19,55 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qlayout.h>
-#include <qcombobox.h>
-#include <qstringlist.h>
-#include <qlistview.h>
-#include <qpopupmenu.h>
+#include <QTreeWidgetItem>
+#include <QTreeWidget>
+#include <QStringList>
+#include <QAction>
+#include <QMenu>
 
-#include "common/outputplugin.h"
+#include "common/qlcoutplugin.h"
 
-#include "dmxmap.h"
-#include "dmxmapeditor.h"
 #include "dmxpatcheditor.h"
+#include "dmxmapeditor.h"
+#include "dmxmap.h"
 
 #define KColumnUniverse 0
 #define KColumnPlugin   1
 #define KColumnOutput   2
 
-DMXMapEditor::DMXMapEditor(QWidget* parent, DMXMap* dmxMap)
-	: UI_DMXMapEditor(parent, "Output Mapper", true),
-	  m_dmxMap(dmxMap)
+DMXMapEditor::DMXMapEditor(QWidget* parent, DMXMap* dmxMap) : QDialog(parent)
 {
-}
-
-DMXMapEditor::~DMXMapEditor()
-{
-}
-
-void DMXMapEditor::init()
-{
-	QListViewItem* item = NULL;
-	DMXPatch* dmxPatch = NULL;
-	int i = 0;
+	QTreeWidgetItem* item;
+	DMXPatch* dmxPatch;
 	QString str;
+
+	Q_ASSERT(dmxMap != NULL);
+	m_dmxMap = dmxMap;
+
+	setupUi(this);
 
 	m_pluginList = m_dmxMap->pluginNames();
 
 	/* Clear the mapping list first */
 	m_listView->clear();
 
-	for (i = 0; i < KUniverseCount; i++)
+	for (int i = 0; i < KUniverseCount; i++)
 	{
 		dmxPatch = m_dmxMap->patch(i);
 		Q_ASSERT(dmxPatch != NULL);
 
-		item = new QListViewItem(m_listView);
-		str.setNum(i + 1);
-		item->setText(KColumnUniverse, str);
+		item = new QTreeWidgetItem(m_listView);
+		item->setText(KColumnUniverse, str.setNum(i + 1));
 		item->setText(KColumnPlugin, dmxPatch->plugin->name());
-		str.setNum(dmxPatch->output + 1);
-		item->setText(KColumnOutput, str);
+		item->setText(KColumnOutput, str.setNum(dmxPatch->output + 1));
 	}
+
+	connect(m_listView, SIGNAL(customContextMenuRequested(const QPoint&)),
+		this, SLOT(slotListViewContextMenuRequested(const QPoint&)));
+}
+
+DMXMapEditor::~DMXMapEditor()
+{
 }
 
 /*****************************************************************************
@@ -77,108 +76,83 @@ void DMXMapEditor::init()
 
 void DMXMapEditor::slotEditMappingButtonClicked()
 {
-	QListViewItem* item = NULL;
-	int universe = -1;
-	QString pluginName;
-	int output = 0;
+	QTreeWidgetItem* item;
+	int universe;
+	QString str;
+	int output;
 
 	item = m_listView->currentItem();
 	if (item == NULL)
 		return;
 
 	universe = item->text(KColumnUniverse).toInt() - 1;
-	pluginName = item->text(KColumnPlugin);
+	str = item->text(KColumnPlugin);
 	output = item->text(KColumnOutput).remove("Output").toInt() - 1;
 
-	DMXPatchEditor dpe(static_cast<QWidget*>(parent()), m_dmxMap, universe,
-			   pluginName, output);
+	DMXPatchEditor dpe(this, m_dmxMap, universe, str, output);
 	if (dpe.exec() == QDialog::Accepted)
 	{
 		m_dmxMap->setPatch(universe, dpe.pluginName(), dpe.output());
-		init();
+		item->setText(KColumnUniverse, str.setNum(universe + 1));
+		item->setText(KColumnPlugin, dpe.pluginName());
+		item->setText(KColumnOutput, str.setNum(dpe.output() + 1));
 	}
 }
 
-void DMXMapEditor::slotListViewContextMenuRequested(QListViewItem* item,
-						    const QPoint& point,
-						    int column)
+void DMXMapEditor::slotListViewContextMenuRequested(const QPoint& point)
 {
 	QStringList::Iterator it;
-	QPopupMenu* pluginMenu = NULL;
-	QPopupMenu* outputMenu = NULL;
+	QTreeWidgetItem* item;
+	QAction* action;
+	QString name;
+	int universe;
+	int outputs;
 	QString str;
-	QString pluginName;
-	int outputs = 0;
-	int menuid = 0;
-	int i = 0;
-	int universe = 0;
 
+	item = m_listView->currentItem();
 	if (item == NULL)
 		return;
 
-	pluginMenu = new QPopupMenu();
-	connect(pluginMenu, SIGNAL(activated(int)),
-		this, SLOT(slotPluginMenuActivated(int)));
-
-	str.sprintf("Route universe %s thru...",
-		    (const char*) item->text(KColumnUniverse));
-	pluginMenu->insertItem(str, INT_MAX);
-	pluginMenu->setItemEnabled(INT_MAX, false);
-	pluginMenu->insertSeparator();
+	QMenu pluginMenu(this);
+	pluginMenu.setTitle(str.sprintf("Route universe %1 thru...")
+			    .arg(item->text(KColumnUniverse)));
 
 	for (it = m_pluginList.begin(); it != m_pluginList.end(); ++it)
 	{
-		pluginName = *it;
-		outputs = m_dmxMap->pluginOutputs(pluginName);
+		name = *it;
+
+		outputs = m_dmxMap->pluginOutputs(name);
 		if (outputs >= 0)
 		{
 			/* Put the plugin's outputs into a sub menu and
-			   insert the output menu to the top level menu */
-			outputMenu = new QPopupMenu(pluginMenu);
-			for (i = 0; i < outputs && i < 100; i++)
+			   insert that submenu to the top level menu */
+			QMenu outputMenu(&pluginMenu);
+			outputMenu.setTitle(name);
+			pluginMenu.addMenu(&outputMenu);
+
+			for (int i = 0; i < outputs && i < 100; i++)
 			{
-				str.sprintf("Output %d", i + 1);
-				outputMenu->insertItem(str, menuid + i);
+				action = outputMenu.addAction(
+					str.sprintf("Output %1").arg(i + 1));
+				action->setData(name);
 			}
-
-			connect(outputMenu, SIGNAL(activated(int)),
-				this, SLOT(slotPluginMenuActivated(int)));
-
-			pluginMenu->insertItem(pluginName, outputMenu);
-
-			menuid += 100;
 		}
 	}
 
-	pluginMenu->exec(point);
+	/* Execute menu and check, whether something was selected */
+	action = pluginMenu.exec(point);
+	if (action == NULL)
+		return;
 
-	delete pluginMenu;
-}
-
-void DMXMapEditor::slotPluginMenuActivated(int item)
-{
-	QListViewItem* lvitem = NULL;
-	QStringList::Iterator it;
-	QString pluginName;
-	int pluginIndex = 0;
-	int output = 0;
-	QString str;
-
-	lvitem = m_listView->currentItem();
-	Q_ASSERT(lvitem != NULL);
-
-	/* Get only the particular hundredth (154/100=1.54, cast to int = 1) */
-	pluginIndex = (int) (item / 100);
-
-	/* The correct plugin can be found with the index number, since the
-	   plugin menu was constructed from the same string list */
-	pluginName = m_pluginList[pluginIndex];
-	lvitem->setText(KColumnPlugin, pluginName);
-
-	/* Get only the output number */
-	output = item - (100 * pluginIndex);
-	str.setNum(output + 1);
-	lvitem->setText(KColumnOutput, str);
+	/* Extract selected information from the action and patch them */
+	outputs = action->text().remove("Output").toInt() - 1;
+	name = action->data().toString();
+	m_dmxMap->setPatch(universe, name, outputs);
+	
+	/* Update the current tree widget item */
+	item->setText(KColumnUniverse, str.setNum(universe + 1));
+	item->setText(KColumnPlugin, name);
+	item->setText(KColumnOutput, str.setNum(outputs + 1));
 }
 
 /*****************************************************************************
@@ -187,22 +161,21 @@ void DMXMapEditor::slotPluginMenuActivated(int item)
 
 void DMXMapEditor::accept()
 {
-	QListViewItemIterator it(m_listView);
-	QListViewItem* item = NULL;
-	int universe = 0;
-	int output = 0;
+	QTreeWidgetItemIterator it(m_listView);
 	QString pluginName;
+	int universe;
+	int output;
 
-	while ((item = it.current()) != NULL)
+	while (*it != NULL)
 	{
-		universe = item->text(KColumnUniverse).toInt() - 1;
-		pluginName = item->text(KColumnPlugin);
-		output = item->text(KColumnOutput).toInt() - 1;
+		universe = (*it)->text(KColumnUniverse).toInt() - 1;
+		pluginName = (*it)->text(KColumnPlugin);
+		output = (*it)->text(KColumnOutput).toInt() - 1;
 
 		m_dmxMap->setPatch(universe, pluginName, output);
 
 		++it;
 	}
 
-	UI_DMXMapEditor::accept();
+	QDialog::accept();
 }

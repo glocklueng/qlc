@@ -9,16 +9,13 @@ INCLUDES += -DPLUGINS=\"$(PLUGINS)\"
 libhidinput_la_LIBADD = @QT_LIBS@
 
 noinst_HEADERS = \
-	uic_configurehidinput.h \
-	\
 	configurehidinput.h \
 	hiddevice.h \
 	hideventdevice.h \
 	hidinput.h
 
 libhidinput_la_SOURCES = \
-	uic_configurehidinput.cpp \
-	moc_uic_configurehidinput.cpp \
+	ui_configurehidinput.cpp \
 	\
 	configurehidinput.cpp \
 	hiddevice.cpp \
@@ -36,9 +33,5 @@ moc_%.cpp: %.h
 	$(MOC) $< -o $@
 
 # UIC headers
-uic_%.h: %.ui
+ui_%.cpp: %.ui
 	$(UIC) $< -o $@
-
-# UIC sources
-uic_%.cpp: uic_%.h
-	$(UIC) -impl $< $*.ui -o $@

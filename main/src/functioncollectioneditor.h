@@ -22,20 +22,15 @@
 #ifndef FUNCTIONCOLLECTIONEDITOR_H
 #define FUNCTIONCOLLECTIONEDITOR_H
 
-#include <qdialog.h>
-#include "function.h"
-#include "uic_functioncollectioneditor.h"
+#include <QDialog>
+#include "ui_functioncollectioneditor.cpp"
+#include "common/qlctypes.h"
 
-class QLineEdit;
-class QLabel;
-class QListView;
-class QListViewItem;
-class QPushButton;
-class FunctionManager;
-
+class FunctionSelection;
 class FunctionCollection;
 
-class FunctionCollectionEditor : public UI_FunctionCollectionEditor
+class FunctionCollectionEditor : public QDialog,
+				 public Ui_FunctionCollectionEditor
 {
 	Q_OBJECT
 
@@ -43,25 +38,18 @@ public:
 	FunctionCollectionEditor(QWidget* parent, FunctionCollection* fc);
 	~FunctionCollectionEditor();
 
-	void init();
-
 protected slots:
-	void slotAddFunctionClicked();
-	void slotFunctionManagerClosed();
-	void slotAddAnother();
-
-	void slotRemoveFunctionClicked();
-	void slotOKClicked();
-	void slotCancelClicked();
+	void slotAdd();
+	void slotRemove();
+	void accept();
 
 protected:
-	bool isAlreadyMember(t_function_id id);
+	bool isAlreadyMember(t_function_id fid);
 	void updateFunctionList();
 
 protected:
 	FunctionCollection* m_fc;
 	FunctionCollection* m_original;
-	FunctionManager* m_functionManager;
 };
 
 #endif

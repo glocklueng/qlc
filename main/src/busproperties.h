@@ -22,32 +22,26 @@
 #ifndef BUSPROPERTIES_H
 #define BUSPROPERTIES_H
 
-#include "uic_busproperties.h"
+#include <QWidget>
+#include "ui_busproperties.cpp"
 
 class QCloseEvent;
 
-class BusProperties : public UI_BusProperties
+class BusProperties : public QWidget, public Ui_BusProperties
 {
 	Q_OBJECT
 
- public:
+public:
 	BusProperties(QWidget* parent);
 	~BusProperties();
 
-	void init();
-
- signals:
+signals:
 	void closed();
 
- private slots:
+protected slots:
 	void slotEditClicked();
-	void slotItemRenamed(QListViewItem* item, int col, const QString &text);
-	void slotItemDoubleClicked(QListViewItem* item);
 
- protected:
-	void closeEvent(QCloseEvent* e);
-
- private:
+protected:
 	void fillTree();
 };
 

@@ -22,19 +22,20 @@
 #ifndef DMX4LINUXOUT_H
 #define DMX4LINUXOUT_H
 
-#include <qptrlist.h>
-#include <qstring.h>
+#include <QString>
+#include <QWidget>
+
 #include <dmx/dmx.h>
 #include <dmx/dmxioctl.h>
 
-#include "common/outputplugin.h"
-#include "common/types.h"
+#include "common/qlcoutplugin.h"
+#include "common/qlctypes.h"
 
 class ConfigureDMX4LinuxOut;
 
-extern "C" OutputPlugin* create();
+extern "C" QLCOutPlugin* create();
 
-class DMX4LinuxOut : public OutputPlugin
+class DMX4LinuxOut : public QLCOutPlugin
 {
 	Q_OBJECT
 

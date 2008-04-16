@@ -22,10 +22,9 @@
 #ifndef FIXTURE_H
 #define FIXTURE_H
 
-#include <qobject.h>
-#include <qptrlist.h>
-
-#include "common/types.h"
+#include <QObject>
+#include <QList>
+#include "common/qlctypes.h"
 
 #define KXMLFixture "Fixture"
 #define KXMLFixtureName "Name"
@@ -64,13 +63,10 @@ public:
 	 * @param address This instance's DMX address
 	 * @param universe This instance's DMX universe
 	 * @param name Friendly name that identifies the new instance
-	 * @param id A unique fixture ID assigned by class @ref Doc
+	 * @param id A unique fixture ID assigned by @ref Doc
 	 */
-	Fixture(QLCFixtureDef* fixtureDef,
-		QLCFixtureMode* mode,
-		t_channel address,
-		t_channel universe,
-		QString name,
+	Fixture(QLCFixtureDef* fixtureDef, QLCFixtureMode* mode,
+		t_channel address, t_channel universe, QString name,
 		t_fixture_id id);
 	
 	/**

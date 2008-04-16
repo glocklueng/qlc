@@ -19,74 +19,56 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include <qapplication.h>
-#include <qstring.h>
-#include <qthread.h>
-#include <stdlib.h>
-#include <qfile.h>
-#include <qptrlist.h>
-#include <assert.h>
+#include <QApplication>
+#include <iostream>
+#include <QString>
+#include <QFile>
+#include <QList>
+#include <QtXml>
 
-#include "common/filehandler.h"
+#include "common/qlcfile.h"
+
 #include "functioncollection.h"
+#include "functionconsumer.h"
+#include "eventbuffer.h"
 #include "function.h"
 #include "app.h"
 #include "doc.h"
-#include "functionconsumer.h"
-#include "eventbuffer.h"
 
 extern App* _app;
 
-//
-// Standard constructor
-//
-FunctionCollection::FunctionCollection()
-	: Function(Function::Collection),
+using namespace std;
 
-	  m_childCount      (     0 ),
-	  m_childCountMutex ( false )
+FunctionCollection::FunctionCollection() : Function(Function::Collection)
 {
+	m_childCount = 0;
 }
 
-
-//
-// Copy give function's contents to this
-//
 void FunctionCollection::copyFrom(FunctionCollection* fc, bool append)
 {
-	assert(fc);
+	Q_ASSERT(fc != NULL);
 
 	Function::setName(fc->name());
 	Function::setBus(fc->busID());
-  
+
 	if (append == false)
-	{
 		m_steps.clear();
-	}
-  
-	QValueList <t_function_id>::iterator it;
-	for (it = fc->m_steps.begin(); it != fc->m_steps.end(); ++it)
-	{
-		m_steps.append(*it);
-	}
+
+	QListIterator <t_function_id> it(fc->m_steps);
+	while (it.hasNext() == true)
+		m_steps.append(it.next());
 }
 
-
-//
-// Destructor
-//
 FunctionCollection::~FunctionCollection()
 {
 	stop();
-	while(m_running) pthread_yield();
+
+	while (m_running == true)
+		pthread_yield();
 
 	m_steps.clear();
 }
 
-
-//
-// Save function's contents to an XML document
-//
 bool FunctionCollection::saveXML(QDomDocument* doc, QDomElement* wksp_root)
 {
 	QDomElement root;
@@ -108,25 +90,24 @@ bool FunctionCollection::saveXML(QDomDocument* doc, QDomElement* wksp_root)
 	root.setAttribute(KXMLQLCFunctionName, name());
 
 	/* Steps */
-	QValueList <t_function_id>::iterator it;
-	for (it = m_steps.begin(); it != m_steps.end(); ++it)
+	QListIterator <t_function_id> it(m_steps);
+	while (it.hasNext() == true)
 	{
 		/* Step tag */
 		tag = doc->createElement(KXMLQLCFunctionStep);
 		root.appendChild(tag);
-		
+
 		/* Step number */
 		tag.setAttribute(KXMLQLCFunctionNumber, i++);
 
 		/* Step Function ID */
-		str.setNum(*it);
+		str.setNum(it.next());
 		text = doc->createTextNode(str);
 		tag.appendChild(text);
 	}
 
 	return true;
 }
-
 
 bool FunctionCollection::loadXML(QDomDocument* doc, QDomElement* root)
 {
@@ -140,7 +121,7 @@ bool FunctionCollection::loadXML(QDomDocument* doc, QDomElement* root)
 
 	if (root->tagName() != KXMLQLCFunction)
 	{
-		qWarning("Function node not found!");
+		cout << "Function node not found!" << endl;
 		return false;
 	}
 
@@ -157,28 +138,24 @@ bool FunctionCollection::loadXML(QDomDocument* doc, QDomElement* root)
 		}
 		else
 		{
-			qWarning("Unknown collection tag: %s",
-				 (const char*) tag.tagName());
+			cout << "Unknown collection tag: "
+			     << tag.tagName().toStdString()
+			     << endl;
 		}
-		
+
 		node = node.nextSibling();
 	}
 
 	return true;
 }
 
-
-//
-// Add a function to this collection
-//
 bool FunctionCollection::addItem(t_function_id id)
 {
 	m_startMutex.lock();
 
-	if (!m_running)
+	if (m_running == false)
 	{
 		m_steps.append(id);
-
 		m_startMutex.unlock();
 		return true;
 	}
@@ -187,18 +164,13 @@ bool FunctionCollection::addItem(t_function_id id)
 	return false;
 }
 
-
-//
-// Remove a function from this collection (direct function pointer)
-//
 bool FunctionCollection::removeItem(t_function_id id)
 {
 	m_startMutex.lock();
 
-	if (!m_running)
+	if (m_running == false)
 	{
-		m_steps.remove(id);
-      
+		m_steps.takeAt(m_steps.indexOf(id));
 		m_startMutex.unlock();
 		return true;
 	}
@@ -207,111 +179,39 @@ bool FunctionCollection::removeItem(t_function_id id)
 	return false;
 }
 
-
-//
-// Initiate a speed change (from a speed bus)
-//
 void FunctionCollection::speedChange()
 {
 }
 
-
-//
-// Allocate some stuff for run-time
-//
 void FunctionCollection::arm()
 {
 	if (m_eventBuffer == NULL)
 		m_eventBuffer = new EventBuffer(0, 0);
 }
 
-
-//
-// Delete run-time allocations
-//
 void FunctionCollection::disarm()
 {
-	if (m_eventBuffer) delete m_eventBuffer;
+	if (m_eventBuffer != NULL)
+		delete m_eventBuffer;
 	m_eventBuffer = NULL;
 }
 
-
-//
-// Stop
-//
 void FunctionCollection::stop()
 {
-	QValueList <t_function_id>::iterator it;
-	for (it = m_steps.begin(); it != m_steps.end(); ++it)
+	/* TODO: this stops these functions, regardless of whether they
+	   were started by this collection or not */
+	QListIterator <t_function_id> it(m_steps);
+	while (it.hasNext() == true)
 	{
-		Function* f = _app->doc()->function(*it);
-		if (f)
-		{
-			f->stop();
-		}
+		Function* function = _app->doc()->function(it.next());
+		if (function != NULL)
+			function->stop();
 	}
 }
 
-
-//
-// Initialize some run-time values
-//
-void FunctionCollection::init()
-{
-	m_childCountMutex.lock();
-	m_childCount = 0;
-	m_childCountMutex.unlock();
-
-	m_stopped = false;
-	m_removeAfterEmpty = false;
-
-	// Append this function to running functions list
-	_app->functionConsumer()->cue(this);
-}
-
-
-//
-// Main producer thread
-//
-void FunctionCollection::run()
-{
-	QValueList <t_function_id>::iterator it;
-
-	// Calculate starting values
-	init();
-  
-	for (it = m_steps.begin(); it != m_steps.end() && !m_stopped; ++it)
-	{
-		Function* f = _app->doc()->function(*it);
-		if (f && f->engage(this))
-		{
-			m_childCountMutex.lock();
-			m_childCount++;
-			m_childCountMutex.unlock();
-		}
-		else
-		{
-			qDebug("Collection unable to start function <id:%d>", *it);
-		}
-	}
-
-	// Wait for all children to stop
-	//m_childCountMutex.lock();
-	while (m_childCount > 0)
-	{
-		//m_childCountMutex.unlock();
-		pthread_yield();
-	}
-
-	m_removeAfterEmpty = true;
-}
-
-//
-// Do some post-run cleanup
-//
 void FunctionCollection::cleanup()
 {
-	ASSERT(m_childCount == 0);
+	Q_ASSERT(m_childCount == 0);
 
 	m_stopped = false;
 
@@ -341,3 +241,40 @@ void FunctionCollection::childFinished()
 	m_childCountMutex.unlock();
 }
 
+void FunctionCollection::init()
+{
+	m_childCountMutex.lock();
+	m_childCount = 0;
+	m_childCountMutex.unlock();
+
+	m_stopped = false;
+	m_removeAfterEmpty = false;
+
+	// Append this function to running functions list
+	_app->functionConsumer()->cue(this);
+}
+
+void FunctionCollection::run()
+{
+	QListIterator <t_function_id> it(m_steps);
+
+	// Calculate starting values and set this function to functionconsumer
+	init();
+  
+	while (it.hasNext() == true)
+	{
+		Function* function = _app->doc()->function(it.next());
+		if (function != NULL && function->engage(this))
+		{
+			m_childCountMutex.lock();
+			m_childCount++;
+			m_childCountMutex.unlock();
+		}
+	}
+
+	// Wait for all children to stop
+	while (m_childCount > 0)
+		pthread_yield();
+
+	m_removeAfterEmpty = true;
+}

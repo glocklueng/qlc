@@ -1,8 +1,8 @@
 /*
-  Q Light Controller - Fixture Editor
+  Q Light Controller - Fixture Definition Editor
   qlcfixtureeditor.h
   
-  Copyright (C) 2000, 2001, 2002 Heikki Junnila
+  Copyright (C) Heikki Junnila
   
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -19,26 +19,36 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#ifndef QLC_FIXTURE_EDITOR_H
-#define QLC_FIXTURE_EDITOR_H
+#ifndef QLCFIXTUREEDITOR_H
+#define QLCFIXTUREEDITOR_H
 
-#include "uic_fixtureeditor.h"
+#include <QWidget>
+#include "ui_fixtureeditor.cpp"
 
 class QCloseEvent;
-class QLCFixtureDef;
-class QLCChannel;
-class QLCFixtureMode;
 class QString;
 
-class QLCFixtureEditor : public UI_FixtureEditor
+class QLCFixtureMode;
+class QLCFixtureDef;
+class QLCChannel;
+
+class QLCFixtureEditor : public QWidget, public Ui_FixtureEditor
 {
 	Q_OBJECT
 
- public:
-	QLCFixtureEditor(QWidget* parent, QLCFixtureDef* fixtureDef);
+public:
+	QLCFixtureEditor(QWidget* parent, QLCFixtureDef* fixtureDef,
+			 const QString& fileName = QString::null);
 	virtual ~QLCFixtureEditor();
 
+protected:
 	void init();
+	void closeEvent(QCloseEvent* e);
+
+	/*********************************************************************
+	 * Saving
+	 *********************************************************************/
+public:
 	bool save();
 	bool saveAs();
 
@@ -48,15 +58,20 @@ class QLCFixtureEditor : public UI_FixtureEditor
 	bool modified() const { return m_modified; }
 	void setModified(bool modified = true);
 
+protected:
+	QLCFixtureDef* m_fixtureDef;
+	QString m_fileName;
+	bool m_modified;
+
 	/*********************************************************************
 	 * General
 	 *********************************************************************/
- public slots:
-	void slotManufacturerEditTextChanged(const QString &text);
-	void slotModelEditTextChanged(const QString &text);
-	void slotTypeSelected(const QString &text);
+protected slots:
+	void slotManufacturerTextEdited(const QString &text);
+	void slotModelTextEdited(const QString &text);
+	void slotTypeActivated(const QString &text);
 
- protected:
+protected:
 	bool checkManufacturerModel();
 	void setCaption();
 	void ensureNewExtension();
@@ -65,52 +80,39 @@ class QLCFixtureEditor : public UI_FixtureEditor
 	/*********************************************************************
 	 * Channels
 	 *********************************************************************/
- public slots:
-	void slotChannelListSelectionChanged(QListViewItem* item);
-	void slotAddChannelClicked();
-	void slotRemoveChannelClicked();
-	void slotEditChannelClicked();
-	void slotChannelListContextMenuRequested(QListViewItem* item,
-						 const QPoint& pos,
-						 int col);
-	void slotChannelListMenuActivated(int item);
+protected slots:
+	void slotChannelListSelectionChanged(QTreeWidgetItem* item,
+					     QTreeWidgetItem* prev = NULL);
+	void slotAddChannel();
+	void slotRemoveChannel();
+	void slotEditChannel();
+	void slotCopyChannel();
+	void slotPasteChannel();
+	void slotChannelListContextMenuRequested(const QPoint& pos);
 
- protected:
+protected:
 	QLCChannel* currentChannel();
 	void refreshChannelList();
-	void pasteChannel();
 
 	/*********************************************************************
 	 * Modes
 	 *********************************************************************/
- public slots:
-	void slotModeListSelectionChanged(QListViewItem* item);
-	void slotAddModeClicked();
-	void slotRemoveModeClicked();
-	void slotEditModeClicked();
-	void slotModeListContextMenuRequested(QListViewItem* item,
-					      const QPoint& pos,
-					      int col);
-	void slotModeListMenuActivated(int item);
+protected slots:
+	void slotModeListSelectionChanged(QTreeWidgetItem* item,
+					  QTreeWidgetItem* prev = NULL);
+	void slotAddMode();
+	void slotRemoveMode();
+	void slotEditMode();
+	void slotCloneMode();
+	void slotModeListContextMenuRequested(const QPoint& pos);
 
- protected:
+protected:
 	QLCFixtureMode* currentMode();
 	void refreshModeList();
-	void cloneCurrentMode();
 
 	/*********************************************************************
 	 * Stuff
 	 *********************************************************************/
- protected:
-	void closeEvent(QCloseEvent* e);
-
- signals:
-	void closed(QLCFixtureEditor*);
-
- private:
-	QLCFixtureDef* m_fixtureDef;
-	QString m_fileName;
-	bool m_modified;
 };
 
 #endif
