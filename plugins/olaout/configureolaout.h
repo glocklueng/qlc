@@ -41,8 +41,6 @@ public:
 protected:
     OLAOut* m_plugin;
 
-private:
-    void populateOutputList();
 };
 
 #endif
