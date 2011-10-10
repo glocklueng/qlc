@@ -49,7 +49,7 @@ void OLAOut::init()
     m_thread = NULL;
     ola::InitLogging(ola::OLA_LOG_WARN, new ola::QLCLogDestination());
     // TODO: load this from a savefile at some point
-    for (unsigned int i = 1; i <= K_UNIVERSE_COUNT; ++i)
+    for (unsigned int i = 0; i < K_UNIVERSE_COUNT; ++i)
         m_output_list.append(i);
 
     QSettings settings;
@@ -126,14 +126,14 @@ void OLAOut::close(quint32 output)
 
 
 /*
- * Return a list of our outputs. For now we output on OLA universes 1 to
- * K_UNIVERSE_COUNT.
+ * Return a list of our outputs. For now we output on OLA universes 0 to
+ * K_UNIVERSE_COUNT-1.
  */
 QStringList OLAOut::outputs()
 {
     QStringList list;
     for (int i = 0; i < m_output_list.size(); ++i)
-        list << QString("%1: OLA Universe %1").arg(i + 1);
+        list << QString("%1: OLA Universe %1").arg(i);
     return list;
 }
 
@@ -192,7 +192,7 @@ QString OLAOut::infoText(quint32 output)
     {
         str += QString("<H3>%1</H3>").arg(outputs()[output]);
         str += QString("<P>");
-        str += tr("This is the output for OLA universe %1").arg(output + 1);
+        str += tr("This is the output for OLA universe %1").arg(output);
         str += QString("</P>");
     }
 
