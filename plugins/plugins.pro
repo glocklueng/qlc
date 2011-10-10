@@ -5,7 +5,7 @@ SUBDIRS              += enttecdmxusbout
 SUBDIRS              += peperoniout
 SUBDIRS              += udmxout
 SUBDIRS              += midiout
-macx:SUBDIRS         += olaout
+!win32:SUBDIRS       += olaout
 !macx:!win32:SUBDIRS += dmx4linuxout
 !macx:SUBDIRS        += vellemanout
 
