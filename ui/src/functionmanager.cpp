@@ -40,12 +40,14 @@
 
 #include "collectioneditor.h"
 #include "functionmanager.h"
+#include "rgbmatrixeditor.h"
 #include "functionwizard.h"
 #include "chasereditor.h"
 #include "scripteditor.h"
 #include "sceneeditor.h"
 #include "collection.h"
 #include "efxeditor.h"
+#include "rgbmatrix.h"
 #include "function.h"
 #include "apputil.h"
 #include "chaser.h"
@@ -54,12 +56,9 @@
 #include "doc.h"
 #include "efx.h"
 
-#define SETTINGS_GEOMETRY "functionmanager/geometry"
-
 #define KColumnName 0
 #define KColumnType 1
-#define KColumnBus  2
-#define KColumnID   3
+#define KColumnID   2
 
 FunctionManager* FunctionManager::s_instance = NULL;
 
@@ -74,6 +73,8 @@ FunctionManager::FunctionManager(QWidget* parent, Doc* doc, Qt::WindowFlags flag
     Q_ASSERT(doc != NULL);
 
     new QVBoxLayout(this);
+    layout()->setMargin(1);
+    layout()->setSpacing(1);
 
     initActions();
     initMenu();
@@ -94,12 +95,6 @@ FunctionManager::FunctionManager(QWidget* parent, Doc* doc, Qt::WindowFlags flag
 
 FunctionManager::~FunctionManager()
 {
-    QSettings settings;
-#ifdef __APPLE__
-    settings.setValue(SETTINGS_GEOMETRY, saveGeometry());
-#else
-    settings.setValue(SETTINGS_GEOMETRY, parentWidget()->saveGeometry());
-#endif
     FunctionManager::s_instance = NULL;
 }
 
@@ -110,62 +105,33 @@ FunctionManager* FunctionManager::instance()
 
 void FunctionManager::createAndShow(QWidget* parent, Doc* doc)
 {
-    QWidget* window = NULL;
-
     /* Must not create more than one instance */
-    if (s_instance == NULL)
-    {
-    #ifdef __APPLE__
-        /* Create a separate window for OSX */
-        s_instance = new FunctionManager(parent, doc, Qt::Window);
-        window = s_instance;
-    #else
-        /* Create an MDI window for X11 & Win32 */
-        QMdiArea* area = qobject_cast<QMdiArea*> (parent);
-        Q_ASSERT(area != NULL);
-        QMdiSubWindow* sub = new QMdiSubWindow;
-        s_instance = new FunctionManager(sub, doc);
-        sub->setWidget(s_instance);
-        window = area->addSubWindow(sub);
-    #endif
+    Q_ASSERT(s_instance == NULL);
 
-        /* Set some common properties for the window and show it */
-        window->setAttribute(Qt::WA_DeleteOnClose);
-        window->setWindowIcon(QIcon(":/function.png"));
-        window->setWindowTitle(tr("Function Manager"));
-        window->setContextMenuPolicy(Qt::CustomContextMenu);
-        window->show();
+    /* Create an MDI window for X11 & Win32 */
+    QMdiArea* area = qobject_cast<QMdiArea*> (parent);
+    Q_ASSERT(area != NULL);
+    QMdiSubWindow* sub = new QMdiSubWindow;
+    s_instance = new FunctionManager(sub, doc);
+    sub->setWidget(s_instance);
+    QWidget* window = area->addSubWindow(sub);
 
-        QSettings settings;
-        QVariant var = settings.value(SETTINGS_GEOMETRY);
-        if (var.isValid() == true)
-        {
-            window->restoreGeometry(var.toByteArray());
-            AppUtil::ensureWidgetIsVisible(window);
-        }
-    }
-    else
-    {
-    #ifdef __APPLE__
-        window = s_instance;
-    #else
-        window = s_instance->parentWidget();
-    #endif
-    }
+    /* Set some common properties for the window and show it */
+    window->setAttribute(Qt::WA_DeleteOnClose);
+    window->setWindowIcon(QIcon(":/function.png"));
+    window->setWindowTitle(tr("Functions"));
+    window->setContextMenuPolicy(Qt::CustomContextMenu);
 
-    window->show();
-    window->raise();
+    sub->setSystemMenu(NULL);
 }
 
 void FunctionManager::slotModeChanged(Doc::Mode mode)
 {
-    /* Close this when entering operate mode */
+    /* Disable completely when in operate mode */
     if (mode == Doc::Operate)
-#ifdef __APPLE__
-        deleteLater();
-#else
-        parent()->deleteLater();
-#endif
+        setEnabled(false);
+    else
+        setEnabled(true);
 }
 
 void FunctionManager::slotFunctionRemoved(quint32 fid)
@@ -213,9 +179,15 @@ void FunctionManager::initActions()
     connect(m_addEFXAction, SIGNAL(triggered(bool)),
             this, SLOT(slotAddEFX()));
 
+    m_addRGBMatrixAction = new QAction(QIcon(":/rgbmatrix.png"),
+                                 tr("New &RGB Matrix"), this);
+    m_addRGBMatrixAction->setShortcut(QKeySequence("CTRL+R"));
+    connect(m_addRGBMatrixAction, SIGNAL(triggered(bool)),
+            this, SLOT(slotAddRGBMatrix()));
+
     m_addScriptAction = new QAction(QIcon(":/script.png"),
-                                 tr("New sc&ript"), this);
-    m_addScriptAction->setShortcut(QKeySequence("CTRL+R"));
+                                 tr("New scrip&t"), this);
+    m_addScriptAction->setShortcut(QKeySequence("CTRL+T"));
     connect(m_addScriptAction, SIGNAL(triggered(bool)),
             this, SLOT(slotAddScript()));
 
@@ -253,26 +225,20 @@ void FunctionManager::initActions()
 
 void FunctionManager::initMenu()
 {
-    QMenuBar* menuBar = new QMenuBar(this);
-    QAction* action = NULL;
-
-#ifndef __APPLE__
-    layout()->setMenuBar(menuBar);
-#endif
-
     /* Function menu */
-    m_addMenu = new QMenu(menuBar);
+    m_addMenu = new QMenu(this);
     m_addMenu->setTitle(tr("&Add"));
     m_addMenu->addAction(m_addSceneAction);
     m_addMenu->addAction(m_addChaserAction);
     m_addMenu->addAction(m_addEFXAction);
     m_addMenu->addAction(m_addCollectionAction);
+    m_addMenu->addAction(m_addRGBMatrixAction);
     m_addMenu->addAction(m_addScriptAction);
     m_addMenu->addSeparator();
     m_addMenu->addAction(m_wizardAction);
 
     /* Edit menu */
-    m_editMenu = new QMenu(menuBar);
+    m_editMenu = new QMenu(this);
     m_editMenu->setTitle(tr("&Edit"));
     m_editMenu->addAction(m_editAction);
     m_editMenu->addSeparator();
@@ -280,35 +246,6 @@ void FunctionManager::initMenu()
     m_editMenu->addAction(m_selectAllAction);
     m_editMenu->addSeparator();
     m_editMenu->addAction(m_deleteAction);
-    m_editMenu->addSeparator();
-
-    /* Bus menu */
-    m_busGroup = new QActionGroup(this);
-    m_busGroup->setExclusive(false);
-    m_busMenu = new QMenu(menuBar);
-    m_busMenu->setTitle(tr("Assign &bus"));
-    for (quint32 id = 0; id < Bus::count(); id++)
-    {
-        /* <xx>: <name> */
-        action = new QAction(Bus::instance()->idName(id), this);
-        action->setCheckable(false);
-        action->setData(id);
-        m_busGroup->addAction(action);
-        m_busMenu->addAction(action);
-    }
-
-    /* Catch bus assignment changes */
-    connect(m_busGroup, SIGNAL(triggered(QAction*)),
-            this, SLOT(slotBusTriggered(QAction*)));
-
-    /* Catch bus name changes */
-    connect(Bus::instance(), SIGNAL(nameChanged(quint32, const QString&)),
-            this, SLOT(slotBusNameChanged(quint32, const QString&)));
-
-    /* Construct menu bar */
-    menuBar->addMenu(m_addMenu);
-    menuBar->addMenu(m_editMenu);
-    m_editMenu->addMenu(m_busMenu);
 }
 
 void FunctionManager::initToolbar()
@@ -322,68 +259,15 @@ void FunctionManager::initToolbar()
     m_toolbar->addAction(m_addChaserAction);
     m_toolbar->addAction(m_addEFXAction);
     m_toolbar->addAction(m_addCollectionAction);
+    m_toolbar->addAction(m_addRGBMatrixAction);
     m_toolbar->addAction(m_addScriptAction);
     m_toolbar->addSeparator();
     m_toolbar->addAction(m_wizardAction);
     m_toolbar->addSeparator();
     m_toolbar->addAction(m_editAction);
     m_toolbar->addAction(m_cloneAction);
-    m_busButton = new QToolButton(this);
-    m_busButton->setIcon(QIcon(":/bus.png"));
-    m_busButton->setMenu(m_busMenu);
-    m_busButton->setPopupMode(QToolButton::InstantPopup);
-    m_toolbar->addWidget(m_busButton);
     m_toolbar->addSeparator();
     m_toolbar->addAction(m_deleteAction);
-}
-
-void FunctionManager::slotBusTriggered(QAction* action)
-{
-    quint32 bus;
-
-    Q_ASSERT(action != NULL);
-
-    bus = action->data().toUInt();
-
-    /* Set the selected bus to all selected functions */
-    QListIterator <QTreeWidgetItem*> it(m_tree->selectedItems());
-    while (it.hasNext() == true)
-    {
-        QTreeWidgetItem* item;
-        Function* function;
-
-        item = it.next();
-        Q_ASSERT(item != NULL);
-
-        function = m_doc->function(item->text(KColumnID).toUInt());
-        Q_ASSERT(function != NULL);
-
-        function->setBus(bus);
-        updateFunctionItem(item, function);
-    }
-}
-
-void FunctionManager::slotBusNameChanged(quint32 id, const QString& name)
-{
-    /* Change the menu item's name to reflect the new bus name */
-    QListIterator <QAction*> it(m_busGroup->actions());
-    while (it.hasNext() == true)
-    {
-        QAction* action = it.next();
-        Q_ASSERT(action != NULL);
-
-        if (action->data().toUInt() == id)
-        {
-            action->setText(QString("%1: %2").arg(id + 1).arg(name));
-            break;
-        }
-    }
-
-    /* Change all affected function item's bus names as well */
-    QListIterator <QTreeWidgetItem*> twit =
-        m_tree->findItems(QString("%1: ").arg(id + 1), Qt::MatchStartsWith, KColumnBus);
-    while (twit.hasNext() == true)
-        twit.next()->setText(KColumnBus, QString("%1: %2").arg(id + 1).arg(name));
 }
 
 void FunctionManager::slotAddScene()
@@ -431,6 +315,20 @@ void FunctionManager::slotAddCollection()
 void FunctionManager::slotAddEFX()
 {
     Function* f = new EFX(m_doc);
+    if (m_doc->addFunction(f) == true)
+    {
+        addFunction(f);
+    }
+    else
+    {
+        QMessageBox::critical(this, tr("Function creation failed"),
+                              tr("Unable to create new function."));
+    }
+}
+
+void FunctionManager::slotAddRGBMatrix()
+{
+    Function* f = new RGBMatrix(m_doc);
     if (m_doc->addFunction(f) == true)
     {
         addFunction(f);
@@ -538,9 +436,6 @@ void FunctionManager::updateActionStatus()
 
         m_deleteAction->setEnabled(true);
         m_selectAllAction->setEnabled(true);
-
-        m_busGroup->setEnabled(true);
-        m_busButton->setEnabled(true);
     }
     else
     {
@@ -550,9 +445,6 @@ void FunctionManager::updateActionStatus()
 
         m_deleteAction->setEnabled(false);
         m_selectAllAction->setEnabled(false);
-
-        m_busGroup->setEnabled(false);
-        m_busButton->setEnabled(false);
     }
 }
 
@@ -565,9 +457,9 @@ void FunctionManager::initTree()
     m_tree = new QTreeWidget(this);
     layout()->addWidget(m_tree);
 
-    // Add two columns for function and bus
+    // Add two columns for function and type
     QStringList labels;
-    labels << tr("Function") << tr("Type") << tr("Bus");
+    labels << tr("Function") << tr("Type");
     m_tree->setHeaderLabels(labels);
     m_tree->header()->setResizeMode(QHeaderView::ResizeToContents);
     m_tree->setRootIsDecorated(false);
@@ -608,7 +500,6 @@ void FunctionManager::updateFunctionItem(QTreeWidgetItem* item,
     item->setText(KColumnName, function->name());
     item->setIcon(KColumnName, functionIcon(function));
     item->setText(KColumnType, function->typeString());
-    item->setText(KColumnBus, Bus::instance()->idName(function->bus()));
     item->setText(KColumnID, QString::number(function->id()));
 }
 
@@ -624,6 +515,10 @@ QIcon FunctionManager::functionIcon(const Function* function) const
         return QIcon(":/efx.png");
     case Function::Collection:
         return QIcon(":/collection.png");
+    case Function::RGBMatrix:
+        return QIcon(":/rgbmatrix.png");
+    case Function::Script:
+        return QIcon(":/script.png");
     default:
         return QIcon(":/function.png");
     }
@@ -747,6 +642,11 @@ int FunctionManager::editFunction(Function* function)
     else if (function->type() == Function::EFX)
     {
         EFXEditor editor(this, qobject_cast<EFX*> (function), m_doc);
+        result = editor.exec();
+    }
+    else if (function->type() == Function::RGBMatrix)
+    {
+        RGBMatrixEditor editor(this, qobject_cast<RGBMatrix*> (function), m_doc);
         result = editor.exec();
     }
     else if (function->type() == Function::Script)

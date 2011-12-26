@@ -22,6 +22,7 @@
 #include <QMdiArea>
 #include <QFrame>
 #include <QtTest>
+#include <QtXml>
 
 #define protected public
 #define private public
@@ -36,24 +37,27 @@
 #include "vcwidget.h"
 #include "vcframe.h"
 #include "doc.h"
-#include "bus.h"
 #undef private
 #undef protected
 
 void VCWidget_Test::initTestCase()
 {
-    Bus::init(this);
+    m_doc = NULL;
+    m_area = NULL;
 }
 
 void VCWidget_Test::init()
 {
     m_doc = new Doc(this);
+    m_area = new QMdiArea;
+    VirtualConsole::createAndShow(m_area, m_doc);
 }
 
 void VCWidget_Test::cleanup()
 {
+    delete VirtualConsole::instance();
+    delete m_area;
     delete m_doc;
-    m_doc = NULL;
 }
 
 void VCWidget_Test::initial()
@@ -368,6 +372,16 @@ void VCWidget_Test::copy()
     QCOMPARE(copy.inputSource(15), QLCInputSource(1, 2));
     QCOMPARE(copy.inputSource(1), QLCInputSource(3, 4));
     QVERIFY(copy.inputSource(2).isValid() == false);
+}
+
+void VCWidget_Test::stripKeySequence()
+{
+    QCOMPARE(VCWidget::stripKeySequence(QKeySequence("P")), QKeySequence("P"));
+    QCOMPARE(VCWidget::stripKeySequence(QKeySequence("CTRL+P")), QKeySequence("P"));
+    QCOMPARE(VCWidget::stripKeySequence(QKeySequence("ALT+P")), QKeySequence("ALT+P"));
+    QCOMPARE(VCWidget::stripKeySequence(QKeySequence("CTRL+ALT+P")), QKeySequence("ALT+P"));
+    QCOMPARE(VCWidget::stripKeySequence(QKeySequence("CTRL+ALT")), QKeySequence("ALT"));
+    QCOMPARE(VCWidget::stripKeySequence(QKeySequence("SHIFT+CTRL+ALT+P")), QKeySequence("SHIFT+ALT+P"));
 }
 
 void VCWidget_Test::keyPress()
@@ -719,9 +733,9 @@ void VCWidget_Test::resize()
     stub.show();
     parent.resize(QSize(200, 200));
 
-    VCProperties prop = VirtualConsole::properties();
+    VCProperties prop = VirtualConsole::instance()->properties();
     prop.setGridEnabled(false);
-    VirtualConsole::s_properties = prop;
+    VirtualConsole::instance()->m_properties = prop;
 
     stub.resize(QSize(25, 25));
     QCOMPARE(stub.size(), QSize(25, 25));
@@ -737,7 +751,7 @@ void VCWidget_Test::resize()
     QCOMPARE(stub.size(), QSize(250, 250));
 
     prop.setGridEnabled(true);
-    VirtualConsole::s_properties = prop;
+    VirtualConsole::instance()->m_properties = prop;
 
     stub.resize(QSize(25, 25));
     QCOMPARE(stub.size(), QSize(20, 20));
@@ -763,9 +777,9 @@ void VCWidget_Test::move()
     parent.resize(QSize(200, 200));
     stub.resize(QSize(50, 50));
 
-    VCProperties prop = VirtualConsole::properties();
+    VCProperties prop = VirtualConsole::instance()->properties();
     prop.setGridEnabled(false);
-    VirtualConsole::s_properties = prop;
+    VirtualConsole::instance()->m_properties = prop;
 
     stub.move(QPoint(25, 25));
     QCOMPARE(stub.geometry(), QRect(25, 25, 50, 50));
@@ -777,7 +791,7 @@ void VCWidget_Test::move()
     QCOMPARE(stub.geometry(), QRect(150, 150, 50, 50));
 
     prop.setGridEnabled(true);
-    VirtualConsole::s_properties = prop;
+    VirtualConsole::instance()->m_properties = prop;
 
     stub.move(QPoint(25, 25));
     QCOMPARE(stub.geometry(), QRect(20, 20, 50, 50));
@@ -794,16 +808,12 @@ void VCWidget_Test::move()
 
 void VCWidget_Test::paint()
 {
-    QMdiArea area;
-
-    VirtualConsole::resetContents(&area, m_doc);
-    VirtualConsole::createAndShow(&area, m_doc);
     VirtualConsole* vc = VirtualConsole::instance();
     QVERIFY(vc != NULL);
 
     // Just try to cover all local branches with this test
-    StubWidget* stub = new StubWidget(vc->properties().contents(), m_doc);
-    area.show();
+    StubWidget* stub = new StubWidget(vc->contents(), m_doc);
+    m_area->show();
     stub->show();
     QTest::qWait(10);
 
@@ -830,18 +840,14 @@ void VCWidget_Test::paint()
 
 void VCWidget_Test::mousePress()
 {
-    QMdiArea area;
-
     QCOMPARE(m_doc->mode(), Doc::Design);
 
-    VirtualConsole::resetContents(&area, m_doc);
-    VirtualConsole::createAndShow(&area, m_doc);
     VirtualConsole* vc = VirtualConsole::instance();
     QVERIFY(vc != NULL);
 
-    area.show();
+    m_area->show();
 
-    StubWidget* stub = new StubWidget(vc->properties().contents(), m_doc);
+    StubWidget* stub = new StubWidget(vc->contents(), m_doc);
     stub->show();
     stub->resize(QSize(20, 20));
     QCOMPARE(stub->pos(), QPoint(0, 0));

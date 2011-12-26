@@ -24,8 +24,7 @@
 
 #include <QKeySequence>
 #include <QWidget>
-
-#include "app.h"
+#include "doc.h"
 
 class QLCInputSource;
 class QDomDocument;
@@ -272,6 +271,10 @@ protected:
     /*********************************************************************
      * Key sequence handler
      *********************************************************************/
+protected:
+    /** Strip restricted keys from the given QKeySequence */
+    static QKeySequence stripKeySequence(const QKeySequence& seq);
+
 protected slots:
     /** Handle key presses. Default implementation passes to children. */
     virtual void slotKeyPressed(const QKeySequence& keySequence);

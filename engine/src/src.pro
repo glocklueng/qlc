@@ -6,8 +6,7 @@ LANGUAGE = C++
 TARGET   = qlcengine
 
 CONFIG  += qt
-QT      += core xml
-QT      -= gui
+QT      += core xml script gui
 QTPLUGIN =
 
 INCLUDEPATH += ../../plugins/interfaces
@@ -35,6 +34,7 @@ HEADERS += qlccapability.h \
            qlcfile.h \
            qlcfixturedef.h \
            qlcfixturedefcache.h \
+           qlcfixturehead.h \
            qlcfixturemode.h \
            qlci18n.h \
            qlcinputchannel.h \
@@ -47,12 +47,16 @@ HEADERS += qlccapability.h \
 HEADERS += bus.h \
            chaser.h \
            chaserrunner.h \
+           chaserstep.h \
            collection.h \
+           cue.h \
+           cuestack.h \
            doc.h \
            efx.h \
            efxfixture.h \
            fadechannel.h \
            fixture.h \
+           fixturegroup.h \
            function.h \
            genericfader.h \
            inputmap.h \
@@ -63,6 +67,11 @@ HEADERS += bus.h \
            outputmap.h \
            outputpatch.h \
            palettegenerator.h \
+           qlcpoint.h \
+           rgbalgorithm.h \
+           rgbmatrix.h \
+           rgbscript.h \
+           rgbtext.h \
            scene.h \
            scenevalue.h \
            script.h
@@ -73,6 +82,7 @@ SOURCES += qlccapability.cpp \
            qlcfile.cpp \
            qlcfixturedef.cpp \
            qlcfixturedefcache.cpp \
+           qlcfixturehead.cpp \
            qlcfixturemode.cpp \
            qlci18n.cpp \
            qlcinputchannel.cpp \
@@ -84,12 +94,16 @@ SOURCES += qlccapability.cpp \
 SOURCES += bus.cpp \
            chaser.cpp \
            chaserrunner.cpp \
+           chaserstep.cpp \
            collection.cpp \
+           cue.cpp \
+           cuestack.cpp \
            doc.cpp \
            efx.cpp \
            efxfixture.cpp \
            fadechannel.cpp \
            fixture.cpp \
+           fixturegroup.cpp \
            function.cpp \
            genericfader.cpp \
            inputmap.cpp \
@@ -100,6 +114,11 @@ SOURCES += bus.cpp \
            outputmap.cpp \
            outputpatch.cpp \
            palettegenerator.cpp \
+           qlcpoint.cpp \
+           rgbalgorithm.cpp \
+           rgbmatrix.cpp \
+           rgbscript.cpp \
+           rgbtext.cpp \
            scene.cpp \
            scenevalue.cpp \
            script.cpp
@@ -133,6 +152,8 @@ macx {
     conf.commands += echo \"$$LITERAL_HASH define INPUTPLUGINDIR \\\"$$INPUTPLUGINDIR\\\"\" >> $$CONFIGFILE &&
     conf.commands += echo \"$$LITERAL_HASH define OUTPUTPLUGINDIR \\\"$$OUTPUTPLUGINDIR\\\"\" >> $$CONFIGFILE &&
     conf.commands += echo \"$$LITERAL_HASH define TRANSLATIONDIR \\\"$$TRANSLATIONDIR\\\"\" >> $$CONFIGFILE &&
+    conf.commands += echo \"$$LITERAL_HASH define RGBSCRIPTDIR \\\"$$RGBSCRIPTDIR\\\"\" >> $$CONFIGFILE &&
+    conf.commands += echo \"$$LITERAL_HASH define USERRGBSCRIPTDIR \\\"$$USERRGBSCRIPTDIR\\\"\" >> $$CONFIGFILE &&
     conf.commands += echo \"$$LITERAL_HASH endif\" >> $$CONFIGFILE
 }
 unix:!macx {
@@ -149,6 +170,8 @@ unix:!macx {
     conf.commands += echo \"$$LITERAL_HASH define INPUTPLUGINDIR \\\"$$INSTALLROOT/$$INPUTPLUGINDIR\\\"\" >> $$CONFIGFILE &&
     conf.commands += echo \"$$LITERAL_HASH define OUTPUTPLUGINDIR \\\"$$INSTALLROOT/$$OUTPUTPLUGINDIR\\\"\" >> $$CONFIGFILE &&
     conf.commands += echo \"$$LITERAL_HASH define TRANSLATIONDIR \\\"$$INSTALLROOT/$$TRANSLATIONDIR\\\"\" >> $$CONFIGFILE &&
+    conf.commands += echo \"$$LITERAL_HASH define RGBSCRIPTDIR \\\"$$INSTALLROOT/$$RGBSCRIPTDIR\\\"\" >> $$CONFIGFILE &&
+    conf.commands += echo \"$$LITERAL_HASH define USERRGBSCRIPTDIR \\\"$$USERRGBSCRIPTDIR\\\"\" >> $$CONFIGFILE &&
     conf.commands += echo \"$$LITERAL_HASH endif\" >> $$CONFIGFILE
 }
 win32 {
@@ -165,5 +188,7 @@ win32 {
     conf.commands += @echo $$LITERAL_HASH define INPUTPLUGINDIR \"$$INPUTPLUGINDIR\" >> $$CONFIGFILE &&
     conf.commands += @echo $$LITERAL_HASH define OUTPUTPLUGINDIR \"$$OUTPUTPLUGINDIR\" >> $$CONFIGFILE &&
     conf.commands += @echo $$LITERAL_HASH define TRANSLATIONDIR \"$$TRANSLATIONDIR\" >> $$CONFIGFILE &&
+    conf.commands += @echo $$LITERAL_HASH define RGBSCRIPTDIR \"$$RGBSCRIPTDIR\" >> $$CONFIGFILE &&
+    conf.commands += @echo $$LITERAL_HASH define USERRGBSCRIPTDIR \"$$USERRGBSCRIPTDIR\" >> $$CONFIGFILE &&
     conf.commands += @echo $$LITERAL_HASH endif >> $$CONFIGFILE
 }

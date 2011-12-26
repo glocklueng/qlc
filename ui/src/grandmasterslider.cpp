@@ -23,6 +23,7 @@
 #include <QHBoxLayout>
 #include <QSlider>
 #include <QLabel>
+#include <cmath>
 
 #include "grandmasterslider.h"
 #include "virtualconsole.h"
@@ -30,6 +31,7 @@
 #include "vcproperties.h"
 #include "outputmap.h"
 #include "inputmap.h"
+#include "apputil.h"
 
 GrandMasterSlider::GrandMasterSlider(QWidget* parent, OutputMap* outputMap, InputMap* inputMap)
     : QFrame(parent)
@@ -55,7 +57,7 @@ GrandMasterSlider::GrandMasterSlider(QWidget* parent, OutputMap* outputMap, Inpu
     m_slider = new QSlider(this);
     hbox->addWidget(m_slider);
     m_slider->setRange(0, UCHAR_MAX);
-    m_slider->setStyle(App::saneStyle());
+    m_slider->setStyle(AppUtil::saneStyle());
     connect(m_slider, SIGNAL(valueChanged(int)),
             this, SLOT(slotValueChanged(int)));
     hbox->addSpacing(1);
@@ -67,14 +69,13 @@ GrandMasterSlider::GrandMasterSlider(QWidget* parent, OutputMap* outputMap, Inpu
     m_nameLabel->setText(tr("Grand<BR>Master"));
     layout()->addWidget(m_nameLabel);
 
-    // Get the current grand master value
-    m_slider->setValue(m_outputMap->peekUniverses()->gMValue());
+    /* Listen to GM value changes */
+    connect(m_outputMap, SIGNAL(grandMasterValueChanged(uchar)),
+            this, SLOT(slotGrandMasterValueChanged(uchar)));
 
     /* External input connection */
     connect(m_inputMap, SIGNAL(inputValueChanged(quint32, quint32, uchar)),
             this, SLOT(slotInputValueChanged(quint32, quint32, uchar)));
-
-    refreshProperties();
 }
 
 GrandMasterSlider::~GrandMasterSlider()
@@ -85,7 +86,7 @@ void GrandMasterSlider::refreshProperties()
 {
     QString tooltip;
 
-    switch (VirtualConsole::properties().grandMasterValueMode())
+    switch (VirtualConsole::instance()->properties().grandMasterValueMode())
     {
         case UniverseArray::GMLimit:
             tooltip += tr("Limits the maximum value of");
@@ -97,7 +98,7 @@ void GrandMasterSlider::refreshProperties()
 
     tooltip += QString(" ");
 
-    switch (VirtualConsole::properties().grandMasterChannelMode())
+    switch (VirtualConsole::instance()->properties().grandMasterChannelMode())
     {
         case UniverseArray::GMIntensity:
             tooltip += tr("intensity channels");
@@ -110,25 +111,17 @@ void GrandMasterSlider::refreshProperties()
     setToolTip(tooltip);
 
     /* Set properties to UniverseArray */
-    UniverseArray* uni = m_outputMap->claimUniverses();
-    uni->setGMChannelMode(VirtualConsole::properties().grandMasterChannelMode());
-    uni->setGMValueMode(VirtualConsole::properties().grandMasterValueMode());
-    uchar value = uni->gMValue();
-    m_outputMap->releaseUniverses();
-
-    slotValueChanged(value);
+    m_slider->setValue(m_outputMap->grandMasterValue());
 }
 
 void GrandMasterSlider::slotValueChanged(int value)
 {
     // Write new grand master value to universes
-    UniverseArray* uni = m_outputMap->claimUniverses();
-    uni->setGMValue(value);
-    m_outputMap->releaseUniverses();
+    m_outputMap->setGrandMasterValue(value);
 
     // Display value
     QString str;
-    if (VirtualConsole::properties().grandMasterValueMode() == UniverseArray::GMLimit)
+    if (VirtualConsole::instance()->properties().grandMasterValueMode() == UniverseArray::GMLimit)
     {
         str = QString("%1").arg(value, 3, 10, QChar('0'));
     }
@@ -141,15 +134,19 @@ void GrandMasterSlider::slotValueChanged(int value)
     m_valueLabel->setText(str);
 }
 
+void GrandMasterSlider::slotGrandMasterValueChanged(uchar value)
+{
+    m_slider->setValue(value);
+}
+
 /*****************************************************************************
  * External input
  *****************************************************************************/
 
-void GrandMasterSlider::slotInputValueChanged(quint32 universe, quint32 channel,
-                                              uchar value)
+void GrandMasterSlider::slotInputValueChanged(quint32 universe, quint32 channel, uchar value)
 {
-    if (universe == VirtualConsole::properties().grandMasterInputUniverse() &&
-        channel == VirtualConsole::properties().grandMasterInputChannel())
+    if (universe == VirtualConsole::instance()->properties().grandMasterInputUniverse() &&
+        channel == VirtualConsole::instance()->properties().grandMasterInputChannel())
     {
         m_slider->setValue(value);
     }

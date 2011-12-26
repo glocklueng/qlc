@@ -42,6 +42,7 @@ class QString;
 
 class QLCFixtureDefCache;
 class QLCFixtureMode;
+class QLCFixtureHead;
 class FixtureConsole;
 class QLCFixtureDef;
 class Doc;
@@ -248,35 +249,26 @@ public:
                     Qt::CaseSensitivity cs = Qt::CaseSensitive,
                     QLCChannel::Group group = QLCChannel::NoGroup) const;
 
-    /**
-     * Get the channel number for pan MSB (8bit).
-     * @return The coarse pan channel or QLCChannel::invalid() if not applicable.
-     */
-    quint32 panMsbChannel() const;
+    /** @see QLCFixtureHead */
+    quint32 panMsbChannel(int head = 0) const;
 
-    /**
-     * Get the channel number for tilt MSB (16bit).
-     * @return The coarse tilt channel or QLCChannel::invalid() if not applicable.
-     */
-    quint32 tiltMsbChannel() const;
+    /** @see QLCFixtureHead */
+    quint32 tiltMsbChannel(int head = 0) const;
 
-    /**
-     * Get the channel number for pan LSB (16bit).
-     * @return The fine pan channel or QLCChannel::invalid() if not applicable
-     */
-    quint32 panLsbChannel() const;
+    /** @see QLCFixtureHead */
+    quint32 panLsbChannel(int head = 0) const;
 
-    /**
-     * Get the channel number for tilt LSB (16bit).
-     * @return The fine tilt channel or QLCChannel::invalid() if not applicable.
-     */
-    quint32 tiltLsbChannel() const;
+    /** @see QLCFixtureHead */
+    quint32 tiltLsbChannel(int head = 0) const;
 
-    /**
-     * Get the master intensity channel. For dimmers this is invalid.
-     * @return The master intensity channel or QLCChannel::invalid() if not applicable.
-     */
-    quint32 masterIntensityChannel() const;
+    /** @see QLCFixtureHead */
+    quint32 masterIntensityChannel(int head = 0) const;
+
+    /** @see QLCFixtureHead */
+    QList <quint32> rgbChannels(int head = 0) const;
+
+    /** @see QLCFixtureHead */
+    QList <quint32> cmyChannels(int head = 0) const;
 
 protected:
     /** Create a generic intensity channel */
@@ -294,21 +286,6 @@ protected:
 
     /** Generic intensity channel for dimmer fixtures */
     QLCChannel* m_genericChannel;
-
-    /** The coarse pan channel */
-    quint32 m_panMsbChannel;
-
-    /** The coarse tilt channel */
-    quint32 m_tiltMsbChannel;
-
-    /** The fine pan channel */
-    quint32 m_panLsbChannel;
-
-    /** The fine tilt channel */
-    quint32 m_tiltLsbChannel;
-
-    /** The master intensity channel */
-    quint32 m_masterIntensityChannel;
 
     /*********************************************************************
      * Fixture definition
@@ -338,6 +315,26 @@ public:
      */
     const QLCFixtureMode* fixtureMode() const;
 
+    /**
+     * Return the number of heads used by the fixture. If the fixture is a
+     * generic dimmer, this returns the number of channels (assuming each one
+     * controls one lamp == head). Otherwise returns the number of heads defined
+     * in fixtureMode().
+     *
+     * @return Number of heads
+     */
+    int heads() const;
+
+    /**
+     * Get the fixture head at the given index. If $index is invalid, returns NULL.
+     * Each fixture has at least one head. Dimmer fixtures have no heads since each
+     * channel can be treated as a head.
+     *
+     * @param index The index of the head to return
+     * @return The head at the given index or NULL
+     */
+    QLCFixtureHead head(int index) const;
+
 protected:
     /** The fixture definition that this instance is based on */
     const QLCFixtureDef* m_fixtureDef;
@@ -356,7 +353,7 @@ public:
      * @param root The Fixture node to load from
      * @param doc The doc that owns all fixtures
      */
-    static bool loader(const QDomElement* root, Doc* doc);
+    static bool loader(const QDomElement& root, Doc* doc);
 
     /**
      * Load a fixture's contents from the given XML node.
@@ -364,7 +361,7 @@ public:
      * @param root An XML subtree containing a single fixture instance
      * @return true if the fixture was loaded successfully, otherwise false
      */
-    bool loadXML(const QDomElement* root,
+    bool loadXML(const QDomElement& root,
                  const QLCFixtureDefCache* fixtureDefCache);
 
     /**

@@ -26,38 +26,25 @@
 #include <QtXml>
 
 #include "qlcfixturemode.h"
+#include "qlcfixturehead.h"
 #include "qlcfixturedef.h"
 #include "qlcchannel.h"
 #include "qlcphysical.h"
 
 QLCFixtureMode::QLCFixtureMode(QLCFixtureDef* fixtureDef)
+    : m_fixtureDef(fixtureDef)
 {
     Q_ASSERT(fixtureDef != NULL);
-    m_fixtureDef = fixtureDef;
 }
 
-QLCFixtureMode::QLCFixtureMode(QLCFixtureDef* fixtureDef,
-                               const QLCFixtureMode* mode)
+QLCFixtureMode::QLCFixtureMode(QLCFixtureDef* fixtureDef, const QLCFixtureMode* mode)
+    : m_fixtureDef(fixtureDef)
 {
     Q_ASSERT(fixtureDef != NULL);
     Q_ASSERT(mode != NULL);
 
-    m_fixtureDef = fixtureDef;
-
     if (mode != NULL)
         *this = *mode;
-}
-
-QLCFixtureMode::QLCFixtureMode(QLCFixtureDef* fixtureDef,
-                               const QDomElement* tag)
-{
-    Q_ASSERT(fixtureDef != NULL);
-    Q_ASSERT(tag != NULL);
-
-    m_fixtureDef = fixtureDef;
-
-    if (tag != NULL)
-        loadXML(tag);
 }
 
 QLCFixtureMode::~QLCFixtureMode()
@@ -70,6 +57,7 @@ QLCFixtureMode& QLCFixtureMode::operator=(const QLCFixtureMode& mode)
     {
         m_name = mode.m_name;
         m_physical = mode.m_physical;
+        m_heads = mode.m_heads;
 
         /* Clear the existing list of channels */
         m_channels.clear();
@@ -220,6 +208,58 @@ quint32 QLCFixtureMode::channelNumber(QLCChannel* channel) const
     return QLCChannel::invalid();
 }
 
+/*****************************************************************************
+ * Heads
+ *****************************************************************************/
+
+void QLCFixtureMode::insertHead(int index, const QLCFixtureHead& head)
+{
+    if (index < 0 || index >= m_heads.size())
+        m_heads.append(head);
+    else
+        m_heads.insert(index, head);
+}
+
+void QLCFixtureMode::removeHead(int index)
+{
+    m_heads.removeAt(index);
+}
+
+void QLCFixtureMode::replaceHead(int index, const QLCFixtureHead& head)
+{
+    if (index >= 0 && index < m_heads.size())
+        m_heads[index] = head;
+}
+
+QList <QLCFixtureHead> QLCFixtureMode::heads() const
+{
+    return m_heads;
+}
+
+int QLCFixtureMode::headForChannel(quint32 chnum) const
+{
+    for (int i = 0; i < m_heads.size(); i++)
+    {
+        if (m_heads[i].channels().contains(chnum) == true)
+            return i;
+    }
+
+    return -1;
+}
+
+void QLCFixtureMode::cacheHeads()
+{
+    for (int i = 0; i < m_heads.size(); i++)
+    {
+        QLCFixtureHead& head(m_heads[i]);
+        head.cacheChannels(this);
+    }
+}
+
+/****************************************************************************
+ * Physical
+ ****************************************************************************/
+
 void QLCFixtureMode::setPhysical(const QLCPhysical& physical)
 {
     m_physical = physical;
@@ -230,23 +270,20 @@ QLCPhysical QLCFixtureMode::physical() const
     return m_physical;
 }
 
-bool QLCFixtureMode::loadXML(const QDomElement* root)
+/****************************************************************************
+ * Load & Save
+ ****************************************************************************/
+
+bool QLCFixtureMode::loadXML(const QDomElement& root)
 {
-    QDomNode node;
-    QDomElement tag;
-    QString str;
-    QString ch;
-
-    Q_ASSERT(root != NULL);
-
-    if (root->tagName() != KXMLQLCFixtureMode)
+    if (root.tagName() != KXMLQLCFixtureMode)
     {
         qWarning() << Q_FUNC_INFO << "Mode tag not found";
         return false;
     }
 
     /* Mode name */
-    str = root->attribute(KXMLQLCFixtureModeName);
+    QString str = root.attribute(KXMLQLCFixtureModeName);
     if (str.isEmpty() == true)
     {
         qWarning() << Q_FUNC_INFO << "Mode has no name";
@@ -258,11 +295,10 @@ bool QLCFixtureMode::loadXML(const QDomElement* root)
     }
 
     /* Subtags */
-    node = root->firstChild();
+    QDomNode node = root.firstChild();
     while (node.isNull() == false)
     {
-        tag = node.toElement();
-
+        QDomElement tag = node.toElement();
         if (tag.tagName() == KXMLQLCFixtureModeChannel)
         {
             /* Channel */
@@ -271,11 +307,18 @@ bool QLCFixtureMode::loadXML(const QDomElement* root)
             insertChannel(m_fixtureDef->channel(tag.text()),
                           str.toInt());
         }
+        else if (tag.tagName() == KXMLQLCFixtureHead)
+        {
+            /* Head */
+            QLCFixtureHead head;
+            if (head.loadXML(tag) == true)
+                insertHead(-1, head);
+        }
         else if (tag.tagName() == KXMLQLCPhysical)
         {
             /* Physical */
             QLCPhysical physical;
-            physical.loadXML(&tag);
+            physical.loadXML(tag);
             setPhysical(physical);
         }
         else
@@ -285,6 +328,9 @@ bool QLCFixtureMode::loadXML(const QDomElement* root)
 
         node = node.nextSibling();
     }
+
+    // Cache all head channels
+    cacheHeads();
 
     return true;
 }
@@ -320,6 +366,11 @@ bool QLCFixtureMode::saveXML(QDomDocument* doc, QDomElement* root)
         text = doc->createTextNode(it.next()->name());
         chtag.appendChild(text);
     }
+
+    /* Heads */
+    QListIterator <QLCFixtureHead> hit(m_heads);
+    while (hit.hasNext() == true)
+        hit.next().saveXML(doc, &tag);
 
     return true;
 }

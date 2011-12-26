@@ -30,6 +30,7 @@
 #include "efx.h"
 
 class EFXPreviewArea;
+class SpeedSpinBox;
 class Doc;
 
 class EFXEditor : public QDialog, public Ui_EFXEditor
@@ -47,10 +48,8 @@ public:
 private:
     Doc* m_doc;
 
-protected:
+private:
     void initGeneralPage();
-    void fillMovementBusCombo();
-    void fillFadeBusCombo();
     void initMovementPage();
     void initInitializationPage();
 
@@ -61,7 +60,7 @@ private slots:
     void slotTestClicked();
     void slotRestartTest();
 
-protected:
+private:
     EFXPreviewArea* m_previewArea;
     QPolygon* m_points;
 
@@ -73,7 +72,7 @@ protected:
     /*********************************************************************
      * General page
      *********************************************************************/
-protected:
+private:
     QTreeWidgetItem* fixtureItem(EFXFixture* ef);
     const QList <EFXFixture*> selectedFixtures() const;
     void updateIndices(int from, int to);
@@ -81,7 +80,7 @@ protected:
     void updateIntensityColumn(QTreeWidgetItem* item, EFXFixture* ef);
     void removeFixtureItem(EFXFixture* ef);
 
-protected slots:
+private slots:
     void slotNameEdited(const QString &text);
     void slotFixtureItemChanged(QTreeWidgetItem* item, int column);
     void slotFixtureIntensityChanged(int intensity);
@@ -94,13 +93,19 @@ protected slots:
     void slotSerialRadioToggled(bool state);
     void slotAsymmetricRadioToggled(bool state);
 
-    void slotMovementBusComboActivated(int index);
-    void slotFadeBusComboActivated(int index);
+    void slotFadeInSpinChanged(int ms);
+    void slotFadeOutSpinChanged(int ms);
+    void slotDurationSpinChanged(int ms);
+
+private:
+    SpeedSpinBox* m_fadeInSpin;
+    SpeedSpinBox* m_fadeOutSpin;
+    SpeedSpinBox* m_durationSpin;
 
     /*********************************************************************
      * Movement page
      *********************************************************************/
-protected slots:
+private slots:
     void slotAlgorithmSelected(const QString &text);
     void slotWidthSpinChanged(int value);
     void slotHeightSpinChanged(int value);
@@ -120,7 +125,7 @@ protected slots:
     void slotForwardClicked();
     void slotBackwardClicked();
 
-protected:
+private:
     void redrawPreview();
 };
 

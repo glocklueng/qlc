@@ -35,6 +35,7 @@
 
 #include "fixtureselection.h"
 #include "fixtureconsole.h"
+#include "speedspinbox.h"
 #include "sceneeditor.h"
 #include "mastertimer.h"
 #include "outputmap.h"
@@ -93,8 +94,6 @@ SceneEditor::~SceneEditor()
 
 void SceneEditor::init()
 {
-    QToolBar* toolBar;
-
     /* Actions */
     m_enableCurrentAction = new QAction(QIcon(":/check.png"),
                                         tr("Enable all channels in current fixture"), this);
@@ -123,7 +122,7 @@ void SceneEditor::init()
             this, SLOT(slotColorTool()));
 
     /* Toolbar */
-    toolBar = new QToolBar(this);
+    QToolBar* toolBar = new QToolBar(this);
     layout()->setMenuBar(toolBar);
     toolBar->addAction(m_enableCurrentAction);
     toolBar->addAction(m_disableCurrentAction);
@@ -149,10 +148,23 @@ void SceneEditor::init()
             this, SLOT(slotNameEdited(const QString&)));
     slotNameEdited(m_scene->name());
 
-    /* Bus */
-    connect(m_busCombo, SIGNAL(activated(int)),
-            this, SLOT(slotBusComboActivated(int)));
-    fillBusCombo();
+    /* Speeds */
+    new QHBoxLayout(m_fadeInContainer);
+    m_fadeInSpin = new SpeedSpinBox(SpeedSpinBox::Zero, m_fadeInContainer);
+    m_fadeInContainer->layout()->addWidget(m_fadeInSpin);
+    m_fadeInContainer->layout()->setMargin(0);
+    m_fadeInSpin->setValue(m_scene->fadeInSpeed());
+
+    new QHBoxLayout(m_fadeOutContainer);
+    m_fadeOutSpin = new SpeedSpinBox(SpeedSpinBox::Zero, m_fadeOutContainer);
+    m_fadeOutContainer->layout()->addWidget(m_fadeOutSpin);
+    m_fadeOutContainer->layout()->setMargin(0);
+    m_fadeOutSpin->setValue(m_scene->fadeOutSpeed());
+
+    connect(m_fadeInSpin, SIGNAL(valueChanged(int)),
+            this, SLOT(slotFadeInSpinChanged(int)));
+    connect(m_fadeOutSpin, SIGNAL(valueChanged(int)),
+            this, SLOT(slotFadeOutSpinChanged(int)));
 
     QListIterator <SceneValue> it(m_scene->values());
     while (it.hasNext() == true)
@@ -173,13 +185,6 @@ void SceneEditor::init()
     }
 }
 
-void SceneEditor::fillBusCombo()
-{
-    m_busCombo->clear();
-    m_busCombo->addItems(Bus::instance()->idNames());
-    m_busCombo->setCurrentIndex(m_scene->bus());
-}
-
 void SceneEditor::setSceneValue(const SceneValue& scv)
 {
     FixtureConsole* fc;
@@ -197,17 +202,6 @@ void SceneEditor::setSceneValue(const SceneValue& scv)
 /*****************************************************************************
  * Common
  *****************************************************************************/
-
-void SceneEditor::slotNameEdited(const QString& name)
-{
-    setWindowTitle(tr("Scene - %1").arg(name));
-}
-
-void SceneEditor::slotBusComboActivated(int index)
-{
-    Q_ASSERT(m_scene != NULL);
-    m_scene->setBus(index);
-}
 
 void SceneEditor::accept()
 {
@@ -267,26 +261,6 @@ void SceneEditor::slotTabChanged(int tab)
         FixtureConsole* fc = consoleTab(m_currentTab);
         Q_ASSERT(fc != NULL);
         fc->enableExternalInput(true);
-    }
-}
-
-void SceneEditor::slotEnableAll()
-{
-    for (int i = KTabFirstFixture; i < m_tab->count(); i++)
-    {
-        FixtureConsole* fc = consoleTab(i);
-        if (fc != NULL)
-            fc->enableAllChannels(true);
-    }
-}
-
-void SceneEditor::slotDisableAll()
-{
-    for (int i = KTabFirstFixture; i < m_tab->count(); i++)
-    {
-        FixtureConsole* fc = consoleTab(i);
-        if (fc != NULL)
-            fc->enableAllChannels(false);
     }
 }
 
@@ -532,6 +506,11 @@ void SceneEditor::removeFixtureItem(Fixture* fixture)
     delete item;
 }
 
+void SceneEditor::slotNameEdited(const QString& name)
+{
+    setWindowTitle(tr("Scene - %1").arg(name));
+}
+
 void SceneEditor::slotAddFixtureClicked()
 {
     /* Put all fixtures already present into a list of fixtures that
@@ -587,6 +566,36 @@ void SceneEditor::slotRemoveFixtureClicked()
     }
 }
 
+void SceneEditor::slotEnableAll()
+{
+    for (int i = KTabFirstFixture; i < m_tab->count(); i++)
+    {
+        FixtureConsole* fc = consoleTab(i);
+        if (fc != NULL)
+            fc->enableAllChannels(true);
+    }
+}
+
+void SceneEditor::slotDisableAll()
+{
+    for (int i = KTabFirstFixture; i < m_tab->count(); i++)
+    {
+        FixtureConsole* fc = consoleTab(i);
+        if (fc != NULL)
+            fc->enableAllChannels(false);
+    }
+}
+
+void SceneEditor::slotFadeInSpinChanged(int ms)
+{
+    m_scene->setFadeInSpeed(ms);
+}
+
+void SceneEditor::slotFadeOutSpinChanged(int ms)
+{
+    m_scene->setFadeOutSpeed(ms);
+}
+
 /*****************************************************************************
  * Fixture tabs
  *****************************************************************************/
@@ -639,8 +648,8 @@ void SceneEditor::removeFixtureTab(Fixture* fixture)
                might be intended or it might not. */
             QScrollArea* area = qobject_cast<QScrollArea*> (m_tab->widget(i));
             Q_ASSERT(area != NULL);
-            delete area; // Deletes also FixtureConsole
             m_tab->removeTab(i);
+            delete area; // Deletes also FixtureConsole
             break;
         }
     }

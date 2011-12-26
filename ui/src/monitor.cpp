@@ -29,7 +29,6 @@
 #include <QMdiArea>
 #include <QToolBar>
 #include <QAction>
-#include <QTimer>
 #include <QFont>
 #include <QIcon>
 #include <QtXml>
@@ -102,21 +101,17 @@ Monitor::Monitor(QWidget* parent, Doc* doc, Qt::WindowFlags f)
     connect(m_doc, SIGNAL(fixtureRemoved(quint32)),
             this, SLOT(slotFixtureRemoved(quint32)));
 
-    m_timer = new QTimer(this);
-    connect(m_timer, SIGNAL(timeout()), this, SLOT(slotTimeout()));
-    m_timer->start(1000 / 50);
-    QWidget::show();
+    connect(m_doc->outputMap(), SIGNAL(universesWritten(const QByteArray&)),
+            this, SLOT(slotUniversesWritten(const QByteArray&)));
 }
 
 Monitor::~Monitor()
 {
-    m_timer->stop();
-    delete m_timer;
+    disconnect(m_doc->outputMap(), SIGNAL(universesWritten(const QByteArray&)),
+               this, SLOT(slotUniversesWritten(const QByteArray&)));
 
     while (m_monitorFixtures.isEmpty() == false)
-    {
         delete m_monitorFixtures.takeFirst();
-    }
 
     saveSettings();
 
@@ -162,11 +157,7 @@ void Monitor::loadSettings()
 void Monitor::saveSettings()
 {
     QSettings settings;
-#ifdef __APPLE__
     settings.setValue(SETTINGS_GEOMETRY, saveGeometry());
-#else
-    settings.setValue(SETTINGS_GEOMETRY, parentWidget()->saveGeometry());
-#endif
     settings.setValue(SETTINGS_FONT, m_monitorWidget->font().toString());
     settings.setValue(SETTINGS_VALUESTYLE, valueStyle());
     settings.setValue(SETTINGS_CHANNELSTYLE, channelStyle());
@@ -179,19 +170,9 @@ void Monitor::createAndShow(QWidget* parent, Doc* doc)
     /* Must not create more than one instance */
     if (s_instance == NULL)
     {
-    #ifdef __APPLE__
         /* Create a separate window for OSX */
         s_instance = new Monitor(parent, doc, Qt::Window);
         window = s_instance;
-    #else
-        /* Create an MDI window for X11 & Win32 */
-        QMdiArea* area = qobject_cast<QMdiArea*> (parent);
-        Q_ASSERT(area != NULL);
-        QMdiSubWindow* sub = new QMdiSubWindow;
-        s_instance = new Monitor(sub, doc);
-        sub->setWidget(s_instance);
-        window = area->addSubWindow(sub);
-    #endif
 
         /* Set some common properties for the window and show it */
         window->setAttribute(Qt::WA_DeleteOnClose);
@@ -207,11 +188,7 @@ void Monitor::createAndShow(QWidget* parent, Doc* doc)
     }
     else
     {
-    #ifdef __APPLE__
         window = s_instance;
-    #else
-        window = s_instance->parentWidget();
-    #endif
     }
 
     window->show();
@@ -402,15 +379,9 @@ void Monitor::slotFixtureRemoved(quint32 fxi_id)
     }
 }
 
-/****************************************************************************
- * Timer
- ****************************************************************************/
-
-void Monitor::slotTimeout()
+void Monitor::slotUniversesWritten(const QByteArray& ua)
 {
-    const UniverseArray* universes = m_doc->outputMap()->peekUniverses();
-    QList <MonitorFixture*> list = findChildren <MonitorFixture*>();
-    QListIterator <MonitorFixture*> it(list);
+    QListIterator <MonitorFixture*> it(m_monitorFixtures);
     while (it.hasNext() == true)
-        it.next()->updateValues(universes->postGMValues());
+        it.next()->updateValues(ua);
 }

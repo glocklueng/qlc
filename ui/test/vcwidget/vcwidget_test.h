@@ -24,6 +24,7 @@
 
 #include <QObject>
 
+class QMdiArea;
 class Doc;
 class VCWidget_Test : public QObject
 {
@@ -45,6 +46,7 @@ private slots:
     void frame();
     void inputSource();
     void copy();
+    void stripKeySequence();
     void keyPress();
     void loadInput();
     void loadAppearance();
@@ -59,6 +61,7 @@ private slots:
     void mousePress();
 
 private:
+    QMdiArea* m_area;
     Doc* m_doc;
 };
 

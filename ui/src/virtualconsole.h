@@ -28,15 +28,17 @@
 #include <QList>
 
 #include "vcproperties.h"
-#include "app.h"
+#include "doc.h"
 
 class VirtualConsole;
 class QDomDocument;
 class QActionGroup;
+class QVBoxLayout;
 class QScrollArea;
 class QDomElement;
 class VCDockArea;
 class QKeyEvent;
+class QToolBar;
 class VCWidget;
 class VCFrame;
 class QAction;
@@ -78,10 +80,9 @@ public:
 
 protected:
     /** Protected constructor to prevent multiple instances */
-    VirtualConsole(QWidget* parent, Doc* doc, Qt::WindowFlags flags = 0);
+    VirtualConsole(QWidget* parent, Doc* doc);
 
 protected:
-    /** The singleton instance */
     static VirtualConsole* s_instance;
     Doc* m_doc;
 
@@ -89,12 +90,11 @@ protected:
      * Properties
      *********************************************************************/
 public:
-    /** Get VC properties */
-    static VCProperties properties();
+    /** Get Virtual Console properties (read-only) */
+    VCProperties properties() const;
 
-protected:
-    /** VC properties */
-    static VCProperties s_properties;
+private:
+    VCProperties m_properties;
 
     /*********************************************************************
      * Selected widgets
@@ -155,9 +155,6 @@ protected:
     /** Enable or disable actions based on current selection */
     void updateActions();
 
-protected slots:
-    void slotRunningFunctionsChanged();
-
 protected:
     QToolBar* m_toolbar;
 
@@ -180,9 +177,6 @@ protected:
     QAction* m_addLabelAction;
 
     QAction* m_toolsSettingsAction;
-    QAction* m_toolsSlidersAction;
-    QAction* m_toolsBlackoutAction;
-    QAction* m_toolsPanicAction;
 
     QAction* m_editCutAction;
     QAction* m_editCopyAction;
@@ -240,12 +234,7 @@ public slots:
      * Tools menu callbacks
      *********************************************************************/
 public slots:
-    void slotToolsSliders();
     void slotToolsSettings();
-    void slotToolsBlackout();
-    void slotToolsPanic();
-
-    void slotBlackoutChanged(bool state);
 
     /*********************************************************************
      * Edit menu callbacks
@@ -307,30 +296,35 @@ protected:
     void initDockArea();
 
 protected:
-    /** Dock area that holds the default fade & hold sliders */
+    /** Dock area that holds the default sliders */
     VCDockArea* m_dockArea;
 
     /*********************************************************************
      * Contents
      *********************************************************************/
 public:
-    /** Get the VC's current contents */
+    /** Get the Virtual Console's current contents */
     VCFrame* contents() const;
 
-    /** Reset the VC contents to an initial state */
-    static void resetContents(QWidget* parent, Doc* doc);
+    /** Reset the Virtual Console contents to an initial state */
+    void resetContents();
 
 protected:
     /** Place the contents area to the VC view */
     void initContents();
 
 protected:
-    /** Scroll Area that contains the bottom-most VCFrame */
+    QVBoxLayout* m_contentsLayout;
     QScrollArea* m_scrollArea;
+    VCFrame* m_contents;
 
     /*********************************************************************
      * Key press handler
      *********************************************************************/
+public:
+    /** Check if the tap modifier is currently pressed */
+    bool isTapModifierDown() const;
+
 protected:
     /** Handler for keyboard key presse events */
     void keyPressEvent(QKeyEvent* event);
@@ -345,12 +339,8 @@ signals:
     /** Signal telling that the keySequence was released */
     void keyReleased(const QKeySequence& keySequence);
 
-    /*************************************************************************
-     * External input
-     *************************************************************************/
-public slots:
-    /** Listens to external input data */
-    void slotInputValueChanged(quint32 uni, quint32 ch, uchar value);
+private:
+    bool m_tapModifierDown;
 
     /*********************************************************************
      * Main application mode
@@ -364,13 +354,13 @@ public slots:
      *********************************************************************/
 public:
     /** Load properties and contents from an XML tree */
-    static bool loadXML(const QDomElement& root);
+    bool loadXML(const QDomElement& root);
 
     /** Save properties and contents to an XML document */
-    static bool saveXML(QDomDocument* doc, QDomElement* wksp_root);
+    bool saveXML(QDomDocument* doc, QDomElement* wksp_root);
 
     /** Do post-load cleanup & checks */
-    static void postLoad();
+    void postLoad();
 };
 
 #endif

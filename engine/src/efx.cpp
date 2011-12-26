@@ -66,9 +66,10 @@ EFX::EFX(Doc* doc) : Function(doc, Function::EFX)
 
     m_fader = NULL;
 
-    /* Set default speed buses */
-    setBus(Bus::defaultHold());
-    setFadeBus(Bus::defaultFade());
+    setDuration(20000); // 20s
+
+    m_legacyHoldBus = Bus::invalid();
+    m_legacyFadeBus = Bus::invalid();
 }
 
 EFX::~EFX()
@@ -569,25 +570,14 @@ bool EFX::saveXML(QDomDocument* doc, QDomElement* wksp_root)
     text = doc->createTextNode(propagationModeToString(m_propagationMode));
     tag.appendChild(text);
 
-    /* Speed bus */
-    tag = doc->createElement(KXMLQLCBus);
-    root.appendChild(tag);
-    tag.setAttribute(KXMLQLCBusRole, KXMLQLCBusFade);
-    str.setNum(bus());
-    text = doc->createTextNode(str);
-    tag.appendChild(text);
+    /* Speeds */
+    saveXMLSpeed(doc, &root);
 
     /* Direction */
-    tag = doc->createElement(KXMLQLCFunctionDirection);
-    root.appendChild(tag);
-    text = doc->createTextNode(Function::directionToString(direction()));
-    tag.appendChild(text);
+    saveXMLDirection(doc, &root);
 
     /* Run order */
-    tag = doc->createElement(KXMLQLCFunctionRunOrder);
-    root.appendChild(tag);
-    text = doc->createTextNode(Function::runOrderToString(runOrder()));
-    tag.appendChild(text);
+    saveXMLRunOrder(doc, &root);
 
     /* Algorithm */
     tag = doc->createElement(KXMLQLCEFXAlgorithm);
@@ -675,42 +665,43 @@ bool EFX::saveXML(QDomDocument* doc, QDomElement* wksp_root)
     return true;
 }
 
-bool EFX::loadXML(const QDomElement* root)
+bool EFX::loadXML(const QDomElement& root)
 {
-    QString str;
-    QDomNode node;
-    QDomElement tag;
-
-    Q_ASSERT(root != NULL);
-
-    if (root->tagName() != KXMLQLCFunction)
+    if (root.tagName() != KXMLQLCFunction)
     {
         qWarning() << "Function node not found!";
         return false;
     }
 
-    if (root->attribute(KXMLQLCFunctionType) != typeToString(Function::EFX))
+    if (root.attribute(KXMLQLCFunctionType) != typeToString(Function::EFX))
     {
         qWarning("Function is not an EFX!");
         return false;
     }
 
     /* Load EFX contents */
-    node = root->firstChild();
+    QDomNode node = root.firstChild();
     while (node.isNull() == false)
     {
-        tag = node.toElement();
+        QDomElement tag = node.toElement();
 
         if (tag.tagName() == KXMLQLCBus)
         {
             /* Bus */
-            str = tag.attribute(KXMLQLCBusRole);
-            setBus(tag.text().toUInt());
+            QString str = tag.attribute(KXMLQLCBusRole);
+            if (str == KXMLQLCBusFade)
+                m_legacyFadeBus = tag.text().toUInt();
+            else if (str == KXMLQLCBusHold)
+                m_legacyHoldBus = tag.text().toUInt();
+        }
+        else if (tag.tagName() == KXMLQLCFunctionSpeed)
+        {
+            loadXMLSpeed(tag);
         }
         else if (tag.tagName() == KXMLQLCEFXFixture)
         {
             EFXFixture* ef = new EFXFixture(this);
-            ef->loadXML(&tag);
+            ef->loadXML(tag);
             if (ef->fixture() != Fixture::invalidId())
             {
                 if (addFixture(ef) == false)
@@ -729,13 +720,11 @@ bool EFX::loadXML(const QDomElement* root)
         }
         else if (tag.tagName() == KXMLQLCFunctionDirection)
         {
-            /* Direction */
-            setDirection(Function::stringToDirection(tag.text()));
+            loadXMLDirection(tag);
         }
         else if (tag.tagName() == KXMLQLCFunctionRunOrder)
         {
-            /* Run Order */
-            setRunOrder(Function::stringToRunOrder(tag.text()));
+            loadXMLRunOrder(tag);
         }
         else if (tag.tagName() == KXMLQLCEFXWidth)
         {
@@ -755,7 +744,7 @@ bool EFX::loadXML(const QDomElement* root)
         else if (tag.tagName() == KXMLQLCEFXAxis)
         {
             /* Axes */
-            loadXMLAxis(&tag);
+            loadXMLAxis(tag);
         }
         else
         {
@@ -768,50 +757,35 @@ bool EFX::loadXML(const QDomElement* root)
     return true;
 }
 
-bool EFX::loadXMLAxis(const QDomElement* root)
+bool EFX::loadXMLAxis(const QDomElement& root)
 {
     int frequency = 0;
     int offset = 0;
     int phase = 0;
     QString axis;
 
-    QDomNode node;
-    QDomElement tag;
-
-    Q_ASSERT(root != NULL);
-
-    if (root->tagName() != KXMLQLCEFXAxis)
+    if (root.tagName() != KXMLQLCEFXAxis)
     {
         qWarning() << "EFX axis node not found!";
         return false;
     }
 
     /* Get the axis name */
-    axis = root->attribute(KXMLQLCFunctionName);
+    axis = root.attribute(KXMLQLCFunctionName);
 
     /* Load axis contents */
-    node = root->firstChild();
+    QDomNode node = root.firstChild();
     while (node.isNull() == false)
     {
-        tag = node.toElement();
-
+        QDomElement tag = node.toElement();
         if (tag.tagName() == KXMLQLCEFXOffset)
-        {
             offset = tag.text().toInt();
-        }
         else if (tag.tagName() == KXMLQLCEFXFrequency)
-        {
             frequency = tag.text().toInt();
-        }
         else if (tag.tagName() == KXMLQLCEFXPhase)
-        {
             phase = tag.text().toInt();
-        }
         else
-        {
             qWarning() << "Unknown EFX axis tag:" << tag.tagName();
-        }
-
         node = node.nextSibling();
     }
 
@@ -820,7 +794,6 @@ bool EFX::loadXMLAxis(const QDomElement* root)
         setYOffset(offset);
         setYFrequency(frequency);
         setYPhase(phase);
-
         return true;
     }
     else if (axis == KXMLQLCEFXX)
@@ -828,30 +801,30 @@ bool EFX::loadXMLAxis(const QDomElement* root)
         setXOffset(offset);
         setXFrequency(frequency);
         setXPhase(phase);
-
         return true;
     }
     else
     {
         qWarning() << "Unknown EFX axis:" << axis;
-
         return false;
     }
 }
 
-/*****************************************************************************
- * Bus
- *****************************************************************************/
-
-void EFX::setFadeBus(quint32 id)
+void EFX::postLoad()
 {
-    if (id < Bus::count())
-        m_fadeBus = id;
-}
+    // Map legacy bus speeds to fixed speed values
+    if (m_legacyFadeBus != Bus::invalid())
+    {
+        quint32 value = Bus::instance()->value(m_legacyFadeBus);
+        setFadeInSpeed((value / MasterTimer::frequency()) * 1000);
+        setFadeOutSpeed((value / MasterTimer::frequency()) * 1000);
+    }
 
-quint32 EFX::fadeBusID() const
-{
-    return m_fadeBus;
+    if (m_legacyHoldBus != Bus::invalid())
+    {
+        quint32 value = Bus::instance()->value(m_legacyHoldBus);
+        setDuration((value / MasterTimer::frequency()) * 1000);
+    }
 }
 
 /*****************************************************************************

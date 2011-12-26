@@ -37,7 +37,6 @@
 void MonitorFixture_Test::initTestCase()
 {
     m_doc = new Doc(this);
-    Bus::init(this);
 }
 
 void MonitorFixture_Test::cleanupTestCase()
@@ -78,7 +77,7 @@ void MonitorFixture_Test::fixture()
     mof.setFixture(fxi->id());
     QCOMPARE(mof.fixture(), fxi->id());
     QVERIFY(mof.m_fixtureLabel != NULL);
-    QCOMPARE(mof.m_fixtureLabel->text(), QString("<B>Foobar</B> <I>(Universe 1)</I>"));
+    QCOMPARE(mof.m_fixtureLabel->text(), QString("<B>Foobar</B>"));
     QCOMPARE(mof.m_channelLabels.size(), 6);
     QCOMPARE(mof.m_valueLabels.size(), 6);
     for (int i = 0; i < mof.m_channelLabels.size(); i++)
@@ -217,7 +216,7 @@ void MonitorFixture_Test::updateValues()
     for (int i = 0; i < 10; i++)
         ba[i] = 127 + i;
 
-    mof.updateValues(&ba);
+    mof.updateValues(ba);
     for (int i = 0; i < mof.m_valueLabels.size(); i++)
     {
         QString str;
@@ -225,7 +224,7 @@ void MonitorFixture_Test::updateValues()
     }
 
     mof.slotValueStyleChanged(Monitor::PercentageValues);
-    mof.updateValues(&ba);
+    mof.updateValues(ba);
     for (int i = 0; i < mof.m_valueLabels.size(); i++)
     {
         QString str;

@@ -36,14 +36,11 @@ class QDomElement;
 class QMessageBox;
 class QToolButton;
 class QFileDialog;
-class QStatusBar;
-class QMenuBar;
+class QMdiArea;
 class QToolBar;
 class QPixmap;
 class QAction;
 class QLabel;
-class QTimer;
-class QMenu;
 class App;
 
 #define KXMLQLCWorkspace "Workspace"
@@ -60,12 +57,13 @@ public:
     App();
     ~App();
 
-    static QString longName();
-    static QString version();
-
-protected:
+private:
     void init();
     void closeEvent(QCloseEvent*);
+    void setActiveWindow(const QString& name);
+
+private:
+    QMdiArea* m_area;
 
     /*********************************************************************
      * Progress dialog
@@ -77,15 +75,8 @@ public:
 public slots:
     void slotSetProgressText(const QString& text);
 
-protected:
+private:
     QProgressDialog* m_progressDialog;
-
-    /*********************************************************************
-     * Output mapping
-     *********************************************************************/
-protected slots:
-    void slotOutputMapBlackoutChanged(bool state);
-    void slotFlashBlackoutIndicator();
 
     /*********************************************************************
      * Doc
@@ -93,13 +84,13 @@ protected slots:
 public:
     void clearDocument();
 
-protected slots:
+private slots:
     void slotDocModified(bool state);
 
-protected:
+private:
     void initDoc();
 
-protected:
+private:
     Doc* m_doc;
 
     /*********************************************************************
@@ -109,143 +100,51 @@ public slots:
     void slotModeOperate();
     void slotModeDesign();
     void slotModeToggle();
-
     void slotModeChanged(Doc::Mode mode);
 
     /*********************************************************************
-     * Sane style
+     * Actions and toolbar
      *********************************************************************/
-public:
-    /** Attempt to get a sane style that replaces windows' crappy sliders
-     *  and buttons that don't obey background color setting. */
-    static QStyle* saneStyle();
-
-protected:
-    static QStyle* s_saneStyle;
-
-    /*********************************************************************
-     * Status bar
-     *********************************************************************/
-protected:
-    void initStatusBar();
-
-protected:
-    /** Flashing blackout indicator on the status bar */
-    QLabel* m_blackoutIndicator;
-
-    /** Periodic timer object for the flashing indicator */
-    QTimer* m_blackoutIndicatorTimer;
-
-    /** Mode indicator on the status bar */
-    QLabel* m_modeIndicator;
-
-    /** Indicator showing available fixture space */
-    QLabel* m_fixtureAllocationIndicator;
-
-    /** Indicator showing available function space */
-    QLabel* m_functionAllocationIndicator;
-
-    /*********************************************************************
-     * Menus & toolbars
-     *********************************************************************/
-protected:
+private:
     void initActions();
-    void initMenuBar();
     void initToolBar();
-    QMenuBar *menuBar();
-
-    /** Displays an error message if a file error has occurred */
     bool handleFileError(QFile::FileError error);
 
 public slots:
+    void slotToolBarVisibilityChanged(bool visible);
+
     bool slotFileNew();
     QFile::FileError slotFileOpen();
     QFile::FileError slotFileSave();
     QFile::FileError slotFileSaveAs();
-    void slotFileQuit();
 
-    void slotFixtureManager();
-    void slotFunctionManager();
-    void slotBusManager();
-    void slotOutputManager();
-    void slotInputManager();
-
-    void slotControlVC();
     void slotControlMonitor();
-#ifndef __APPLE__
     void slotControlFullScreen();
-#endif
-
-#ifdef __APPLE__
-    void slotWindowMenuAboutToShow();
-    void slotWindowMenuItemSelected();
-    void slotWindowMinimize();
-    void slotWindowAllToFront();
-#endif
+    void slotControlBlackout();
+    void slotBlackoutChanged(bool state);
+    void slotControlPanic();
+    void slotRunningFunctionsChanged();
 
     void slotHelpIndex();
     void slotHelpAbout();
-    void slotHelpAboutQt();
 
-    void slotCustomContextMenuRequested(const QPoint&);
-
-protected:
+private:
     QAction* m_fileNewAction;
     QAction* m_fileOpenAction;
     QAction* m_fileSaveAction;
     QAction* m_fileSaveAsAction;
-    QAction* m_fileQuitAction;
-
-    QAction* m_fixtureManagerAction;
-    QAction* m_functionManagerAction;
-    QAction* m_busManagerAction;
-    QAction* m_inputManagerAction;
-    QAction* m_outputManagerAction;
 
     QAction* m_modeToggleAction;
-    QAction* m_controlVCAction;
     QAction* m_controlMonitorAction;
-#ifndef __APPLE__
     QAction* m_controlFullScreenAction;
-#endif
-
-#ifdef __APPLE__
-    QAction* m_windowMinimizeAction;
-    QAction* m_windowAllToFrontAction;
-#endif
+    QAction* m_controlBlackoutAction;
+    QAction* m_controlPanicAction;
 
     QAction* m_helpIndexAction;
     QAction* m_helpAboutAction;
-    QAction* m_helpAboutQtAction;
 
-protected:
-    QMenu* m_fileMenu;
-    QMenu* m_managerMenu;
-    QMenu* m_controlMenu;
-    QMenu* m_helpMenu;
-
-#ifdef __APPLE__
-    QMenu* m_windowMenu;
-#endif
-
+private:
     QToolBar* m_toolbar;
-
-    /*********************************************************************
-     * Workspace background
-     *********************************************************************/
-public:
-    /** Set workspace background image from the given path */
-    void setBackgroundImage(QString path);
-
-public slots:
-    /** Open a file dialog to browse an image for workspace background */
-    void slotSetBackgroundImage();
-
-    /** Clear the current workspace background */
-    void slotClearBackgroundImage();
-
-protected:
-    QString m_backgroundImage;
 
     /*********************************************************************
      * Load & Save
@@ -274,7 +173,7 @@ public:
      *
      * @param doc The XML document to load from.
      */
-    bool loadXML(const QDomDocument* doc);
+    bool loadXML(const QDomDocument& doc);
 
     /**
      * Save workspace contents to a file with the given name. Changes the
@@ -285,7 +184,7 @@ public:
      */
     QFile::FileError saveXML(const QString& fileName);
 
-protected:
+private:
     QString m_fileName;
 };
 

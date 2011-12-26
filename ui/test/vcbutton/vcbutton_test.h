@@ -24,6 +24,7 @@
 
 #include <QObject>
 
+class QMdiArea;
 class Doc;
 class VCButton_Test : public QObject
 {
@@ -50,12 +51,14 @@ private slots:
     void save();
     void customMenu();
     void toggle();
+    void tap();
     void flash();
     void input();
     void paint();
 
 private:
     Doc* m_doc;
+    QMdiArea* m_area;
 };
 
 #endif

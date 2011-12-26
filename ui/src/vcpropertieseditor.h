@@ -57,37 +57,17 @@ protected:
     /*********************************************************************
      * Layout page
      *********************************************************************/
+private:
+    void fillTapModifierCombo();
+
 protected slots:
     void slotGrabKeyboardClicked();
     void slotKeyRepeatOffClicked();
+    void slotTapModifierActivated(int index);
 
     void slotGridClicked();
     void slotGridXChanged(int value);
     void slotGridYChanged(int value);
-
-    /*************************************************************************
-     * Fade slider page
-     *************************************************************************/
-protected slots:
-    void slotFadeLimitsChanged();
-    void slotAutoDetectFadeInputToggled(bool checked);
-    void slotFadeInputValueChanged(quint32 universe, quint32 channel);
-    void slotChooseFadeInputClicked();
-
-protected:
-    void updateFadeInputSource();
-
-    /*************************************************************************
-     * Hold slider page
-     *************************************************************************/
-protected slots:
-    void slotHoldLimitsChanged();
-    void slotAutoDetectHoldInputToggled(bool checked);
-    void slotHoldInputValueChanged(quint32 universe, quint32 channel);
-    void slotChooseHoldInputClicked();
-
-protected:
-    void updateHoldInputSource();
 
     /*************************************************************************
      * Grand Master page

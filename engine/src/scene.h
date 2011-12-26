@@ -25,6 +25,7 @@
 #include <QList>
 #include <QtXml>
 
+#include "genericfader.h"
 #include "fadechannel.h"
 #include "scenevalue.h"
 #include "dmxsource.h"
@@ -34,12 +35,11 @@
 /**
  * Scene encapsulates the values of selected channels from one or more fixture
  * instances. When a scene is started, the duration it takes for its channels
- * to reach their target values depends on the function's speed setting. Bus
- * number 1 (Default Fade) is assigned to all newly created scenes by default.
- * If the bus' value is 0 seconds, scene values are set immediately and no
+ * to reach their target values depends on the function's fade in speed setting.
+ * For HTP channels, the fade out setting is also used when the scene is toggled off.
+ * If the speed value is 0 seconds, scene values are set immediately and no
  * fading occurs. Otherwise values are always faded from what they currently
  * are, to the target values defined in the scene (with SceneValue instances).
- * Channels that are not enabled in the scene will not be touched at all.
  */
 class Scene : public Function, public DMXSource
 {
@@ -62,6 +62,9 @@ public:
      * Destroy the scene
      */
     ~Scene();
+
+private:
+    quint32 m_legacyFadeBus;
 
     /*********************************************************************
      * Copying
@@ -124,7 +127,7 @@ public:
     bool saveXML(QDomDocument* doc, QDomElement* wksp_root);
 
     /** @reimpl */
-    bool loadXML(const QDomElement* root);
+    bool loadXML(const QDomElement& root);
 
     /** @reimpl */
     void postLoad();
@@ -140,7 +143,7 @@ public:
     void unFlash(MasterTimer* timer);
 
     /** @reimpl from DMXSource */
-    void writeDMX(MasterTimer* timer, UniverseArray* universes);
+    void writeDMX(MasterTimer* timer, UniverseArray* ua);
 
     /*********************************************************************
      * Running
@@ -150,30 +153,24 @@ public:
     void preRun(MasterTimer* timer);
 
     /** @reimpl */
-    void write(MasterTimer* timer, UniverseArray* universes);
+    void write(MasterTimer* timer, UniverseArray* ua);
 
     /** @reimpl */
-    void postRun(MasterTimer* timer, UniverseArray* universes);
+    void postRun(MasterTimer* timer, UniverseArray* ua);
 
-    /**
-     * Write the scene values to OutputMap. If fxi_id is given, writes
-     * values only for the specified fixture.
-     *
-     * The scene must be armed with arm() before calling this function or
-     * otherwise nothing will be written.
-     *
-     * @param universes The universe array to write values to
-     * @param fxi_id if non-invalid, writes values concerning only given fixture
-     * @param grp if non-invalid, writes values concerning only given channel group
-     * @param percentage Percentage 0.0 - 1.0 of the actual value to write (default 1.0)
-     */
-    virtual void writeValues(UniverseArray* universes,
-                             quint32 fxi_id = Fixture::invalidId(),
-                             QLCChannel::Group grp = QLCChannel::NoGroup,
-                             qreal percentage = 1.0);
+private:
+    /** Insert starting values to $fc, either from $timer->fader() or $ua */
+    void insertStartValue(FadeChannel& fc, const MasterTimer* timer, const UniverseArray* ua);
 
-protected:
-    QList <FadeChannel> m_armedChannels;
+private:
+    GenericFader* m_fader;
+
+    /*********************************************************************
+     * Intensity
+     *********************************************************************/
+public:
+    /** @reimpl */
+    void adjustIntensity(qreal intensity);
 };
 
 #endif

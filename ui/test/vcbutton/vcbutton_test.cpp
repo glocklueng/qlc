@@ -19,13 +19,13 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
+#include <QMdiArea>
 #include <QObject>
 #include <QtTest>
 #include <QMenu>
 
 #define protected public
 #define private public
-
 #include "qlcfixturedefcache.h"
 #include "qlcinputsource.h"
 #include "virtualconsole.h"
@@ -38,27 +38,34 @@
 #include "vcframe.h"
 #include "scene.h"
 #include "doc.h"
-#include "bus.h"
-
 #undef private
 #undef protected
+
+static const QKeySequence keySequenceA(Qt::Key_A);
+static const QKeySequence keySequenceB(Qt::Key_B);
 
 void VCButton_Test::initTestCase()
 {
     m_doc = NULL;
-    Bus::init(this);
+    m_area = NULL;
 }
 
 void VCButton_Test::init()
 {
     m_doc = new Doc(this);
-    m_doc->masterTimer()->start();
+    m_area = new QMdiArea;
+    VirtualConsole::createAndShow(m_area, m_doc);
+
+    Fixture* fxi = new Fixture(m_doc);
+    fxi->setChannels(4);
+    m_doc->addFixture(fxi);
 }
 
 void VCButton_Test::cleanup()
 {
+    delete VirtualConsole::instance();
+    delete m_area;
     delete m_doc;
-    m_doc = NULL;
 }
 
 void VCButton_Test::initial()
@@ -260,11 +267,11 @@ void VCButton_Test::keySequence()
     VCButton btn(&w, m_doc);
     QCOMPARE(btn.keySequence(), QKeySequence());
 
-    QKeySequence seq(QKeySequence::Copy);
+    QKeySequence seq(keySequenceA);
     btn.setKeySequence(seq);
     QCOMPARE(btn.keySequence(), seq);
 
-    seq = QKeySequence(QKeySequence::Undo);
+    seq = QKeySequence(keySequenceB);
     QVERIFY(btn.keySequence() != seq);
     btn.setKeySequence(seq);
     QCOMPARE(btn.keySequence(), seq);
@@ -282,7 +289,7 @@ void VCButton_Test::copy()
     btn.setIcon("../../../gfx/qlc.png");
     btn.setFunction(sc->id());
     btn.setAction(VCButton::Flash);
-    btn.setKeySequence(QKeySequence(QKeySequence::Undo));
+    btn.setKeySequence(QKeySequence(keySequenceB));
     btn.setAdjustIntensity(true);
     btn.setIntensityAdjustment(0.2);
 
@@ -293,7 +300,7 @@ void VCButton_Test::copy()
     QCOMPARE(copy->icon(), QString("../../../gfx/qlc.png"));
     QCOMPARE(copy->function(), sc->id());
     QCOMPARE(copy->action(), VCButton::Flash);
-    QCOMPARE(copy->keySequence(), QKeySequence(QKeySequence::Undo));
+    QCOMPARE(copy->keySequence(), QKeySequence(keySequenceB));
     QCOMPARE(copy->adjustIntensity(), true);
     QCOMPARE(copy->intensityAdjustment(), qreal(0.2));
     delete copy;
@@ -336,7 +343,7 @@ void VCButton_Test::load()
     root.appendChild(action);
 
     QDomElement key = xmldoc.createElement("Key");
-    QDomText keyText = xmldoc.createTextNode(QKeySequence(QKeySequence::Copy).toString());
+    QDomText keyText = xmldoc.createTextNode(QKeySequence(keySequenceA).toString());
     key.appendChild(keyText);
     root.appendChild(key);
 
@@ -355,7 +362,7 @@ void VCButton_Test::load()
     QCOMPARE(btn.icon(), QString("../../../gfx/qlc.png"));
     QCOMPARE(btn.function(), sc->id());
     QCOMPARE(btn.action(), VCButton::Flash);
-    QCOMPARE(btn.keySequence(), QKeySequence(QKeySequence::Copy));
+    QCOMPARE(btn.keySequence(), QKeySequence(keySequenceA));
     QCOMPARE(btn.adjustIntensity(), true);
     QCOMPARE(btn.intensityAdjustment(), qreal(0.6));
     QCOMPARE(btn.pos(), QPoint(20, 20));
@@ -367,7 +374,7 @@ void VCButton_Test::load()
     QCOMPARE(btn.icon(), QString("../../../gfx/qlc.png"));
     QCOMPARE(btn.function(), sc->id());
     QCOMPARE(btn.action(), VCButton::Flash);
-    QCOMPARE(btn.keySequence(), QKeySequence(QKeySequence::Copy));
+    QCOMPARE(btn.keySequence(), QKeySequence(keySequenceA));
     QCOMPARE(btn.adjustIntensity(), false);
     QCOMPARE(btn.intensityAdjustment(), qreal(0.6));
     QCOMPARE(btn.pos(), QPoint(20, 20));
@@ -389,7 +396,7 @@ void VCButton_Test::save()
     btn.setIcon("../../../gfx/qlc.png");
     btn.setFunction(sc->id());
     btn.setAction(VCButton::Flash);
-    btn.setKeySequence(QKeySequence(QKeySequence::Undo));
+    btn.setKeySequence(QKeySequence(keySequenceB));
     btn.setAdjustIntensity(true);
     btn.setIntensityAdjustment(0.2);
 
@@ -420,7 +427,7 @@ void VCButton_Test::save()
         else if (tag.tagName() == "Key")
         {
             key++;
-            QCOMPARE(tag.text(), QKeySequence(QKeySequence::Undo).toString());
+            QCOMPARE(tag.text(), QKeySequence(keySequenceB).toString());
         }
         else if (tag.tagName() == "Intensity")
         {
@@ -471,35 +478,37 @@ void VCButton_Test::toggle()
     QWidget w;
 
     Scene* sc = new Scene(m_doc);
+    sc->setValue(0, 0, 255);
+    sc->setFadeInSpeed(1000);
+    sc->setFadeOutSpeed(1000);
     m_doc->addFunction(sc);
 
     VCButton btn(&w, m_doc);
     btn.setCaption("Foobar");
     btn.setFunction(sc->id());
     btn.setAction(VCButton::Toggle);
-    btn.setKeySequence(QKeySequence(QKeySequence::Undo));
+    btn.setKeySequence(QKeySequence(keySequenceB));
     btn.setAdjustIntensity(true);
     btn.setIntensityAdjustment(0.2);
 
+    // Mouse button press in design mode doesn't toggle the function
+    QCOMPARE(m_doc->mode(), Doc::Design);
     QMouseEvent ev(QEvent::MouseButtonPress, QPoint(0, 0), Qt::LeftButton, 0, 0);
     btn.mousePressEvent(&ev);
     QCOMPARE(m_doc->masterTimer()->m_functionList.size(), 0);
-
     ev = QMouseEvent(QEvent::MouseButtonRelease, QPoint(0, 0), Qt::LeftButton, 0, 0);
     btn.mouseReleaseEvent(&ev);
     QCOMPARE(m_doc->masterTimer()->m_functionList.size(), 0);
 
+    // Mouse button press in operate mode should toggle the function
     m_doc->setMode(Doc::Operate);
-    btn.slotKeyPressed(QKeySequence(QKeySequence::Undo));
+    btn.slotKeyPressed(QKeySequence(keySequenceB));
     QCOMPARE(m_doc->masterTimer()->m_functionList.size(), 1);
     QCOMPARE(m_doc->masterTimer()->m_functionList[0], sc);
-    QCOMPARE(btn.isOn(), false);
-    sc->preRun(m_doc->masterTimer());
-    QCOMPARE(btn.isOn(), true);
     QCOMPARE(sc->intensity(), btn.intensityAdjustment());
-
-    btn.slotKeyReleased(QKeySequence(QKeySequence::Undo));
-    QCOMPARE(sc->m_stop, false);
+    btn.slotKeyReleased(QKeySequence(keySequenceB));
+    m_doc->masterTimer()->timerTick(); // Allow MasterTimer to take the function under execution
+    QCOMPARE(sc->stopped(), false);
     QCOMPARE(btn.isOn(), true);
 
     ev = QMouseEvent(QEvent::MouseButtonPress, QPoint(0, 0), Qt::LeftButton, 0, 0);
@@ -518,6 +527,76 @@ void VCButton_Test::toggle()
     btn.mouseReleaseEvent(&ev);
 }
 
+void VCButton_Test::tap()
+{
+    m_area->show();
+
+    Scene* sc = new Scene(m_doc);
+    sc->setValue(0, 0, 255);
+    sc->setFadeInSpeed(1000);
+    sc->setFadeOutSpeed(1000);
+    sc->setDuration(0);
+    m_doc->addFunction(sc);
+
+    VCButton* btn = new VCButton(VirtualConsole::instance()->contents(), m_doc);
+    btn->setCaption("Foobar");
+    btn->setFunction(sc->id());
+    btn->setAction(VCButton::Toggle);
+    btn->setKeySequence(QKeySequence(keySequenceB));
+    btn->setAdjustIntensity(true);
+    btn->setIntensityAdjustment(0.2);
+
+    QMouseEvent ev = QMouseEvent(QEvent::MouseButtonPress, QPoint(0, 0), Qt::LeftButton, 0, 0);
+
+    // Let's say the tap modifier is down
+    VirtualConsole::instance()->m_tapModifierDown = true;
+
+    // Mouse button press in design mode doesn't do tap
+    QCOMPARE(m_doc->mode(), Doc::Design);
+
+    // Perform a click
+    ev = QMouseEvent(QEvent::MouseButtonPress, QPoint(0, 0), Qt::LeftButton, 0, 0);
+    btn->mousePressEvent(&ev);
+    ev = QMouseEvent(QEvent::MouseButtonRelease, QPoint(0, 0), Qt::LeftButton, 0, 0);
+    btn->mouseReleaseEvent(&ev);
+
+    QTest::qWait(100); // Wait a while
+
+    // Perform another click
+    ev = QMouseEvent(QEvent::MouseButtonPress, QPoint(0, 0), Qt::LeftButton, 0, 0);
+    btn->mousePressEvent(&ev);
+    ev = QMouseEvent(QEvent::MouseButtonRelease, QPoint(0, 0), Qt::LeftButton, 0, 0);
+    btn->mouseReleaseEvent(&ev);
+
+    // Not in operate mode -> duration is unaffected
+    QCOMPARE(sc->duration(), uint(0));
+
+    // Mouse button press with tap modifier down in operate mode should do tap
+    m_doc->setMode(Doc::Operate);
+
+    // Perform a click
+    ev = QMouseEvent(QEvent::MouseButtonPress, QPoint(0, 0), Qt::LeftButton, 0, 0);
+    btn->mousePressEvent(&ev);
+    ev = QMouseEvent(QEvent::MouseButtonRelease, QPoint(0, 0), Qt::LeftButton, 0, 0);
+    btn->mouseReleaseEvent(&ev);
+
+    QTest::qWait(100); // Wait a while
+
+    // Perform a click
+    ev = QMouseEvent(QEvent::MouseButtonPress, QPoint(0, 0), Qt::LeftButton, 0, 0);
+    btn->mousePressEvent(&ev);
+    ev = QMouseEvent(QEvent::MouseButtonRelease, QPoint(0, 0), Qt::LeftButton, 0, 0);
+    btn->mouseReleaseEvent(&ev);
+
+    // In operate mode -> duration should be set
+    QVERIFY(sc->duration() >= 100);
+
+    m_doc->setMode(Doc::Design);
+
+    delete VirtualConsole::instance();
+    VirtualConsole::s_instance = NULL;
+}
+
 void VCButton_Test::flash()
 {
     QWidget w;
@@ -529,14 +608,13 @@ void VCButton_Test::flash()
     btn.setCaption("Foobar");
     btn.setFunction(sc->id());
     btn.setAction(VCButton::Flash);
-    btn.setKeySequence(QKeySequence(QKeySequence::Undo));
+    btn.setKeySequence(QKeySequence(keySequenceB));
     btn.setAdjustIntensity(false);
     btn.setIntensityAdjustment(0.2);
 
     QSignalSpy spy(sc, SIGNAL(flashing(quint32,bool)));
 
-    m_doc->setMode(Doc::Operate);
-    btn.slotKeyPressed(QKeySequence(QKeySequence::Undo));
+    btn.slotKeyPressed(QKeySequence(keySequenceB));
     QCOMPARE(m_doc->masterTimer()->m_functionList.size(), 0);
     QCOMPARE(btn.isOn(), true);
     QCOMPARE(sc->intensity(), qreal(1.0));
@@ -544,7 +622,7 @@ void VCButton_Test::flash()
     QCOMPARE(spy[0][0].toUInt(), sc->id());
     QCOMPARE(spy[0][1].toBool(), true);
 
-    btn.slotKeyReleased(QKeySequence(QKeySequence::Undo));
+    btn.slotKeyReleased(QKeySequence(keySequenceB));
     QCOMPARE(btn.isOn(), false);
     QCOMPARE(spy.size(), 2);
     QCOMPARE(spy[1][0].toUInt(), sc->id());
@@ -559,6 +637,9 @@ void VCButton_Test::input()
     QWidget w;
 
     Scene* sc = new Scene(m_doc);
+    sc->setValue(0, 0, 255);
+    sc->setFadeInSpeed(1000);
+    sc->setFadeOutSpeed(1000);
     m_doc->addFunction(sc);
 
     VCButton btn(&w, m_doc);
@@ -592,13 +673,10 @@ void VCButton_Test::input()
     btn.slotInputValueChanged(0, 0, 0);
     QCOMPARE(btn.isOn(), false);
 
-    m_doc->setMode(Doc::Design);
     btn.setAction(VCButton::Toggle);
-    m_doc->setMode(Doc::Operate);
 
     btn.slotInputValueChanged(0, 0, 255);
-    QCOMPARE(btn.isOn(), false);
-    sc->preRun(m_doc->masterTimer());
+    m_doc->masterTimer()->timerTick();
     QCOMPARE(btn.isOn(), true);
     QCOMPARE(sc->intensity(), btn.intensityAdjustment());
 

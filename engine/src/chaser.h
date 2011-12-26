@@ -27,9 +27,10 @@
 
 class QFile;
 class QString;
-class QDomDocument;
+class ChaserStep;
 class MasterTimer;
 class ChaserRunner;
+class QDomDocument;
 
 /**
  * Chaser is a meta-function; it consists of other functions that are run in a
@@ -52,6 +53,9 @@ public:
     Chaser(Doc* doc);
     virtual ~Chaser();
 
+private:
+    quint32 m_legacyHoldBus;
+
     /*********************************************************************
      * Copying
      *********************************************************************/
@@ -67,15 +71,16 @@ public:
      *********************************************************************/
 public:
     /**
-     * Add the given function to the end of this chaser's step list. The
-     * same function can exist any number of times in a chaser. No checks
-     * for the function's validity are made at this point, except that the
-     * chaser's own ID cannot be added (i.e. a chaser cannot be its own
-     * direct member).
+     * Add the given step to the chaser, either at the specified index, given
+     * that 0 <= index < size or at the end if size < index < 0. The same
+     * function can exist any number of times in a chaser. No checks for the
+     * function's validity are made at this point, except that the chaser's own
+     * ID cannot be added (i.e. a chaser cannot be its own direct member).
      *
-     * @param fid The ID of the function to add
+     * @param step The step to add
+     * @param index Insertion point. -1 to append.
      */
-    bool addStep(quint32 fid);
+    bool addStep(const ChaserStep& step, int index = -1);
 
     /**
      * Remove a function from the given step index. If the given index is
@@ -92,18 +97,11 @@ public:
     void clear();
 
     /**
-     * Get the chaser's list of steps as function IDs
+     * Get the chaser's list of steps
      *
-     * @return List of function IDs
+     * @return List of function Chaser Steps
      */
-    QList <quint32> steps() const;
-
-    /**
-     * Get the chaser's list of steps as function pointers
-     *
-     * @return List of function pointers
-     */
-    QList <Function*> stepFunctions() const;
+    QList <ChaserStep> steps() const;
 
 public slots:
     /**
@@ -116,8 +114,8 @@ public slots:
      */
     void slotFunctionRemoved(quint32 fid);
 
-protected:
-    QList <quint32> m_steps;
+private:
+    QList <ChaserStep> m_steps;
 
     /*********************************************************************
      * Save & Load
@@ -127,17 +125,21 @@ public:
     bool saveXML(QDomDocument* doc, QDomElement* wksp_root);
 
     /** Load this function contents from an XML document */
-    bool loadXML(const QDomElement* root);
+    bool loadXML(const QDomElement& root);
 
     /** @reimp */
     void postLoad();
 
     /*********************************************************************
+     * Speed
+     *********************************************************************/
+public:
+    /** @reimpl */
+    void tap();
+
+    /*********************************************************************
      * Running
      *********************************************************************/
-protected slots:
-    void slotBusTapped(quint32 id);
-
 public:
     /** @reimpl */
     void preRun(MasterTimer* timer);
@@ -148,11 +150,8 @@ public:
     /** @reimpl */
     void postRun(MasterTimer* timer, UniverseArray* universes);
 
-protected:
-    bool m_tapped;
+private:
     ChaserRunner* m_runner;
-    Direction m_runTimeDirection;
-    int m_runTimePosition;
 
     /*************************************************************************
      * Intensity

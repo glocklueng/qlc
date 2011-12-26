@@ -131,46 +131,38 @@ QString Script::data() const
  * Load & Save
  ****************************************************************************/
 
-bool Script::loadXML(const QDomElement* root)
+bool Script::loadXML(const QDomElement& root)
 {
-    QDomNode node;
-    QDomElement tag;
-
-    Q_ASSERT(root != NULL);
-
-    if (root->tagName() != KXMLQLCFunction)
+    if (root.tagName() != KXMLQLCFunction)
     {
         qWarning() << Q_FUNC_INFO << "Function node not found";
         return false;
     }
 
-    if (root->attribute(KXMLQLCFunctionType) != typeToString(Function::Script))
+    if (root.attribute(KXMLQLCFunctionType) != typeToString(Function::Script))
     {
-        qWarning() << Q_FUNC_INFO << root->attribute(KXMLQLCFunctionType)
+        qWarning() << Q_FUNC_INFO << root.attribute(KXMLQLCFunctionType)
                    << "is not a script";
         return false;
     }
 
     /* Load script contents */
-    node = root->firstChild();
+    QDomNode node = root.firstChild();
     while (node.isNull() == false)
     {
-        tag = node.toElement();
+        QDomElement tag = node.toElement();
 
-        if (tag.tagName() == KXMLQLCBus)
+        if (tag.tagName() == KXMLQLCFunctionSpeed)
         {
-            /* Bus */
-            setBus(tag.text().toUInt());
+            loadXMLSpeed(tag);
         }
         else if (tag.tagName() == KXMLQLCFunctionDirection)
         {
-            /* Direction */
-            setDirection(Function::stringToDirection(tag.text()));
+            loadXMLDirection(tag);
         }
         else if (tag.tagName() == KXMLQLCFunctionRunOrder)
         {
-            /* Run Order */
-            setRunOrder(Function::stringToRunOrder(tag.text()));
+            loadXMLRunOrder(tag);
         }
         else if (tag.tagName() == KXMLQLCScriptContents)
         {
@@ -204,24 +196,14 @@ bool Script::saveXML(QDomDocument* doc, QDomElement* wksp_root)
     root.setAttribute(KXMLQLCFunctionType, Function::typeToString(type()));
     root.setAttribute(KXMLQLCFunctionName, name());
 
-    /* Speed bus */
-    tag = doc->createElement(KXMLQLCBus);
-    root.appendChild(tag);
-    tag.setAttribute(KXMLQLCBusRole, KXMLQLCBusFade);
-    text = doc->createTextNode(QString::number(bus()));
-    tag.appendChild(text);
+    /* Speed */
+    saveXMLSpeed(doc, &root);
 
     /* Direction */
-    tag = doc->createElement(KXMLQLCFunctionDirection);
-    root.appendChild(tag);
-    text = doc->createTextNode(Function::directionToString(direction()));
-    tag.appendChild(text);
+    saveXMLDirection(doc, &root);
 
     /* Run order */
-    tag = doc->createElement(KXMLQLCFunctionRunOrder);
-    root.appendChild(tag);
-    text = doc->createTextNode(Function::runOrderToString(runOrder()));
-    tag.appendChild(text);
+    saveXMLRunOrder(doc, &root);
 
     /* Contents */
     tag = doc->createElement(KXMLQLCScriptContents);
@@ -396,7 +378,7 @@ QString Script::handleStartFunction(const QList<QStringList>& tokens, MasterTime
     if (function != NULL)
     {
         if (function->stopped() == true)
-            timer->startFunction(function, true);
+            function->start(timer, true);
         else
             qWarning() << "Function (" << function->name() << ") is already running.";
 
@@ -485,7 +467,6 @@ QString Script::handleSetFixture(const QList<QStringList>& tokens, UniverseArray
     quint32 ch = 0;
     uchar value = 0;
     double time = 0;
-    quint32 bus = Bus::invalid();
 
     id = tokens[0][1].toUInt(&ok);
     if (ok == false)
@@ -504,8 +485,6 @@ QString Script::handleSetFixture(const QList<QStringList>& tokens, UniverseArray
                 ch = list[1].toUInt(&ok);
             else if (list[0] == "time")
                 time = list[1].toDouble(&ok);
-            else if (list[0] == "bus")
-                bus = list[1].toUInt(&ok);
             else
                 return QString("Unrecognized keyword: %1").arg(list[0]);
 
@@ -532,14 +511,13 @@ QString Script::handleSetFixture(const QList<QStringList>& tokens, UniverseArray
                 fc.setFixture(fxi->id());
                 fc.setChannel(ch);
                 fc.setTarget(value);
-                fc.setFixedTime(time * MasterTimer::frequency());
-                fc.setBus(bus);
+                fc.setFadeTime(time);
 
                 // If the script has used the channel previously, it might still be in
                 // the bowels of GenericFader so get the starting value from there.
                 // Otherwise get it from universes (HTP channels are always 0 then).
-                if (gf->channels().contains(address) == true)
-                    fc.setStart(gf->channels()[address].current());
+                if (gf->channels().contains(fc) == true)
+                    fc.setStart(gf->channels()[fc].current());
                 else
                     fc.setStart(universes->preGMValues()[address]);
                 fc.setCurrent(fc.start());

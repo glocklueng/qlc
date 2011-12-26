@@ -4,18 +4,17 @@
 
 APPNAME    = Q Light Controller
 FXEDNAME   = Fixture Definition Editor
-APPVERSION = 3.2.0-1
+APPVERSION = 3.3.0
 
 #############################################################################
 # Compiler & linker configuration
 #############################################################################
 
-QMAKE_CXXFLAGS += -Werror -g -O2
 CONFIG         += warn_on
 macx:CONFIG    -= app_bundle # Let QLC construct the .app bundle
 
-#CONFIG        -= release # Enable this when making a release
-#CONFIG        += debug   # Disable this when making a release
+CONFIG        -= release # Enable this when making a release
+CONFIG        += debug   # Disable this when making a release
 
 # Disable these if you don't want to see SVN revision in the About Box
 unix:REVISION = $$system(svn info | grep "Revision" | sed 's/Revision://')
@@ -97,3 +96,13 @@ macx:OUTPUTPLUGINDIR       = $$PLUGINDIR/Output
 win32:TRANSLATIONDIR      =
 unix:!macx:TRANSLATIONDIR = $$DATADIR/translations
 macx:TRANSLATIONDIR       = $$DATADIR/Translations
+
+# RGB Scripts
+win32:RGBSCRIPTDIR      = RGBScripts
+unix:!macx:RGBSCRIPTDIR = $$DATADIR/rgbscripts
+macx:RGBSCRIPTDIR       = $$DATADIR/RGBScripts
+
+# User RGB Scripts
+win32:USERRGBSCRIPTDIR      = RGBScripts
+unix:!macx:USERRGBSCRIPTDIR = .qlc/rgbscripts
+macx:USERRGBSCRIPTDIR       = "Library/Application Support/QLC/RGBScripts"

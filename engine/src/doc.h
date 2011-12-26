@@ -28,12 +28,12 @@
 #include <QMap>
 
 #include "qlcfixturedefcache.h"
+#include "fixturegroup.h"
 #include "mastertimer.h"
 #include "outputmap.h"
 #include "inputmap.h"
 #include "function.h"
 #include "fixture.h"
-#include "bus.h"
 
 class QDomDocument;
 class QString;
@@ -171,6 +171,15 @@ public:
     QList <Fixture*> fixtures() const;
 
     /**
+     * Get the fixture that occupies the given DMX address. If multiple fixtures
+     * occupy the same address, the one that has been last modified is returned.
+     *
+     * @param universeAddress The universe & address of the fixture to look for
+     * @return The fixture ID or Fixture::invalidId() if not found
+     */
+    quint32 fixtureForAddress(quint32 universeAddress) const;
+
+    /**
      * Get the total power consumption of all fixtures in the current
      * workspace.
      *
@@ -195,12 +204,54 @@ signals:
     /** Signal that a fixture's properties have changed */
     void fixtureChanged(quint32 fxi_id);
 
+private slots:
+    /** Catch fixture property changes */
+    void slotFixtureChanged(quint32 fxi_id);
+
 protected:
     /** Fixtures */
     QMap <quint32,Fixture*> m_fixtures;
 
+    /** Addresses occupied by fixtures */
+    QHash <quint32,quint32> m_addresses;
+
     /** Latest assigned fixture ID */
     quint32 m_latestFixtureId;
+
+    /*********************************************************************
+     * Fixture groups
+     *********************************************************************/
+public:
+    /** Add a new fixture group. Doc takes ownership of the group. */
+    bool addFixtureGroup(FixtureGroup* grp, quint32 id = FixtureGroup::invalidId());
+
+    /**
+     * Remove and delete a fixture group. Doesn't destroy group's fixtures.
+     * The group pointer is invalid after this call.
+     */
+    bool deleteFixtureGroup(quint32 id);
+
+    /** Get a fixture group by id */
+    FixtureGroup* fixtureGroup(quint32 id) const;
+
+    /** Get a list of Doc's fixture groups */
+    QList <FixtureGroup*> fixtureGroups() const;
+
+signals:
+    void fixtureGroupAdded(quint32 id);
+    void fixtureGroupRemoved(quint32 id);
+    void fixtureGroupChanged(quint32 id);
+
+private:
+    /** Create a new fixture group ID */
+    quint32 createFixtureGroupId();
+
+private:
+    /** Fixture Groups */
+    QMap <quint32,FixtureGroup*> m_fixtureGroups;
+
+    /** Latest assigned fixture group ID */
+    quint32 m_latestFixtureGroupId;
 
     /*********************************************************************
      * Functions
@@ -241,7 +292,7 @@ public:
      * @param id The ID of the function to get
      * @return A function at the given ID or NULL if not found
      */
-    Function* function(quint32 id);
+    Function* function(quint32 id) const;
 
 protected:
     /**
@@ -259,16 +310,9 @@ protected:
      */
     void assignFunction(Function* function, quint32 id);
 
-public slots:
-    /** Catch fixture property changes */
-    void slotFixtureChanged(quint32 fxi_id);
-
-protected slots:
+private slots:
     /** Slot that catches function change signals */
     void slotFunctionChanged(quint32 fid);
-
-    /** Catches bus name changes so that Doc can be marked as modified */
-    void slotBusNameChanged();
 
 signals:
     /** Signal that a function has been added */
@@ -297,7 +341,7 @@ public:
      * @param root The Engine XML root node to load from
      * @return true if successful, otherwise false
      */
-    bool loadXML(const QDomElement* root);
+    bool loadXML(const QDomElement& root);
 
     /**
      * Save contents to the given XML file.

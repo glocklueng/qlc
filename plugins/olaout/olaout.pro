@@ -11,8 +11,10 @@ QTPLUGIN  =
 INCLUDEPATH += ../interfaces
 
 macx: {
-    CONFIG    += link_pkgconfig
-    PKGCONFIG += libola libolaserver
+    #CONFIG    += link_pkgconfig
+    #PKGCONFIG += libola libolaserver
+    INCLUDEPATH += /opt/local/include
+    LIBS      += -L/opt/local/lib -lolaserver -lola -lolacommon -lprotobuf
 } else {
     LIBS      += -L/usr/local/lib -lolaserver -lola -lolacommon -lprotobuf
 }
@@ -34,13 +36,11 @@ SOURCES += olaout.cpp \
 
 HEADERS += ../interfaces/qlcoutplugin.h
 
-PRO_FILE = olaout.pro
 TRANSLATIONS += OLA_Output_fi_FI.ts
 TRANSLATIONS += OLA_Output_de_DE.ts
 TRANSLATIONS += OLA_Output_es_ES.ts
 TRANSLATIONS += OLA_Output_fr_FR.ts
 TRANSLATIONS += OLA_Output_it_IT.ts
-include(../../i18n.pri)
 
 # This must be after "TARGET = " and before target installation so that
 # install_name_tool can be run before target installation

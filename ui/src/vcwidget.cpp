@@ -51,6 +51,8 @@
 #include "vcwidget.h"
 #include "doc.h"
 
+#define GRID_RESOLUTION 10
+
 VCWidget::VCWidget(QWidget* parent, Doc* doc)
     : QWidget(parent)
     , m_doc(doc)
@@ -416,6 +418,22 @@ void VCWidget::slotInputValueChanged(quint32 universe, quint32 channel, uchar va
  * Key sequence handler
  *****************************************************************************/
 
+QKeySequence VCWidget::stripKeySequence(const QKeySequence& seq)
+{
+    /* In QLC 3.2.x it is possible to set shortcuts like CTRL+X, but since
+       CTRL is now the tap modifier, it must be stripped away. */
+    int keys[4] = { 0, 0, 0, 0 };
+    for (uint i = 0; i < seq.count() && i < 4; i++)
+    {
+        if ((seq[i] & Qt::ControlModifier) != 0)
+            keys[i] = seq[i] & (~Qt::ControlModifier);
+        else
+            keys[i] = seq[i];
+    }
+
+    return QKeySequence(keys[0], keys[1], keys[2], keys[3]);
+}
+
 void VCWidget::slotKeyPressed(const QKeySequence& keySequence)
 {
     emit keyPressed(keySequence);
@@ -724,12 +742,10 @@ void VCWidget::resize(const QSize& size)
     QSize sz(size);
 
     // Force grid settings, if applicable
-    if (VirtualConsole::properties().isGridEnabled() == true)
+    if (VirtualConsole::instance()->properties().isGridEnabled() == true)
     {
-        sz.setWidth(size.width() -
-                    (size.width() % VirtualConsole::properties().gridX()));
-        sz.setHeight(size.height() -
-                     (size.height() % VirtualConsole::properties().gridY()));
+        sz.setWidth(size.width() - (size.width() % GRID_RESOLUTION));
+        sz.setHeight(size.height() - (size.height() % GRID_RESOLUTION));
     }
 
     // Resize
@@ -741,12 +757,10 @@ void VCWidget::move(const QPoint& point)
     QPoint pt(point);
 
     // Force grid settings, if applicable
-    if (VirtualConsole::properties().isGridEnabled() == true)
+    if (VirtualConsole::instance()->properties().isGridEnabled() == true)
     {
-        pt.setX(point.x() -
-                (point.x() % VirtualConsole::properties().gridX()));
-        pt.setY(point.y() -
-                (point.y() % VirtualConsole::properties().gridY()));
+        pt.setX(point.x() - (point.x() % GRID_RESOLUTION));
+        pt.setY(point.y() - (point.y() % GRID_RESOLUTION));
     }
 
     // Don't move beyond left or right

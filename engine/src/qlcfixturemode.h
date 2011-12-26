@@ -36,6 +36,7 @@
 
 class QDomDocument;
 class QDomElement;
+class QLCFixtureHead;
 class QLCFixtureMode;
 class QLCFixtureDef;
 class QLCPhysical;
@@ -81,9 +82,6 @@ public:
      * @param mode The mode to copy
      */
     QLCFixtureMode(QLCFixtureDef* fixtureDef, const QLCFixtureMode* mode);
-
-    /** Create contents from an XML tag */
-    QLCFixtureMode(QLCFixtureDef* fixtureDef, const QDomElement* tag);
 
     /** Destructor */
     virtual ~QLCFixtureMode();
@@ -177,8 +175,56 @@ public:
     quint32 channelNumber(QLCChannel* channel) const;
 
 protected:
-    /** List of channels (not owned) */
+    /** List of channels (pointers are not owned) */
     QList <QLCChannel*> m_channels;
+
+    /*********************************************************************
+     * Heads
+     *********************************************************************/
+public:
+    /**
+     * Insert a head at the given position within the fixture mode.
+     *
+     * @param index The index to insert the head at (if invalid, append occurs)
+     * @param head The head to insert
+     */
+    void insertHead(int index, const QLCFixtureHead& head);
+
+    /**
+     * Replace a head at the given position with the given head.
+     *
+     * @param index The index to replace the head at (must be valid)
+     * @param head The head to replace
+     */
+    void replaceHead(int index, const QLCFixtureHead& head);
+
+    /**
+     * Remove a head at the given index.
+     *
+     * @param index The index of the head to remove
+     */
+    void removeHead(int index);
+
+    /**
+     * Get a list of available fixture heads within the fixture mode
+     */
+    QList <QLCFixtureHead> heads() const;
+
+    /**
+     * Find a head number for the given channel number
+     *
+     * @param chnum The number of the channel whose head to find
+     * @return The head number of -1 if the channel doesn't belong to any head
+     */
+    int headForChannel(quint32 chnum) const;
+
+    /**
+     * Cache all heads' channels
+     */
+    void cacheHeads();
+
+private:
+    QList <QLCFixtureHead> m_heads;
 
     /*********************************************************************
      * Physical
@@ -207,7 +253,7 @@ protected:
      *********************************************************************/
 public:
     /** Load a mode's properties from an XML tag */
-    bool loadXML(const QDomElement* root);
+    bool loadXML(const QDomElement& root);
 
     /** Save a mode to an XML document */
     bool saveXML(QDomDocument* doc, QDomElement* root);

@@ -40,9 +40,10 @@
  *****************************************************************************/
 
 Scene::Scene(Doc* doc) : Function(doc, Function::Scene)
+    , m_legacyFadeBus(Bus::invalid())
+    , m_fader(NULL)
 {
     setName(tr("New Scene"));
-    setBus(Bus::defaultFade());
 }
 
 Scene::~Scene()
@@ -165,13 +166,8 @@ bool Scene::saveXML(QDomDocument* doc, QDomElement* wksp_root)
     root.setAttribute(KXMLQLCFunctionType, Function::typeToString(type()));
     root.setAttribute(KXMLQLCFunctionName, name());
 
-    /* Speed bus */
-    tag = doc->createElement(KXMLQLCBus);
-    root.appendChild(tag);
-    tag.setAttribute(KXMLQLCBusRole, KXMLQLCBusFade);
-    str.setNum(bus());
-    text = doc->createTextNode(str);
-    tag.appendChild(text);
+    /* Speed */
+    saveXMLSpeed(doc, &root);
 
     /* Scene contents */
     QListIterator <SceneValue> it(m_values);
@@ -181,37 +177,33 @@ bool Scene::saveXML(QDomDocument* doc, QDomElement* wksp_root)
     return true;
 }
 
-bool Scene::loadXML(const QDomElement* root)
+bool Scene::loadXML(const QDomElement& root)
 {
-    QString str;
-
-    QDomNode node;
-    QDomElement tag;
-
-    Q_ASSERT(root != NULL);
-
-    if (root->tagName() != KXMLQLCFunction)
+    if (root.tagName() != KXMLQLCFunction)
     {
         qWarning() << Q_FUNC_INFO << "Function node not found";
         return false;
     }
 
-    if (root->attribute(KXMLQLCFunctionType) != typeToString(Function::Scene))
+    if (root.attribute(KXMLQLCFunctionType) != typeToString(Function::Scene))
     {
         qWarning() << Q_FUNC_INFO << "Function is not a scene";
         return false;
     }
 
     /* Load scene contents */
-    node = root->firstChild();
+    QDomNode node = root.firstChild();
     while (node.isNull() == false)
     {
-        tag = node.toElement();
+        QDomElement tag = node.toElement();
 
         if (tag.tagName() == KXMLQLCBus)
         {
-            /* Bus */
-            setBus(tag.text().toUInt());
+            m_legacyFadeBus = tag.text().toUInt();
+        }
+        else if (tag.tagName() == KXMLQLCFunctionSpeed)
+        {
+            loadXMLSpeed(tag);
         }
         else if (tag.tagName() == KXMLQLCFunctionValue)
         {
@@ -233,6 +225,14 @@ bool Scene::loadXML(const QDomElement* root)
 
 void Scene::postLoad()
 {
+    // Map legacy bus speed to fixed speed values
+    if (m_legacyFadeBus != Bus::invalid())
+    {
+        quint32 value = Bus::instance()->value(m_legacyFadeBus);
+        setFadeInSpeed((value / MasterTimer::frequency()) * 1000);
+        setFadeOutSpeed((value / MasterTimer::frequency()) * 1000);
+    }
+
     // Remove such fixtures and channels that don't exist
     QMutableListIterator <SceneValue> it(m_values);
     while (it.hasNext() == true)
@@ -267,15 +267,27 @@ void Scene::unFlash(MasterTimer* timer)
     Function::unFlash(timer);
 }
 
-void Scene::writeDMX(MasterTimer* timer, UniverseArray* universes)
+void Scene::writeDMX(MasterTimer* timer, UniverseArray* ua)
 {
     Q_ASSERT(timer != NULL);
-    Q_ASSERT(universes != NULL);
+    Q_ASSERT(ua != NULL);
 
     if (flashing() == true)
-        writeValues(universes); // Keep HTP & LTP up
+    {
+        // Keep HTP and LTP channels up. Flash is more or less a forceful intervention
+        // so enforce all values that the user has chosen to flash.
+        foreach (const SceneValue& sv, m_values)
+        {
+            FadeChannel fc;
+            fc.setFixture(sv.fxi);
+            fc.setChannel(sv.channel);
+            ua->write(fc.address(doc()), sv.value, fc.group(doc()));
+        }
+    }
     else
+    {
         timer->unregisterDMXSource(this);
+    }
 }
 
 /****************************************************************************
@@ -284,155 +296,117 @@ void Scene::writeDMX(MasterTimer* timer, UniverseArray* universes)
 
 void Scene::preRun(MasterTimer* timer)
 {
-    QListIterator <SceneValue> it(m_values);
-    while (it.hasNext() == true)
-    {
-        SceneValue value(it.next());
-
-        FadeChannel fc;
-        fc.setFixture(value.fxi);
-        fc.setChannel(value.channel);
-        fc.setTarget(value.value);
-        m_armedChannels << fc;
-    }
-
+    Q_ASSERT(m_fader == NULL);
+    m_fader = new GenericFader(doc());
+    m_fader->adjustIntensity(intensity());
     Function::preRun(timer);
 }
 
-void Scene::write(MasterTimer* timer, UniverseArray* universes)
+void Scene::write(MasterTimer* timer, UniverseArray* ua)
 {
     Q_UNUSED(timer);
-    Q_ASSERT(universes != NULL);
+    Q_ASSERT(ua != NULL);
+    Q_ASSERT(m_fader != NULL);
 
-    /* Count ready channels so that the scene can be stopped */
-    quint32 ready = m_armedChannels.count();
+    if (m_values.size() == 0)
+    {
+        stop();
+        return;
+    }
 
-    /* Iterator for all scene channels */
-    QMutableListIterator <FadeChannel> it(m_armedChannels);
-
-    /* Get starting values for each channel on the first pass */
     if (elapsed() == 0)
     {
+        QListIterator <SceneValue> it(m_values);
         while (it.hasNext() == true)
         {
-            FadeChannel& fc(it.next());
+            SceneValue value(it.next());
 
-            /* Get the starting value from universes. Important
-               to cast to uchar, since UniverseArray handles signed
-               char, whereas uchar is unsigned. Without cast,
-               this will result in negative values when x > 127 */
-            fc.setStart(uchar(universes->preGMValues()[fc.address(doc())]));
-            fc.setCurrent(fc.start());
-
-            // Don't touch the value at all if it's already on target
-            if (fc.start() == fc.target())
-            {
-                fc.setReady(true);
-                if (fc.group(doc()) != QLCChannel::Intensity)
-                    ready--;
-            }
+            FadeChannel fc;
+            fc.setFixture(value.fxi);
+            fc.setChannel(value.channel);
+            fc.setTarget(value.value);
+            if (overrideFadeInSpeed() == defaultSpeed())
+                fc.setFadeTime(fadeInSpeed());
             else
-            {
-                fc.setReady(false);
-            }
+                fc.setFadeTime(overrideFadeInSpeed());
+            insertStartValue(fc, timer, ua);
+            m_fader->add(fc);
         }
-
-        /* Reel back to start of list */
-        it.toFront();
     }
 
-    // Grab current fade bus value
-    quint32 fadeTime = Bus::instance()->value(bus());
+    // Run the internal GenericFader
+    m_fader->write(ua);
 
-    while (it.hasNext() == true)
+    // Fader has nothing to do. Stop.
+    if (m_fader->channels().size() == 0)
     {
-        FadeChannel& fc(it.next());
-        if (elapsed() >= fadeTime)
-        {
-            if (fc.group(doc()) == QLCChannel::Intensity)
-            {
-                // Don't do "ready--" for intensity channels to keep the
-                // scene on as long as its manually stopped.
-                fc.setReady(true);
-                universes->write(fc.address(doc()), fc.target(), fc.group(doc()));
-            }
-            else if (fc.isReady() == false)
-            {
-                // If an LTP channel has not been marked ready (i.e. we've just
-                // consumed all time) mark it ready so that its value will not
-                // be written anymore (otherwise it would not be LTP anymore).
-                ready--;
-                fc.setReady(true);
-                universes->write(fc.address(doc()), fc.target(), fc.group(doc()));
-            }
-            else
-            {
-                // Once an LTP-channel (non-intensity) has been marked ready,
-                // it's value is no longer touched by scene.
-            }
-        }
-        else
-        {
-            /* Write the next value to the universe buffer */
-            universes->write(fc.address(doc()),
-                             fc.calculateCurrent(fadeTime, elapsed()),
-                             fc.group(doc()));
-        }
+        qDebug() << "Stopping";
+        stop();
     }
 
-    /* Next time unit */
     incrementElapsed();
-
-    // When all channels are ready, this function can be stopped. If there is
-    // even one HTP channel in a scene, the function will not stop by itself
-    // because then (ready == HTP_channel_count).
-    if (ready == 0)
-        stop();
 }
 
-void Scene::postRun(MasterTimer* timer, UniverseArray* universes)
+void Scene::postRun(MasterTimer* timer, UniverseArray* ua)
 {
-    QListIterator <FadeChannel> it(m_armedChannels);
+    QHashIterator <FadeChannel,FadeChannel> it(m_fader->channels());
     while (it.hasNext() == true)
     {
-        FadeChannel fc(it.next());
+        it.next();
+        FadeChannel fc = it.value();
+
         if (fc.group(doc()) == QLCChannel::Intensity)
         {
+            fc.setStart(fc.current(intensity()));
             fc.setTarget(0);
-            fc.setStart(fc.current());
-            fc.setBus(bus());
             fc.setElapsed(0);
             fc.setReady(false);
+            if (overrideFadeOutSpeed() == defaultSpeed())
+                fc.setFadeTime(fadeOutSpeed());
+            else
+                fc.setFadeTime(overrideFadeOutSpeed());
             timer->fader()->add(fc);
         }
     }
 
-    m_armedChannels.clear();
+    Q_ASSERT(m_fader != NULL);
+    delete m_fader;
+    m_fader = NULL;
 
-    Function::postRun(timer, universes);
+    Function::postRun(timer, ua);
 }
 
-void Scene::writeValues(UniverseArray* universes, quint32 fxi_id,
-                        QLCChannel::Group grp, qreal percentage)
+void Scene::insertStartValue(FadeChannel& fc, const MasterTimer* timer,
+                             const UniverseArray* ua)
 {
-    Q_ASSERT(universes != NULL);
-
-    for (int i = 0; i < m_values.size(); i++)
+    const QHash <FadeChannel,FadeChannel>& channels(timer->fader()->channels());
+    if (channels.contains(fc) == true)
     {
-        const SceneValue& sv(m_values[i]);
-        FadeChannel fc;
-        fc.setFixture(sv.fxi);
-        fc.setChannel(sv.channel);
-        fc.setTarget(sv.value);
-
-        if (fxi_id == Fixture::invalidId() || fxi_id == sv.fxi)
-        {
-            if (grp == QLCChannel::NoGroup || grp == fc.group(doc()))
-            {
-                qreal value = CLAMP(percentage, 0.0, 1.0) * qreal(fc.target());
-                value = uchar(floor(value + 0.5));
-                universes->write(fc.address(doc()), uchar(value), fc.group(doc()));
-            }
-        }
+        // MasterTimer's GenericFader contains the channel so grab its current
+        // value as the new starting value to get a smoother fade
+        FadeChannel existing = channels[fc];
+        fc.setStart(existing.current());
+        fc.setCurrent(fc.start());
     }
+    else
+    {
+        // MasterTimer didn't have the channel. Grab the starting value from UniverseArray.
+        quint32 address = fc.address(doc());
+        if (fc.group(doc()) != QLCChannel::Intensity)
+            fc.setStart(ua->preGMValues()[address]);
+        else
+            fc.setStart(0); // HTP channels must start at zero
+        fc.setCurrent(fc.start());
+    }
+}
+
+/****************************************************************************
+ * Intensity
+ ****************************************************************************/
+
+void Scene::adjustIntensity(qreal intensity)
+{
+    if (m_fader != NULL)
+        m_fader->adjustIntensity(intensity);
+    Function::adjustIntensity(intensity);
 }

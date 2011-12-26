@@ -6,7 +6,7 @@ LANGUAGE = C++
 TARGET   = qlcui
 
 CONFIG += qt
-QT     += core xml gui
+QT     += core xml gui script
 
 # Engine
 INCLUDEPATH     += ../../engine/src
@@ -31,14 +31,16 @@ HEADERS += aboutbox.h \
            app.h \
            apputil.h \
            assignhotkey.h \
-           busmanager.h \
            chasereditor.h \
            collectioneditor.h \
            consolechannel.h \
+           cuestackmodel.h \
            docbrowser.h \
+           dmxslider.h \
            efxeditor.h \
            efxpreviewarea.h \
            fixtureconsole.h \
+           fixturegroupeditor.h \
            fixturemanager.h \
            fixtureselection.h \
            functionmanager.h \
@@ -54,15 +56,20 @@ HEADERS += aboutbox.h \
            monitorlayout.h \
            outputmanager.h \
            outputpatcheditor.h \
+           playbackslider.h \
+           rgbmatrixeditor.h \
+           rgbitem.h \
            sceneeditor.h \
            scripteditor.h \
            selectinputchannel.h \
+           simpledesk.h \
+           simpledeskengine.h \
+           speedspinbox.h \
            vcbutton.h \
            vcbuttonproperties.h \
            vccuelist.h \
            vccuelistproperties.h \
            vcdockarea.h \
-           vcdockslider.h \
            vcframe.h \
            vcframeproperties.h \
            vclabel.h \
@@ -88,6 +95,7 @@ FORMS += aboutbox.ui \
          chasereditor.ui \
          collectioneditor.ui \
          efxeditor.ui \
+         fixturegroupeditor.ui \
          fixtureselection.ui \
          functionselection.ui \
          functionwizard.ui \
@@ -95,6 +103,8 @@ FORMS += aboutbox.ui \
          inputprofileeditor.ui \
          inputpatcheditor.ui \
          outputpatcheditor.ui \
+         rgbmatrixeditor.ui \
+         simpledesk.ui \
          sceneeditor.ui \
          scripteditor.ui \
          selectinputchannel.ui \
@@ -113,14 +123,16 @@ SOURCES += aboutbox.cpp \
            app.cpp \
            apputil.cpp \
            assignhotkey.cpp \
-           busmanager.cpp \
            chasereditor.cpp \
            collectioneditor.cpp \
            consolechannel.cpp \
+           cuestackmodel.cpp \
            docbrowser.cpp \
+           dmxslider.cpp \
            efxeditor.cpp \
            efxpreviewarea.cpp \
            fixtureconsole.cpp \
+           fixturegroupeditor.cpp \
            fixturemanager.cpp \
            fixtureselection.cpp \
            functionmanager.cpp \
@@ -136,15 +148,20 @@ SOURCES += aboutbox.cpp \
            monitorlayout.cpp \
            outputmanager.cpp \
            outputpatcheditor.cpp \
+           playbackslider.cpp \
+           rgbmatrixeditor.cpp \
+           rgbitem.cpp \
            sceneeditor.cpp \
            scripteditor.cpp \
            selectinputchannel.cpp \
+           simpledesk.cpp \
+           simpledeskengine.cpp \
+           speedspinbox.cpp \
            vcbutton.cpp \
            vcbuttonproperties.cpp \
            vccuelist.cpp \
            vccuelistproperties.cpp \
            vcdockarea.cpp \
-           vcdockslider.cpp \
            vcframe.cpp \
            vcframeproperties.cpp \
            vclabel.cpp \
@@ -162,14 +179,11 @@ SOURCES += aboutbox.cpp \
            vcxypadproperties.cpp \
            virtualconsole.cpp
 
-# Internationalization
-PRO_FILE      = src.pro
 TRANSLATIONS += qlc_fi_FI.ts
 TRANSLATIONS += qlc_fr_FR.ts
 TRANSLATIONS += qlc_es_ES.ts
 TRANSLATIONS += qlc_de_DE.ts
 TRANSLATIONS += qlc_it_IT.ts
-include(../../i18n.pri)
 
 macx {
     # This must be after "TARGET = " and before target installation so that

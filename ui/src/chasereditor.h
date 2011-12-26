@@ -30,7 +30,9 @@ class Chaser;
 class Function;
 class InputMap;
 class OutputMap;
+class ChaserStep;
 class MasterTimer;
+class SpeedSpinBox;
 class QTreeWidgetItem;
 
 class ChaserEditor : public QDialog, public Ui_ChaserEditor
@@ -38,40 +40,90 @@ class ChaserEditor : public QDialog, public Ui_ChaserEditor
     Q_OBJECT
     Q_DISABLE_COPY(ChaserEditor)
 
+    /************************************************************************
+     * Initialization
+     ************************************************************************/
 public:
     ChaserEditor(QWidget* parent, Chaser* chaser, Doc* doc);
     ~ChaserEditor();
 
-private:
-    Doc* m_doc;
-
-protected:
-    void updateFunctionItem(QTreeWidgetItem* item, const Function* function);
-    void updateStepNumbers();
-
-protected slots:
+private slots:
     void accept();
-
-    /** Name has been edited */
     void slotNameEdited(const QString& text);
 
-    /** Add a step */
+private:
+    Doc* m_doc;
+    Chaser* m_original;
+    Chaser* m_chaser;
+
+    /************************************************************************
+     * List manipulation
+     ************************************************************************/
+private slots:
     void slotAddClicked();
     void slotRemoveClicked();
     void slotRaiseClicked();
     void slotLowerClicked();
+    void slotItemSelectionChanged();
 
+    /************************************************************************
+     * Clipboard
+     ************************************************************************/
+private slots:
     void slotCutClicked();
     void slotCopyClicked();
     void slotPasteClicked();
 
-protected:
-    Chaser* m_chaser;
-    QList <quint32> m_clipboard;
-
+private:
+    QList <ChaserStep> m_clipboard;
     QAction* m_cutAction;
     QAction* m_copyAction;
     QAction* m_pasteAction;
+
+    /************************************************************************
+     * Run order & Direction
+     ************************************************************************/
+private slots:
+    void slotLoopClicked();
+    void slotSingleShotClicked();
+    void slotPingPongClicked();
+    void slotForwardClicked();
+    void slotBackwardClicked();
+
+    /************************************************************************
+     * Speed
+     ************************************************************************/
+private slots:
+    void slotFadeInSpinChanged(int ms);
+    void slotFadeOutSpinChanged(int ms);
+    void slotDurationSpinChanged(int ms);
+
+private:
+    SpeedSpinBox* m_fadeInSpin;
+    SpeedSpinBox* m_fadeOutSpin;
+    SpeedSpinBox* m_durationSpin;
+
+    /************************************************************************
+     * Utilities
+     ************************************************************************/
+private:
+    /** Get the step at the given $item */
+    ChaserStep stepAtItem(const QTreeWidgetItem* item) const;
+
+    /** Get the step at the given $index */
+    ChaserStep stepAtIndex(int index) const;
+
+    /** Update $item contents from $step */
+    void updateItem(QTreeWidgetItem* item, const ChaserStep& step);
+
+    /** Update the step numbers (col 0) for each list item */
+    void updateStepNumbers();
+
+    /** Update the contents of m_chaser */
+    void updateChaserContents();
+
+    /** Set cut,copy,paste buttons enabled/disabled */
+    void updateClipboardButtons();
 };
 
 #endif

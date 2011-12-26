@@ -24,6 +24,7 @@
 
 #include <QObject>
 
+class QMdiArea;
 class Doc;
 class VCCueList_Test : public QObject
 {
@@ -43,11 +44,16 @@ private slots:
     void modeChange();
     void loadXML();
     void saveXML();
-    void operation();
+
+    void nextPrevious();
+    void manualActivation();
+    void keyboardNextPrevious();
+
     void input();
 
 private:
     Doc* m_doc;
+    QMdiArea* m_area;
 };
 
 #endif

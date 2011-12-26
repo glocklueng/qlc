@@ -50,18 +50,13 @@ void VCProperties_Test::cleanup()
 void VCProperties_Test::initial()
 {
     VCProperties p;
-    QVERIFY(p.m_contents == NULL);
-    QVERIFY(p.contents() == NULL);
-
-    QCOMPARE(p.width(), 640);
-    QCOMPARE(p.height(), 480);
-
     QCOMPARE(p.m_gridEnabled, true);
     QCOMPARE(p.m_gridX, 10);
     QCOMPARE(p.m_gridY, 10);
 
     QCOMPARE(p.m_keyRepeatOff, true);
     QCOMPARE(p.m_grabKeyboard, true);
+    QCOMPARE(p.m_tapModifier, Qt::ControlModifier);
 
     QCOMPARE(p.m_gmChannelMode, UniverseArray::GMIntensity);
     QCOMPARE(p.m_gmValueMode, UniverseArray::GMReduce);
@@ -71,113 +66,60 @@ void VCProperties_Test::initial()
     QCOMPARE(p.m_blackoutInputUniverse, InputMap::invalidUniverse());
     QCOMPARE(p.m_blackoutInputChannel, InputMap::invalidChannel());
 
-    QCOMPARE(p.m_slidersVisible, true);
-
-    QCOMPARE(p.m_fadeLowLimit, quint32(0));
-    QCOMPARE(p.m_fadeHighLimit, quint32(10));
-    QCOMPARE(p.m_holdLowLimit, quint32(0));
-    QCOMPARE(p.m_holdHighLimit, quint32(10));
-
-    QCOMPARE(p.m_fadeInputUniverse, InputMap::invalidUniverse());
-    QCOMPARE(p.m_fadeInputChannel, InputMap::invalidChannel());
-    QCOMPARE(p.m_holdInputUniverse, InputMap::invalidUniverse());
-    QCOMPARE(p.m_holdInputChannel, InputMap::invalidChannel());
+    QCOMPARE(p.m_gmVisible, true);
 }
 
 void VCProperties_Test::copy()
 {
     VCProperties p;
-    p.m_contents = (VCFrame*) 0xDEADBEEF;
-    p.m_width = 1;
-    p.m_height = 2;
     p.m_gridEnabled = false;
     p.m_gridX = 3;
     p.m_gridY = 4;
     p.m_keyRepeatOff = false;
     p.m_grabKeyboard = false;
+    p.m_tapModifier = Qt::ShiftModifier;
     p.m_gmChannelMode = UniverseArray::GMAllChannels;
     p.m_gmValueMode = UniverseArray::GMLimit;
     p.m_gmInputUniverse = 5;
     p.m_gmInputChannel = 6;
-
     p.m_blackoutInputUniverse = 7;
     p.m_blackoutInputChannel = 8;
 
-    p.m_slidersVisible = false;
-
-    p.m_fadeLowLimit = 9;
-    p.m_fadeHighLimit = 10;
-    p.m_holdLowLimit = 11;
-    p.m_holdHighLimit = 12;
-
-    p.m_fadeInputUniverse = 13;
-    p.m_fadeInputChannel = 14;
-    p.m_holdInputUniverse = 15;
-    p.m_holdInputChannel = 16;
+    p.m_gmVisible = false;
 
     VCProperties p2(p);
-    QCOMPARE(p2.m_contents, p.m_contents);
-    QCOMPARE(p2.width(), p.width());
-    QCOMPARE(p2.height(), p.height());
     QCOMPARE(p2.m_gridEnabled, p.m_gridEnabled);
     QCOMPARE(p2.m_gridX, p.m_gridX);
     QCOMPARE(p2.m_gridY, p.m_gridY);
     QCOMPARE(p2.m_keyRepeatOff, p.m_keyRepeatOff);
     QCOMPARE(p2.m_grabKeyboard, p.m_grabKeyboard);
+    QCOMPARE(p2.m_tapModifier, p.m_tapModifier);
     QCOMPARE(p2.m_gmChannelMode, p.m_gmChannelMode);
     QCOMPARE(p2.m_gmValueMode, p.m_gmValueMode);
     QCOMPARE(p2.m_gmInputUniverse, p.m_gmInputUniverse);
     QCOMPARE(p2.m_gmInputChannel, p.m_gmInputChannel);
     QCOMPARE(p2.m_blackoutInputUniverse, p.m_blackoutInputUniverse);
     QCOMPARE(p2.m_blackoutInputChannel, p.m_blackoutInputChannel);
-    QCOMPARE(p2.m_slidersVisible, p.m_slidersVisible);
-    QCOMPARE(p2.m_fadeLowLimit, p.m_fadeLowLimit);
-    QCOMPARE(p2.m_fadeHighLimit, p.m_fadeHighLimit);
-    QCOMPARE(p2.m_holdLowLimit, p.m_holdLowLimit);
-    QCOMPARE(p2.m_holdHighLimit, p.m_holdHighLimit);
-    QCOMPARE(p2.m_fadeInputUniverse, p.m_fadeInputUniverse);
-    QCOMPARE(p2.m_fadeInputChannel, p.m_fadeInputChannel);
-    QCOMPARE(p2.m_holdInputUniverse, p.m_holdInputUniverse);
-    QCOMPARE(p2.m_holdInputChannel, p.m_holdInputChannel);
+    QCOMPARE(p2.m_gmVisible, p.m_gmVisible);
 
     VCProperties p3 = p;
-    QCOMPARE(p3.m_contents, p.m_contents);
-    QCOMPARE(p3.width(), p.width());
-    QCOMPARE(p3.height(), p.height());
     QCOMPARE(p3.m_gridEnabled, p.m_gridEnabled);
     QCOMPARE(p3.m_gridX, p.m_gridX);
     QCOMPARE(p3.m_gridY, p.m_gridY);
     QCOMPARE(p3.m_keyRepeatOff, p.m_keyRepeatOff);
     QCOMPARE(p3.m_grabKeyboard, p.m_grabKeyboard);
+    QCOMPARE(p3.m_tapModifier, p.m_tapModifier);
     QCOMPARE(p3.m_gmChannelMode, p.m_gmChannelMode);
     QCOMPARE(p3.m_gmValueMode, p.m_gmValueMode);
     QCOMPARE(p3.m_gmInputUniverse, p.m_gmInputUniverse);
     QCOMPARE(p3.m_gmInputChannel, p.m_gmInputChannel);
     QCOMPARE(p3.m_blackoutInputUniverse, p.m_blackoutInputUniverse);
     QCOMPARE(p3.m_blackoutInputChannel, p.m_blackoutInputChannel);
-    QCOMPARE(p3.m_slidersVisible, p.m_slidersVisible);
-    QCOMPARE(p3.m_fadeLowLimit, p.m_fadeLowLimit);
-    QCOMPARE(p3.m_fadeHighLimit, p.m_fadeHighLimit);
-    QCOMPARE(p3.m_holdLowLimit, p.m_holdLowLimit);
-    QCOMPARE(p3.m_holdHighLimit, p.m_holdHighLimit);
-    QCOMPARE(p3.m_fadeInputUniverse, p.m_fadeInputUniverse);
-    QCOMPARE(p3.m_fadeInputChannel, p.m_fadeInputChannel);
-    QCOMPARE(p3.m_holdInputUniverse, p.m_holdInputUniverse);
-    QCOMPARE(p3.m_holdInputChannel, p.m_holdInputChannel);
+    QCOMPARE(p3.m_gmVisible, p.m_gmVisible);
 }
 
 void VCProperties_Test::reset()
 {
-    QWidget w;
-
-    VCProperties p;
-    p.resetContents(&w, m_doc);
-    QVERIFY(p.m_contents != NULL);
-    QVERIFY(qobject_cast<VCWidget*> (p.m_contents) != NULL);
-
-    p.resetContents(&w, m_doc);
-    QVERIFY(p.m_contents != NULL);
-    QVERIFY(qobject_cast<VCWidget*> (p.m_contents) != NULL);
 }
 
 void VCProperties_Test::loadXML()
@@ -198,11 +140,8 @@ void VCProperties_Test::loadXML()
     QWidget w;
 
     VCProperties p;
-    p.resetContents(&w, m_doc);
-    QVERIFY(p.loadXML(root) == true);
-
-    root.setTagName("VirtualCosnole");
     QVERIFY(p.loadXML(root) == false);
+    QVERIFY(p.loadXML(prop) == true);
 }
 
 void VCProperties_Test::loadPropertiesHappy()
@@ -222,6 +161,7 @@ void VCProperties_Test::loadPropertiesHappy()
     QDomElement kb = xmldoc.createElement("Keyboard");
     kb.setAttribute("Grab", "True");
     kb.setAttribute("RepeatOff", "True");
+    kb.setAttribute("TapModifier", QString::number(Qt::AltModifier));
     root.appendChild(kb);
 
     // Blackout
@@ -244,7 +184,7 @@ void VCProperties_Test::loadPropertiesHappy()
     gmInput.setAttribute("Channel", "15");
     gm.appendChild(gmInput);
 
-    // Default Fade
+    // Default Fade (left here to test sanity)
     QDomElement fade = xmldoc.createElement("DefaultSlider");
     fade.setAttribute("Role", "Fade");
     fade.setAttribute("High", "76");
@@ -257,7 +197,7 @@ void VCProperties_Test::loadPropertiesHappy()
     fadeInput.setAttribute("Channel", "24");
     fade.appendChild(fadeInput);
 
-    // Default Hold
+    // Default Hold (left here to test sanity)
     QDomElement hold = xmldoc.createElement("DefaultSlider");
     hold.setAttribute("Role", "Hold");
     hold.setAttribute("High", "12");
@@ -276,16 +216,16 @@ void VCProperties_Test::loadPropertiesHappy()
     QWidget w;
 
     VCProperties p;
-    p.resetContents(&w, m_doc);
-    QVERIFY(p.loadProperties(root) == true);
+    QVERIFY(p.loadXML(root) == true);
     QCOMPARE(p.isGridEnabled(), true);
     QCOMPARE(p.gridX(), 1);
     QCOMPARE(p.gridY(), 2);
 
     QCOMPARE(p.isGrabKeyboard(), true);
     QCOMPARE(p.isKeyRepeatOff(), true);
+    QCOMPARE(p.tapModifier(), Qt::AltModifier);
 
-    QCOMPARE(p.slidersVisible(), true);
+    QCOMPARE(p.isGMVisible(), false);
 
     QCOMPARE(p.grandMasterChannelMode(), UniverseArray::GMAllChannels);
     QCOMPARE(p.grandMasterValueMode(), UniverseArray::GMLimit);
@@ -295,16 +235,27 @@ void VCProperties_Test::loadPropertiesHappy()
     QCOMPARE(p.blackoutInputUniverse(), quint32(6));
     QCOMPARE(p.blackoutInputChannel(), quint32(1));
 
-    QCOMPARE(p.fadeLowLimit(), quint32(3));
-    QCOMPARE(p.fadeHighLimit(), quint32(76));
-    QCOMPARE(p.fadeInputUniverse(), quint32(2));
-    QCOMPARE(p.fadeInputChannel(), quint32(24));
+    // Load with new (post 3.2.0) GM visibility tag
+    gm.setAttribute("Visible", "True");
+    QVERIFY(p.loadXML(root) == true);
+    QCOMPARE(p.isGridEnabled(), true);
+    QCOMPARE(p.gridX(), 1);
+    QCOMPARE(p.gridY(), 2);
 
-    QCOMPARE(p.holdLowLimit(), quint32(7));
-    QCOMPARE(p.holdHighLimit(), quint32(12));
-    QCOMPARE(p.holdInputUniverse(), quint32(4));
-    QCOMPARE(p.holdInputChannel(), quint32(42));
+    QCOMPARE(p.isGrabKeyboard(), true);
+    QCOMPARE(p.isKeyRepeatOff(), true);
 
+    QCOMPARE(p.isGMVisible(), true);
+
+    QCOMPARE(p.grandMasterChannelMode(), UniverseArray::GMAllChannels);
+    QCOMPARE(p.grandMasterValueMode(), UniverseArray::GMLimit);
+    QCOMPARE(p.grandMasterInputUniverse(), quint32(2));
+    QCOMPARE(p.grandMasterInputChannel(), quint32(15));
+
+    QCOMPARE(p.blackoutInputUniverse(), quint32(6));
+    QCOMPARE(p.blackoutInputChannel(), quint32(1));
+
+    // Load with invalid root
     root.setTagName("Porperties");
     QVERIFY(p.loadXML(root) == false);
 }
@@ -368,8 +319,7 @@ void VCProperties_Test::loadPropertiesSad()
     QWidget w;
 
     VCProperties p;
-    p.resetContents(&w, m_doc);
-    QVERIFY(p.loadProperties(root) == true);
+    QVERIFY(p.loadXML(root) == true);
     QCOMPARE(p.isGridEnabled(), false);
     QCOMPARE(p.gridX(), 1);
     QCOMPARE(p.gridY(), 2);
@@ -377,7 +327,7 @@ void VCProperties_Test::loadPropertiesSad()
     QCOMPARE(p.isGrabKeyboard(), false);
     QCOMPARE(p.isKeyRepeatOff(), false);
 
-    QCOMPARE(p.slidersVisible(), false);
+    QCOMPARE(p.isGMVisible(), false);
 
     QCOMPARE(p.grandMasterChannelMode(), UniverseArray::GMAllChannels);
     QCOMPARE(p.grandMasterValueMode(), UniverseArray::GMLimit);
@@ -387,18 +337,7 @@ void VCProperties_Test::loadPropertiesSad()
     QCOMPARE(p.blackoutInputUniverse(), InputMap::invalidUniverse());
     QCOMPARE(p.blackoutInputChannel(), InputMap::invalidChannel());
 
-    QCOMPARE(p.fadeLowLimit(), quint32(0));
-    QCOMPARE(p.fadeHighLimit(), quint32(10));
-    QCOMPARE(p.fadeInputUniverse(), InputMap::invalidUniverse());
-    QCOMPARE(p.fadeInputChannel(), InputMap::invalidChannel());
-
-    QCOMPARE(p.holdLowLimit(), quint32(0));
-    QCOMPARE(p.holdHighLimit(), quint32(10));
-    QCOMPARE(p.holdInputUniverse(), InputMap::invalidUniverse());
-    QCOMPARE(p.holdInputChannel(), InputMap::invalidUniverse());
-
     root.setTagName("Porperties");
-    QVERIFY(p.loadProperties(root) == false);
     QVERIFY(p.loadXML(root) == false);
 }
 
@@ -437,7 +376,6 @@ void VCProperties_Test::saveXMLHappy()
     QWidget w;
 
     VCProperties p;
-    p.resetContents(&w, m_doc);
 
     p.m_gridEnabled = true;
     p.m_gridX = 11;
@@ -445,8 +383,9 @@ void VCProperties_Test::saveXMLHappy()
 
     p.m_grabKeyboard = true;
     p.m_keyRepeatOff = true;
+    p.m_tapModifier = Qt::MetaModifier;
 
-    p.m_slidersVisible = true;
+    p.m_gmVisible = true;
 
     p.m_gmChannelMode = UniverseArray::GMAllChannels;
     p.m_gmValueMode = UniverseArray::GMLimit;
@@ -456,23 +395,12 @@ void VCProperties_Test::saveXMLHappy()
     p.m_blackoutInputUniverse = 1;
     p.m_blackoutInputChannel = 3;
 
-    p.m_fadeLowLimit = 5;
-    p.m_fadeHighLimit = 10;
-    p.m_fadeInputUniverse = 1;
-    p.m_fadeInputChannel = 2;
-
-    p.m_holdLowLimit = 1;
-    p.m_holdHighLimit = 11;
-    p.m_holdInputUniverse = 0;
-    p.m_holdInputChannel = 0;
-
     QDomDocument xmldoc;
     QDomElement root = xmldoc.createElement("TestRoot");
     xmldoc.appendChild(root);
     QVERIFY(p.saveXML(&xmldoc, &root) == true);
 
     VCProperties p2;
-    p2.resetContents(&w, m_doc);
     QVERIFY(p2.loadXML(root.firstChild().toElement()) == true);
     QCOMPARE(p2.isGridEnabled(), true);
     QCOMPARE(p2.gridX(), 11);
@@ -480,8 +408,9 @@ void VCProperties_Test::saveXMLHappy()
 
     QCOMPARE(p2.isGrabKeyboard(), true);
     QCOMPARE(p2.isKeyRepeatOff(), true);
+    QCOMPARE(p2.tapModifier(), Qt::MetaModifier);
 
-    QCOMPARE(p2.slidersVisible(), true);
+    QCOMPARE(p2.isGMVisible(), true);
 
     QCOMPARE(p2.grandMasterChannelMode(), UniverseArray::GMAllChannels);
     QCOMPARE(p2.grandMasterValueMode(), UniverseArray::GMLimit);
@@ -490,16 +419,6 @@ void VCProperties_Test::saveXMLHappy()
 
     QCOMPARE(p2.blackoutInputUniverse(), quint32(1));
     QCOMPARE(p2.blackoutInputChannel(), quint32(3));
-
-    QCOMPARE(p2.fadeLowLimit(), quint32(5));
-    QCOMPARE(p2.fadeHighLimit(), quint32(10));
-    QCOMPARE(p2.fadeInputUniverse(), quint32(1));
-    QCOMPARE(p2.fadeInputChannel(), quint32(2));
-
-    QCOMPARE(p2.holdLowLimit(), quint32(1));
-    QCOMPARE(p2.holdHighLimit(), quint32(11));
-    QCOMPARE(p2.holdInputUniverse(), quint32(0));
-    QCOMPARE(p2.holdInputChannel(), quint32(0));
 }
 
 void VCProperties_Test::saveXMLSad()
@@ -507,7 +426,6 @@ void VCProperties_Test::saveXMLSad()
     QWidget w;
 
     VCProperties p;
-    p.resetContents(&w, m_doc);
 
     p.m_gridEnabled = false;
     p.m_gridX = 11;
@@ -516,7 +434,7 @@ void VCProperties_Test::saveXMLSad()
     p.m_grabKeyboard = false;
     p.m_keyRepeatOff = false;
 
-    p.m_slidersVisible = false;
+    p.m_gmVisible = false;
 
     p.m_gmChannelMode = UniverseArray::GMAllChannels;
     p.m_gmValueMode = UniverseArray::GMLimit;
@@ -526,23 +444,12 @@ void VCProperties_Test::saveXMLSad()
     p.m_blackoutInputUniverse = InputMap::invalidUniverse();
     p.m_blackoutInputChannel = InputMap::invalidChannel();
 
-    p.m_fadeLowLimit = 5;
-    p.m_fadeHighLimit = 10;
-    p.m_fadeInputUniverse = InputMap::invalidUniverse();
-    p.m_fadeInputChannel = InputMap::invalidChannel();
-
-    p.m_holdLowLimit = 1;
-    p.m_holdHighLimit = 11;
-    p.m_holdInputUniverse = InputMap::invalidUniverse();
-    p.m_holdInputChannel = InputMap::invalidChannel();
-
     QDomDocument xmldoc;
     QDomElement root = xmldoc.createElement("TestRoot");
     xmldoc.appendChild(root);
     QVERIFY(p.saveXML(&xmldoc, &root) == true);
 
     VCProperties p2;
-    p2.resetContents(&w, m_doc);
     QVERIFY(p2.loadXML(root.firstChild().toElement()) == true);
     QCOMPARE(p2.isGridEnabled(), false);
     QCOMPARE(p2.gridX(), 11);
@@ -551,7 +458,7 @@ void VCProperties_Test::saveXMLSad()
     QCOMPARE(p2.isGrabKeyboard(), false);
     QCOMPARE(p2.isKeyRepeatOff(), false);
 
-    QCOMPARE(p2.slidersVisible(), false);
+    QCOMPARE(p2.isGMVisible(), false);
 
     QCOMPARE(p2.grandMasterChannelMode(), UniverseArray::GMAllChannels);
     QCOMPARE(p2.grandMasterValueMode(), UniverseArray::GMLimit);
@@ -560,16 +467,6 @@ void VCProperties_Test::saveXMLSad()
 
     QCOMPARE(p2.blackoutInputUniverse(), InputMap::invalidUniverse());
     QCOMPARE(p2.blackoutInputChannel(), InputMap::invalidChannel());
-
-    QCOMPARE(p2.fadeLowLimit(), quint32(5));
-    QCOMPARE(p2.fadeHighLimit(), quint32(10));
-    QCOMPARE(p2.fadeInputUniverse(), InputMap::invalidUniverse());
-    QCOMPARE(p2.fadeInputChannel(), InputMap::invalidChannel());
-
-    QCOMPARE(p2.holdLowLimit(), quint32(1));
-    QCOMPARE(p2.holdHighLimit(), quint32(11));
-    QCOMPARE(p2.holdInputUniverse(), InputMap::invalidUniverse());
-    QCOMPARE(p2.holdInputChannel(), InputMap::invalidChannel());
 }
 
 QTEST_MAIN(VCProperties_Test)

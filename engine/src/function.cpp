@@ -28,12 +28,12 @@
 
 #include "mastertimer.h"
 #include "collection.h"
+#include "rgbmatrix.h"
 #include "function.h"
 #include "chaser.h"
 #include "script.h"
 #include "scene.h"
 #include "efx.h"
-#include "bus.h"
 #include "doc.h"
 
 const QString KSceneString      (      "Scene" );
@@ -41,6 +41,7 @@ const QString KChaserString     (     "Chaser" );
 const QString KEFXString        (        "EFX" );
 const QString KCollectionString ( "Collection" );
 const QString KScriptString     (     "Script" );
+const QString KRGBMatrixString  (  "RGBMatrix" );
 const QString KUndefinedString  (  "Undefined" );
 
 const QString KLoopString       (       "Loop" );
@@ -60,14 +61,21 @@ Function::Function(Doc* doc, Type t)
     , m_type(t)
     , m_runOrder(Loop)
     , m_direction(Forward)
-    , m_bus(Bus::defaultFade())
+    , m_fadeInSpeed(0)
+    , m_fadeOutSpeed(0)
+    , m_duration(0)
+    , m_overrideFadeInSpeed(defaultSpeed())
+    , m_overrideFadeOutSpeed(defaultSpeed())
+    , m_overrideDuration(defaultSpeed())
     , m_flashing(false)
-    , m_initiatedByOtherFunction(false)
     , m_elapsed(0)
     , m_stop(true)
+    , m_running(false)
+    , m_startedAsChild(false)
     , m_intensity(1.0)
 {
     Q_ASSERT(doc != NULL);
+    m_tapTime.start();
 }
 
 Function::~Function()
@@ -92,7 +100,9 @@ bool Function::copyFrom(const Function* function)
     m_name = function->name();
     m_runOrder = function->runOrder();
     m_direction = function->direction();
-    m_bus = function->bus();
+    m_fadeInSpeed = function->fadeInSpeed();
+    m_fadeOutSpeed = function->fadeOutSpeed();
+    m_duration = function->duration();
 
     emit changed(m_id);
 
@@ -163,6 +173,8 @@ QString Function::typeToString(const Type& type)
         return KCollectionString;
     case Script:
         return KScriptString;
+    case RGBMatrix:
+        return KRGBMatrixString;
     case Undefined:
     default:
         return KUndefinedString;
@@ -181,6 +193,8 @@ Function::Type Function::stringToType(const QString& string)
         return Collection;
     else if (string == KScriptString)
         return Script;
+    else if (string == KRGBMatrixString)
+        return RGBMatrix;
     else
         return Undefined;
 }
@@ -232,6 +246,32 @@ Function::RunOrder Function::stringToRunOrder(const QString& str)
         return Loop;
 }
 
+bool Function::saveXMLRunOrder(QDomDocument* doc, QDomElement* root) const
+{
+    Q_ASSERT(doc != NULL);
+    Q_ASSERT(root != NULL);
+
+    QDomElement tag = doc->createElement(KXMLQLCFunctionRunOrder);
+    root->appendChild(tag);
+    QDomText text = doc->createTextNode(runOrderToString(runOrder()));
+    tag.appendChild(text);
+
+    return true;
+}
+
+bool Function::loadXMLRunOrder(const QDomElement& root)
+{
+    if (root.tagName() != KXMLQLCFunctionRunOrder)
+    {
+        qWarning() << Q_FUNC_INFO << "RunOrder node not found";
+        return false;
+    }
+
+    setRunOrder(stringToRunOrder(root.text()));
+
+    return true;
+}
+
 /*****************************************************************************
  * Direction
  *****************************************************************************/
@@ -273,22 +313,130 @@ Function::Direction Function::stringToDirection(const QString& str)
         return Forward;
 }
 
-/*****************************************************************************
- * Bus
- *****************************************************************************/
-
-void Function::setBus(quint32 id)
+bool Function::saveXMLDirection(QDomDocument* doc, QDomElement* root) const
 {
-    if (id < Bus::count() && type() != Collection)
-    {
-        m_bus = id;
-        emit changed(m_id);
-    }
+    Q_ASSERT(doc != NULL);
+    Q_ASSERT(root != NULL);
+
+    QDomElement tag = doc->createElement(KXMLQLCFunctionDirection);
+    root->appendChild(tag);
+    QDomText text = doc->createTextNode(directionToString(direction()));
+    tag.appendChild(text);
+
+    return true;
 }
 
-quint32 Function::bus() const
+bool Function::loadXMLDirection(const QDomElement& root)
 {
-    return m_bus;
+    if (root.tagName() != KXMLQLCFunctionDirection)
+    {
+        qWarning() << Q_FUNC_INFO << "Direction node not found";
+        return false;
+    }
+
+    setDirection(stringToDirection(root.text()));
+
+    return true;
+}
+
+/****************************************************************************
+ * Speed
+ ****************************************************************************/
+
+void Function::setFadeInSpeed(uint ms)
+{
+    m_fadeInSpeed = ms;
+    emit changed(m_id);
+}
+
+uint Function::fadeInSpeed() const
+{
+    return m_fadeInSpeed;
+}
+
+uint Function::overrideFadeInSpeed() const
+{
+    return m_overrideFadeInSpeed;
+}
+
+void Function::setFadeOutSpeed(uint ms)
+{
+    m_fadeOutSpeed = ms;
+    emit changed(m_id);
+}
+
+uint Function::fadeOutSpeed() const
+{
+    return m_fadeOutSpeed;
+}
+
+uint Function::overrideFadeOutSpeed() const
+{
+    return m_overrideFadeOutSpeed;
+}
+
+void Function::setDuration(uint ms)
+{
+    m_duration = ms;
+    emit changed(m_id);
+}
+
+uint Function::duration() const
+{
+    return m_duration;
+}
+
+uint Function::overrideDuration() const
+{
+    return m_overrideDuration;
+}
+
+void Function::tap()
+{
+    // Round the elapsed time to the nearest full MasterTimer::tick().
+    // i.e. 501ms = 500ms, 509ms = 500ms, 510ms = 520ms and 519ms = 520ms, given that
+    // MasterTimer::tick() == 20ms
+    uint remainder = m_tapTime.elapsed() % MasterTimer::tick();
+    m_duration = m_tapTime.elapsed() - remainder;
+    if (remainder >= (MasterTimer::tick() / 2))
+        m_duration += MasterTimer::tick();
+    m_overrideDuration = m_duration;
+    m_tapTime.restart();
+}
+
+bool Function::loadXMLSpeed(const QDomElement& speedRoot)
+{
+    if (speedRoot.tagName() != KXMLQLCFunctionSpeed)
+        return false;
+
+    m_fadeInSpeed = speedRoot.attribute(KXMLQLCFunctionSpeedFadeIn).toUInt();
+    m_fadeOutSpeed = speedRoot.attribute(KXMLQLCFunctionSpeedFadeOut).toUInt();
+    m_duration = speedRoot.attribute(KXMLQLCFunctionSpeedDuration).toUInt();
+
+    return true;
+}
+
+bool Function::saveXMLSpeed(QDomDocument* doc, QDomElement* root) const
+{
+    QDomElement tag;
+
+    tag = doc->createElement(KXMLQLCFunctionSpeed);
+    tag.setAttribute(KXMLQLCFunctionSpeedFadeIn, QString::number(fadeInSpeed()));
+    tag.setAttribute(KXMLQLCFunctionSpeedFadeOut, QString::number(fadeOutSpeed()));
+    tag.setAttribute(KXMLQLCFunctionSpeedDuration, QString::number(duration()));
+    root->appendChild(tag);
+
+    return true;
+}
+
+uint Function::infiniteSpeed()
+{
+    return (uint) -2;
+}
+
+uint Function::defaultSpeed()
+{
+    return (uint) -1;
 }
 
 /*****************************************************************************
@@ -304,21 +452,18 @@ void Function::slotFixtureRemoved(quint32 fid)
  * Load & Save
  *****************************************************************************/
 
-bool Function::loader(const QDomElement* root, Doc* doc)
+bool Function::loader(const QDomElement& root, Doc* doc)
 {
-    Q_ASSERT(root != NULL);
-    Q_ASSERT(doc != NULL);
-
-    if (root->tagName() != KXMLQLCFunction)
+    if (root.tagName() != KXMLQLCFunction)
     {
         qWarning("Function node not found!");
         return false;
     }
 
     /* Get common information from the tag's attributes */
-    quint32 id = root->attribute(KXMLQLCFunctionID).toInt();
-    QString name = root->attribute(KXMLQLCFunctionName);
-    Type type = Function::stringToType(root->attribute(KXMLQLCFunctionType));
+    quint32 id = root.attribute(KXMLQLCFunctionID).toInt();
+    QString name = root.attribute(KXMLQLCFunctionName);
+    Type type = Function::stringToType(root.attribute(KXMLQLCFunctionType));
 
     /* Check for ID validity before creating the function */
     if (id == Function::invalidId())
@@ -339,6 +484,8 @@ bool Function::loader(const QDomElement* root, Doc* doc)
         function = new class EFX(doc);
     else if (type == Function::Script)
         function = new class Script(doc);
+    else if (type == Function::RGBMatrix)
+        function = new class RGBMatrix(doc);
     else
         return false;
 
@@ -403,7 +550,8 @@ void Function::preRun(MasterTimer* timer)
 {
     Q_UNUSED(timer);
 
-    m_stop = false;
+    m_running = true;
+
     emit running(m_id);
 }
 
@@ -416,19 +564,19 @@ void Function::postRun(MasterTimer* timer, UniverseArray* universes)
     resetElapsed();
     resetIntensity();
     m_stop = true;
+    m_overrideFadeInSpeed = defaultSpeed();
+    m_overrideFadeOutSpeed = defaultSpeed();
+    m_overrideDuration = defaultSpeed();
     m_functionStopped.wakeAll();
     m_stopMutex.unlock();
+
+    m_running = false;
     emit stopped(m_id);
 }
 
-bool Function::initiatedByOtherFunction() const
+bool Function::isRunning() const
 {
-    return m_initiatedByOtherFunction;
-}
-
-void Function::setInitiatedByOtherFunction(bool state)
-{
-    m_initiatedByOtherFunction = state;
+    return m_running;
 }
 
 /*****************************************************************************
@@ -449,12 +597,29 @@ void Function::incrementElapsed()
 {
     // Don't wrap around. UINT_MAX is the maximum fade/hold time.
     if (m_elapsed < UINT_MAX)
-        m_elapsed++;
+        m_elapsed += MasterTimer::tick();
 }
 
 /*****************************************************************************
- * Stopping
+ * Start & Stop
  *****************************************************************************/
+
+void Function::start(MasterTimer* timer, bool child, uint overrideFadeIn,
+                     uint overrideFadeOut, uint overrideDuration)
+{
+    Q_ASSERT(timer != NULL);
+    m_startedAsChild = child;
+    m_overrideFadeInSpeed = overrideFadeIn;
+    m_overrideFadeOutSpeed = overrideFadeOut;
+    m_overrideDuration = overrideDuration;
+    m_stop = false;
+    timer->startFunction(this);
+}
+
+bool Function::startedAsChild() const
+{
+    return m_startedAsChild;
+}
 
 void Function::stop()
 {

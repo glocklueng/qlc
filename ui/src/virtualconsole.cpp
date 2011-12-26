@@ -46,7 +46,6 @@
 #include "addvcslidermatrix.h"
 #include "virtualconsole.h"
 #include "vcproperties.h"
-#include "vcdockslider.h"
 #include "vcsoloframe.h"
 #include "mastertimer.h"
 #include "vcdockarea.h"
@@ -64,79 +63,106 @@
 #include <X11/Xlib.h>
 #endif
 
-VCProperties VirtualConsole::s_properties;
 VirtualConsole* VirtualConsole::s_instance = NULL;
 
 /****************************************************************************
  * Initialization
  ****************************************************************************/
 
-VirtualConsole::VirtualConsole(QWidget* parent, Doc* doc, Qt::WindowFlags flags)
-    : QWidget(parent, flags)
+VirtualConsole::VirtualConsole(QWidget* parent, Doc* doc)
+    : QWidget(parent)
     , m_doc(doc)
+
+    , m_editAction(EditNone)
+    , m_toolbar(NULL)
+
+    , m_addActionGroup(NULL)
+    , m_editActionGroup(NULL)
+    , m_bgActionGroup(NULL)
+    , m_fgActionGroup(NULL)
+    , m_fontActionGroup(NULL)
+    , m_frameActionGroup(NULL)
+    , m_stackingActionGroup(NULL)
+
+    , m_addButtonAction(NULL)
+    , m_addButtonMatrixAction(NULL)
+    , m_addSliderAction(NULL)
+    , m_addSliderMatrixAction(NULL)
+    , m_addXYPadAction(NULL)
+    , m_addCueListAction(NULL)
+    , m_addFrameAction(NULL)
+    , m_addSoloFrameAction(NULL)
+    , m_addLabelAction(NULL)
+
+    , m_toolsSettingsAction(NULL)
+
+    , m_editCutAction(NULL)
+    , m_editCopyAction(NULL)
+    , m_editPasteAction(NULL)
+    , m_editDeleteAction(NULL)
+    , m_editPropertiesAction(NULL)
+    , m_editRenameAction(NULL)
+
+    , m_bgColorAction(NULL)
+    , m_bgImageAction(NULL)
+    , m_bgDefaultAction(NULL)
+
+    , m_fgColorAction(NULL)
+    , m_fgDefaultAction(NULL)
+
+    , m_fontAction(NULL)
+    , m_resetFontAction(NULL)
+
+    , m_frameSunkenAction(NULL)
+    , m_frameRaisedAction(NULL)
+    , m_frameNoneAction(NULL)
+
+    , m_stackingRaiseAction(NULL)
+    , m_stackingLowerAction(NULL)
+
+    , m_customMenu(NULL)
+    , m_toolsMenu(NULL)
+    , m_editMenu(NULL)
+    , m_addMenu(NULL)
+
+    , m_dockArea(NULL)
+    , m_contentsLayout(NULL)
+    , m_scrollArea(NULL)
+    , m_contents(NULL)
+
+    , m_tapModifierDown(false)
 {
+    Q_ASSERT(s_instance == NULL);
     Q_ASSERT(doc != NULL);
 
-    m_editActionGroup = NULL;
-    m_addActionGroup = NULL;
-    m_bgActionGroup = NULL;
-    m_fgActionGroup = NULL;
-    m_fontActionGroup = NULL;
-    m_frameActionGroup = NULL;
-    m_stackingActionGroup = NULL;
-
-    m_customMenu = NULL;
-    m_toolsMenu = NULL;
-    m_editMenu = NULL;
-    m_addMenu = NULL;
-
-    m_dockArea = NULL;
-    m_scrollArea = NULL;
-
-    m_editAction = EditNone;
-    m_editMenu = NULL;
+    /* Initialize the singleton */
+    s_instance = this;
 
     /* Main layout */
     new QHBoxLayout(this);
     layout()->setMargin(1);
-    layout()->setSpacing(2);
+    layout()->setSpacing(1);
 
     initActions();
-    initMenuBar();
-
     initDockArea();
+    m_contentsLayout = new QVBoxLayout;
+    layout()->addItem(m_contentsLayout);
+    initMenuBar();
     initContents();
 
-    connect(m_doc->masterTimer(), SIGNAL(functionListChanged()),
-            this, SLOT(slotRunningFunctionsChanged()));
-    slotRunningFunctionsChanged();
-
-    connect(m_doc->inputMap(), SIGNAL(inputValueChanged(quint32,quint32,uchar)),
-            this, SLOT(slotInputValueChanged(quint32,quint32,uchar)));
-
-    connect(m_doc->outputMap(), SIGNAL(blackoutChanged(bool)),
-            this, SLOT(slotBlackoutChanged(bool)));
-
-    /* Listen to mode changes */
+    // Propagate mode changes to all widgets
     connect(m_doc, SIGNAL(modeChanged(Doc::Mode)),
             this, SLOT(slotModeChanged(Doc::Mode)));
 
     // Use the initial mode
     slotModeChanged(m_doc->mode());
+
+    // Nothing is selected
+    updateActions();
 }
 
 VirtualConsole::~VirtualConsole()
 {
-    /* The layout takes ownership of the contents. Adopt them back to the
-       main application object to prevent their destruction. */
-    s_properties.contents()->setParent(NULL);
-
-#ifdef __APPLE__
-    s_properties.store(this);
-#else
-    s_properties.store(parentWidget());
-#endif
-
     s_instance = NULL;
 }
 
@@ -147,55 +173,32 @@ VirtualConsole* VirtualConsole::instance()
 
 void VirtualConsole::createAndShow(QWidget* parent, Doc* doc)
 {
-    QWidget* window = NULL;
-
     /* Must not create more than one instance */
-    if (s_instance == NULL)
-    {
-    #ifdef __APPLE__
-        /* Create a separate window for OSX */
-        s_instance = new VirtualConsole(parent, doc, Qt::Window);
-        window = s_instance;
-    #else
-        /* Create an MDI window for X11 & Win32 */
-        QMdiArea* area = qobject_cast<QMdiArea*> (parent);
-        Q_ASSERT(area != NULL);
-        QMdiSubWindow* sub = new QMdiSubWindow;
-        s_instance = new VirtualConsole(sub, doc);
-        sub->setWidget(s_instance);
-        window = area->addSubWindow(sub);
-    #endif
+    Q_ASSERT(s_instance == NULL);
 
-        /* Set some common properties for the window and show it */
-        window->setAttribute(Qt::WA_DeleteOnClose);
-        window->setWindowIcon(QIcon(":/virtualconsole.png"));
-        window->setWindowTitle(tr("Virtual Console"));
-        window->setContextMenuPolicy(Qt::CustomContextMenu);
-        window->setWindowState(s_properties.state());
-        window->setGeometry(s_properties.x(), s_properties.y(),
-                            s_properties.width(), s_properties.height());
-    }
-    else
-    {
-    #ifdef __APPLE__
-        window = s_instance;
-    #else
-        window = s_instance->parentWidget();
-    #endif
-    }
+    QMdiArea* area = qobject_cast<QMdiArea*> (parent);
+    Q_ASSERT(area != NULL);
+    QMdiSubWindow* sub = new QMdiSubWindow;
+    VirtualConsole* vc = new VirtualConsole(sub, doc);
+    sub->setWidget(vc);
+    QWidget* window = area->addSubWindow(sub);
 
-    window->show();
-    window->raise();
-    s_instance->dockArea()->refreshProperties();
+    /* Set some common properties for the window and show it */
+    window->setAttribute(Qt::WA_DeleteOnClose);
+    window->setWindowIcon(QIcon(":/virtualconsole.png"));
+    window->setWindowTitle(tr("Virtual Console"));
+    window->setContextMenuPolicy(Qt::CustomContextMenu);
+
+    sub->setSystemMenu(NULL);
+    vc->dockArea()->refreshProperties();
 }
 
-/*********************************************************************
+/*****************************************************************************
  * Properties
- *********************************************************************/
-
-VCProperties VirtualConsole::properties()
+ *****************************************************************************/
+VCProperties VirtualConsole::properties() const
 {
-    return s_properties;
+    return m_properties;
 }
 
 /*****************************************************************************
@@ -302,50 +305,32 @@ QMenu* VirtualConsole::addMenu() const
 void VirtualConsole::initActions()
 {
     /* Add menu actions */
-    m_addButtonAction = new QAction(QIcon(":/button.png"),
-                                    tr("Button"), this);
-    connect(m_addButtonAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotAddButton()));
+    m_addButtonAction = new QAction(QIcon(":/button.png"), tr("New Button"), this);
+    connect(m_addButtonAction, SIGNAL(triggered(bool)), this, SLOT(slotAddButton()));
 
-    m_addButtonMatrixAction = new QAction(QIcon(":/buttonmatrix.png"),
-                                          tr("Button Matrix"), this);
-    connect(m_addButtonMatrixAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotAddButtonMatrix()));
+    m_addButtonMatrixAction = new QAction(QIcon(":/buttonmatrix.png"), tr("New Button Matrix"), this);
+    connect(m_addButtonMatrixAction, SIGNAL(triggered(bool)), this, SLOT(slotAddButtonMatrix()));
 
-    m_addSliderAction = new QAction(QIcon(":/slider.png"),
-                                    tr("Slider"), this);
-    connect(m_addSliderAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotAddSlider()));
+    m_addSliderAction = new QAction(QIcon(":/slider.png"), tr("New Slider"), this);
+    connect(m_addSliderAction, SIGNAL(triggered(bool)), this, SLOT(slotAddSlider()));
 
-    m_addSliderMatrixAction = new QAction(QIcon(":/slidermatrix.png"),
-                                          tr("Slider Matrix"), this);
-    connect(m_addSliderMatrixAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotAddSliderMatrix()));
+    m_addSliderMatrixAction = new QAction(QIcon(":/slidermatrix.png"), tr("New Slider Matrix"), this);
+    connect(m_addSliderMatrixAction, SIGNAL(triggered(bool)), this, SLOT(slotAddSliderMatrix()));
 
-    m_addXYPadAction = new QAction(QIcon(":/xypad.png"),
-                                   tr("XY pad"), this);
-    connect(m_addXYPadAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotAddXYPad()));
+    m_addXYPadAction = new QAction(QIcon(":/xypad.png"), tr("New XY pad"), this);
+    connect(m_addXYPadAction, SIGNAL(triggered(bool)), this, SLOT(slotAddXYPad()));
 
-    m_addCueListAction = new QAction(QIcon(":/cuelist.png"),
-                                     tr("Cue list"), this);
-    connect(m_addCueListAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotAddCueList()));
+    m_addCueListAction = new QAction(QIcon(":/cuelist.png"), tr("New Cue list"), this);
+    connect(m_addCueListAction, SIGNAL(triggered(bool)), this, SLOT(slotAddCueList()));
 
-    m_addFrameAction = new QAction(QIcon(":/frame.png"),
-                                   tr("Frame"), this);
-    connect(m_addFrameAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotAddFrame()));
+    m_addFrameAction = new QAction(QIcon(":/frame.png"), tr("New Frame"), this);
+    connect(m_addFrameAction, SIGNAL(triggered(bool)), this, SLOT(slotAddFrame()));
 
-    m_addSoloFrameAction = new QAction(QIcon(":/soloframe.png"),
-                       tr("Solo frame"), this);
-    connect(m_addSoloFrameAction, SIGNAL(triggered(bool)),
-        this, SLOT(slotAddSoloFrame()));
+    m_addSoloFrameAction = new QAction(QIcon(":/soloframe.png"), tr("New Solo frame"), this);
+    connect(m_addSoloFrameAction, SIGNAL(triggered(bool)), this, SLOT(slotAddSoloFrame()));
 
-    m_addLabelAction = new QAction(QIcon(":/label.png"),
-                                   tr("Label"), this);
-    connect(m_addLabelAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotAddLabel()));
+    m_addLabelAction = new QAction(QIcon(":/label.png"), tr("New Label"), this);
+    connect(m_addLabelAction, SIGNAL(triggered(bool)), this, SLOT(slotAddLabel()));
 
     /* Put add actions under the same group */
     m_addActionGroup = new QActionGroup(this);
@@ -361,63 +346,31 @@ void VirtualConsole::initActions()
     m_addActionGroup->addAction(m_addLabelAction);
 
     /* Tools menu actions */
-    m_toolsSettingsAction = new QAction(QIcon(":/configure.png"),
-                                        tr("Settings"), this);
-    connect(m_toolsSettingsAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotToolsSettings()));
+    m_toolsSettingsAction = new QAction(QIcon(":/configure.png"), tr("Virtual Console Settings"), this);
+    connect(m_toolsSettingsAction, SIGNAL(triggered(bool)), this, SLOT(slotToolsSettings()));
     // Prevent this action from ending up to the application menu on OSX
     // and crashing the app after VC window is closed.
     m_toolsSettingsAction->setMenuRole(QAction::NoRole);
 
-    m_toolsSlidersAction = new QAction(QIcon(":/slider.png"),
-                                       tr("Default sliders"), this);
-    connect(m_toolsSlidersAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotToolsSliders()));
-
-    m_toolsBlackoutAction = new QAction(QIcon(":/blackout.png"),
-                                        tr("Toggle &Blackout"), this);
-    m_toolsBlackoutAction->setCheckable(true);
-    connect(m_toolsBlackoutAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotToolsBlackout()));
-    m_toolsBlackoutAction->setChecked(m_doc->outputMap()->blackout());
-
-    m_toolsPanicAction = new QAction(QIcon(":/panic.png"),
-                                     tr("Stop ALL functions!"), this);
-    m_toolsPanicAction->setShortcut(QKeySequence("CTRL+SHIFT+ESC"));
-    connect(m_toolsPanicAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotToolsPanic()));
-
     /* Edit menu actions */
-    m_editCutAction = new QAction(QIcon(":/editcut.png"),
-                                  tr("Cut"), this);
-    connect(m_editCutAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotEditCut()));
+    m_editCutAction = new QAction(QIcon(":/editcut.png"), tr("Cut"), this);
+    connect(m_editCutAction, SIGNAL(triggered(bool)), this, SLOT(slotEditCut()));
 
-    m_editCopyAction = new QAction(QIcon(":/editcopy.png"),
-                                   tr("Copy"), this);
-    connect(m_editCopyAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotEditCopy()));
+    m_editCopyAction = new QAction(QIcon(":/editcopy.png"), tr("Copy"), this);
+    connect(m_editCopyAction, SIGNAL(triggered(bool)), this, SLOT(slotEditCopy()));
 
-    m_editPasteAction = new QAction(QIcon(":/editpaste.png"),
-                                    tr("Paste"), this);
+    m_editPasteAction = new QAction(QIcon(":/editpaste.png"), tr("Paste"), this);
     m_editPasteAction->setEnabled(false);
-    connect(m_editPasteAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotEditPaste()));
+    connect(m_editPasteAction, SIGNAL(triggered(bool)), this, SLOT(slotEditPaste()));
 
-    m_editDeleteAction = new QAction(QIcon(":/editdelete.png"),
-                                     tr("Delete"), this);
-    connect(m_editDeleteAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotEditDelete()));
+    m_editDeleteAction = new QAction(QIcon(":/editdelete.png"), tr("Delete"), this);
+    connect(m_editDeleteAction, SIGNAL(triggered(bool)), this, SLOT(slotEditDelete()));
 
-    m_editPropertiesAction = new QAction(QIcon(":/configure.png"),
-                                         tr("Properties"), this);
-    connect(m_editPropertiesAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotEditProperties()));
+    m_editPropertiesAction = new QAction(QIcon(":/configure.png"), tr("Widget Properties"), this);
+    connect(m_editPropertiesAction, SIGNAL(triggered(bool)), this, SLOT(slotEditProperties()));
 
-    m_editRenameAction = new QAction(QIcon(":/editclear.png"),
-                                     tr("Rename"), this);
-    connect(m_editRenameAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotEditRename()));
+    m_editRenameAction = new QAction(QIcon(":/editclear.png"), tr("Rename Widget"), this);
+    connect(m_editRenameAction, SIGNAL(triggered(bool)), this, SLOT(slotEditRename()));
 
     /* Put edit actions under the same group */
     m_editActionGroup = new QActionGroup(this);
@@ -430,20 +383,14 @@ void VirtualConsole::initActions()
     m_editActionGroup->addAction(m_editRenameAction);
 
     /* Background menu actions */
-    m_bgColorAction = new QAction(QIcon(":/color.png"),
-                                  tr("Color"), this);
-    connect(m_bgColorAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotBackgroundColor()));
+    m_bgColorAction = new QAction(QIcon(":/color.png"), tr("Background Color"), this);
+    connect(m_bgColorAction, SIGNAL(triggered(bool)), this, SLOT(slotBackgroundColor()));
 
-    m_bgImageAction = new QAction(QIcon(":/image.png"),
-                                  tr("Image"), this);
-    connect(m_bgImageAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotBackgroundImage()));
+    m_bgImageAction = new QAction(QIcon(":/image.png"), tr("Background Image"), this);
+    connect(m_bgImageAction, SIGNAL(triggered(bool)), this, SLOT(slotBackgroundImage()));
 
-    m_bgDefaultAction = new QAction(QIcon(":/undo.png"),
-                                    tr("Default"), this);
-    connect(m_bgDefaultAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotBackgroundNone()));
+    m_bgDefaultAction = new QAction(QIcon(":/undo.png"), tr("Default"), this);
+    connect(m_bgDefaultAction, SIGNAL(triggered(bool)), this, SLOT(slotBackgroundNone()));
 
     /* Put BG actions under the same group */
     m_bgActionGroup = new QActionGroup(this);
@@ -453,15 +400,11 @@ void VirtualConsole::initActions()
     m_bgActionGroup->addAction(m_bgDefaultAction);
 
     /* Foreground menu actions */
-    m_fgColorAction = new QAction(QIcon(":/color.png"),
-                                  tr("Color"), this);
-    connect(m_fgColorAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotForegroundColor()));
+    m_fgColorAction = new QAction(QIcon(":/fontcolor.png"), tr("Font Colour"), this);
+    connect(m_fgColorAction, SIGNAL(triggered(bool)), this, SLOT(slotForegroundColor()));
 
-    m_fgDefaultAction = new QAction(QIcon(":/undo.png"),
-                                    tr("Default"), this);
-    connect(m_fgDefaultAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotForegroundNone()));
+    m_fgDefaultAction = new QAction(QIcon(":/undo.png"), tr("Default"), this);
+    connect(m_fgDefaultAction, SIGNAL(triggered(bool)), this, SLOT(slotForegroundNone()));
 
     /* Put FG actions under the same group */
     m_fgActionGroup = new QActionGroup(this);
@@ -470,15 +413,11 @@ void VirtualConsole::initActions()
     m_fgActionGroup->addAction(m_fgDefaultAction);
 
     /* Font menu actions */
-    m_fontAction = new QAction(QIcon(":/fonts.png"),
-                               tr("Choose..."), this);
-    connect(m_fontAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotFont()));
+    m_fontAction = new QAction(QIcon(":/fonts.png"), tr("Font"), this);
+    connect(m_fontAction, SIGNAL(triggered(bool)), this, SLOT(slotFont()));
 
-    m_resetFontAction = new QAction(QIcon(":/undo.png"),
-                                    tr("Default"), this);
-    connect(m_resetFontAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotResetFont()));
+    m_resetFontAction = new QAction(QIcon(":/undo.png"), tr("Default"), this);
+    connect(m_resetFontAction, SIGNAL(triggered(bool)), this, SLOT(slotResetFont()));
 
     /* Put font actions under the same group */
     m_fontActionGroup = new QActionGroup(this);
@@ -487,20 +426,14 @@ void VirtualConsole::initActions()
     m_fontActionGroup->addAction(m_resetFontAction);
 
     /* Frame menu actions */
-    m_frameSunkenAction = new QAction(QIcon(":/framesunken.png"),
-                                      tr("Sunken"), this);
-    connect(m_frameSunkenAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotFrameSunken()));
+    m_frameSunkenAction = new QAction(QIcon(":/framesunken.png"), tr("Sunken"), this);
+    connect(m_frameSunkenAction, SIGNAL(triggered(bool)), this, SLOT(slotFrameSunken()));
 
-    m_frameRaisedAction = new QAction(QIcon(":/frameraised.png"),
-                                      tr("Raised"), this);
-    connect(m_frameRaisedAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotFrameRaised()));
+    m_frameRaisedAction = new QAction(QIcon(":/frameraised.png"), tr("Raised"), this);
+    connect(m_frameRaisedAction, SIGNAL(triggered(bool)), this, SLOT(slotFrameRaised()));
 
-    m_frameNoneAction = new QAction(QIcon(":/framenone.png"),
-                                    tr("None"), this);
-    connect(m_frameNoneAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotFrameNone()));
+    m_frameNoneAction = new QAction(QIcon(":/framenone.png"), tr("None"), this);
+    connect(m_frameNoneAction, SIGNAL(triggered(bool)), this, SLOT(slotFrameNone()));
 
     /* Put frame actions under the same group */
     m_frameActionGroup = new QActionGroup(this);
@@ -510,15 +443,11 @@ void VirtualConsole::initActions()
     m_frameActionGroup->addAction(m_frameNoneAction);
 
     /* Stacking menu actions */
-    m_stackingRaiseAction = new QAction(QIcon(":/up.png"),
-                                        tr("Raise"), this);
-    connect(m_stackingRaiseAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotStackingRaise()));
+    m_stackingRaiseAction = new QAction(QIcon(":/up.png"), tr("Bring to front"), this);
+    connect(m_stackingRaiseAction, SIGNAL(triggered(bool)), this, SLOT(slotStackingRaise()));
 
-    m_stackingLowerAction = new QAction(QIcon(":/down.png"),
-                                        tr("Lower"), this);
-    connect(m_stackingLowerAction, SIGNAL(triggered(bool)),
-            this, SLOT(slotStackingLower()));
+    m_stackingLowerAction = new QAction(QIcon(":/down.png"), tr("Send to back"), this);
+    connect(m_stackingLowerAction, SIGNAL(triggered(bool)), this, SLOT(slotStackingLower()));
 
     /* Put stacking actions under the same group */
     m_stackingActionGroup = new QActionGroup(this);
@@ -529,28 +458,9 @@ void VirtualConsole::initActions()
 
 void VirtualConsole::initMenuBar()
 {
-    QMenuBar* menuBar;
-    QVBoxLayout* vbox;
-    QWidget* widget;
-
-    /* Menu widget to the layout */
-    widget = new QWidget(this);
-    vbox = new QVBoxLayout(widget);
-    vbox->setMargin(0);
-    layout()->setMenuBar(widget);
-
-    /* Menubar */
-#ifndef __APPLE__
-    menuBar = new QMenuBar(this);
-    vbox->addWidget(menuBar);
-#else
-    menuBar = new QMenuBar(this);
-#endif
-
     /* Add menu */
-    m_addMenu = new QMenu(menuBar);
+    m_addMenu = new QMenu(this);
     m_addMenu->setTitle(tr("&Add"));
-    menuBar->addMenu(m_addMenu);
     m_addMenu->addAction(m_addButtonAction);
     m_addMenu->addAction(m_addButtonMatrixAction);
     m_addMenu->addSeparator();
@@ -565,9 +475,8 @@ void VirtualConsole::initMenuBar()
     m_addMenu->addAction(m_addLabelAction);
 
     /* Edit menu */
-    m_editMenu = new QMenu(menuBar);
+    m_editMenu = new QMenu(this);
     m_editMenu->setTitle(tr("&Edit"));
-    menuBar->addMenu(m_editMenu);
     m_editMenu->addAction(m_editCutAction);
     m_editMenu->addAction(m_editCopyAction);
     m_editMenu->addAction(m_editPasteAction);
@@ -578,13 +487,8 @@ void VirtualConsole::initMenuBar()
     m_editMenu->addSeparator();
 
     /* Tools menu */
-    m_toolsMenu = new QMenu(menuBar);
+    m_toolsMenu = new QMenu(this);
     m_toolsMenu->setTitle(tr("&Tools"));
-    menuBar->addMenu(m_toolsMenu);
-    m_toolsMenu->addAction(m_toolsBlackoutAction);
-    m_toolsMenu->addAction(m_toolsPanicAction);
-    m_toolsMenu->addAction(m_toolsSlidersAction);
-    m_toolsMenu->addSeparator();
     m_toolsMenu->addAction(m_toolsSettingsAction);
 
     /* Background Menu */
@@ -630,8 +534,8 @@ void VirtualConsole::initMenuBar()
     m_editMenu->addSeparator();
 
     /* Toolbar */
-    m_toolbar = new QToolBar(widget);
-    vbox->addWidget(m_toolbar);
+    m_toolbar = new QToolBar(this);
+    m_contentsLayout->addWidget(m_toolbar);
 
     m_toolbar->addAction(m_addButtonAction);
     m_toolbar->addAction(m_addButtonMatrixAction);
@@ -651,10 +555,14 @@ void VirtualConsole::initMenuBar()
     m_toolbar->addSeparator();
     m_toolbar->addAction(m_editPropertiesAction);
     m_toolbar->addAction(m_editRenameAction);
-
-    QWidget* spacerWidget = new QWidget(this);
-    spacerWidget->setSizePolicy(QSizePolicy::Expanding,
-                                QSizePolicy::Preferred);
+    m_toolbar->addSeparator();
+    m_toolbar->addAction(m_stackingRaiseAction);
+    m_toolbar->addAction(m_stackingLowerAction);
+    m_toolbar->addSeparator();
+    m_toolbar->addAction(m_bgColorAction);
+    m_toolbar->addAction(m_bgImageAction);
+    m_toolbar->addAction(m_fgColorAction);
+    m_toolbar->addAction(m_fontAction);
 }
 
 void VirtualConsole::updateCustomMenu()
@@ -701,7 +609,6 @@ void VirtualConsole::updateActions()
         m_editPropertiesAction->setEnabled(false);
 
         /* All the rest are disabled for draw area, except BG & font */
-        m_fgActionGroup->setEnabled(false);
         m_frameActionGroup->setEnabled(false);
         m_stackingActionGroup->setEnabled(false);
 
@@ -747,14 +654,6 @@ void VirtualConsole::updateActions()
     }
 }
 
-void VirtualConsole::slotRunningFunctionsChanged()
-{
-    if (m_doc->masterTimer()->runningFunctions() > 0)
-        m_toolsPanicAction->setEnabled(true);
-    else
-        m_toolsPanicAction->setEnabled(false);
-}
-
 /*****************************************************************************
  * Add menu callbacks
  *****************************************************************************/
@@ -788,6 +687,8 @@ void VirtualConsole::slotAddButton()
     Q_ASSERT(button != NULL);
     button->show();
     button->move(parent->lastClickPoint());
+    m_selectedWidgets << button;
+    updateActions();
     m_doc->setModified();
 }
 
@@ -844,6 +745,8 @@ void VirtualConsole::slotAddButtonMatrix()
     frame->show();
     frame->move(parent->lastClickPoint());
     frame->setAllowChildren(false); // Don't allow more children
+    m_selectedWidgets << frame;
+    updateActions();
     m_doc->setModified();
 }
 
@@ -857,6 +760,8 @@ void VirtualConsole::slotAddSlider()
     Q_ASSERT(slider != NULL);
     slider->show();
     slider->move(parent->lastClickPoint());
+    m_selectedWidgets << slider;
+    updateActions();
     m_doc->setModified();
 }
 
@@ -894,6 +799,8 @@ void VirtualConsole::slotAddSliderMatrix()
     frame->show();
     frame->move(parent->lastClickPoint());
     frame->setAllowChildren(false); // Don't allow more children
+    m_selectedWidgets << frame;
+    updateActions();
     m_doc->setModified();
 }
 
@@ -907,6 +814,8 @@ void VirtualConsole::slotAddXYPad()
     Q_ASSERT(xypad != NULL);
     xypad->show();
     xypad->move(parent->lastClickPoint());
+    m_selectedWidgets << xypad;
+    updateActions();
     m_doc->setModified();
 }
 
@@ -920,6 +829,8 @@ void VirtualConsole::slotAddCueList()
     Q_ASSERT(cuelist != NULL);
     cuelist->show();
     cuelist->move(parent->lastClickPoint());
+    m_selectedWidgets << cuelist;
+    updateActions();
     m_doc->setModified();
 }
 
@@ -933,6 +844,8 @@ void VirtualConsole::slotAddFrame()
     Q_ASSERT(frame != NULL);
     frame->show();
     frame->move(parent->lastClickPoint());
+    m_selectedWidgets << frame;
+    updateActions();
     m_doc->setModified();
 }
 
@@ -946,6 +859,8 @@ void VirtualConsole::slotAddSoloFrame()
     Q_ASSERT(soloframe != NULL);
     soloframe->show();
     soloframe->move(parent->lastClickPoint());
+    m_selectedWidgets << soloframe;
+    updateActions();
     m_doc->setModified();
 }
 
@@ -959,6 +874,8 @@ void VirtualConsole::slotAddLabel()
     Q_ASSERT(label != NULL);
     label->show();
     label->move(parent->lastClickPoint());
+    m_selectedWidgets << label;
+    updateActions();
     m_doc->setModified();
 }
 
@@ -968,52 +885,13 @@ void VirtualConsole::slotAddLabel()
 
 void VirtualConsole::slotToolsSettings()
 {
-    VCPropertiesEditor vcpe(this, s_properties, m_doc->inputMap());
+    VCPropertiesEditor vcpe(this, m_properties, m_doc->inputMap());
     if (vcpe.exec() == QDialog::Accepted)
     {
-        s_properties = vcpe.properties();
+        m_properties = vcpe.properties();
         m_dockArea->refreshProperties();
         m_doc->setModified();
     }
-}
-
-void VirtualConsole::slotToolsSliders()
-{
-    if (m_dockArea->isHidden() == true)
-    {
-        s_properties.setSlidersVisible(true);
-        m_dockArea->show();
-    }
-    else
-    {
-        s_properties.setSlidersVisible(false);
-        m_dockArea->hide();
-    }
-
-    m_doc->setModified();
-}
-
-void VirtualConsole::slotToolsBlackout()
-{
-    m_doc->outputMap()->setBlackout(!m_doc->outputMap()->blackout());
-    if (s_properties.blackoutInputUniverse() != InputMap::invalidUniverse() &&
-        s_properties.blackoutInputChannel() != InputMap::invalidChannel())
-    {
-        uchar value = (m_doc->outputMap()->blackout()) ? 255 : 0;
-        m_doc->inputMap()->feedBack(s_properties.blackoutInputUniverse(),
-                                   s_properties.blackoutInputChannel(),
-                                   value);
-    }
-}
-
-void VirtualConsole::slotToolsPanic()
-{
-    m_doc->masterTimer()->stopAllFunctions();
-}
-
-void VirtualConsole::slotBlackoutChanged(bool state)
-{
-    m_toolsBlackoutAction->setChecked(state);
 }
 
 /*****************************************************************************
@@ -1039,6 +917,8 @@ void VirtualConsole::slotEditCut()
         m_clipboard = m_selectedWidgets;
         m_editPasteAction->setEnabled(true);
     }
+
+    updateActions();
 }
 
 void VirtualConsole::slotEditCopy()
@@ -1133,6 +1013,8 @@ void VirtualConsole::slotEditPaste()
             copy->show();
         }
     }
+
+    updateActions();
 }
 
 void VirtualConsole::slotEditDelete()
@@ -1156,6 +1038,8 @@ void VirtualConsole::slotEditDelete()
             m_clipboard.removeAll(widget);
             m_editPasteAction->setEnabled(false);
         }
+
+        updateActions();
     }
 }
 
@@ -1448,41 +1332,21 @@ void VirtualConsole::initDockArea()
 
 VCFrame* VirtualConsole::contents() const
 {
-    return s_properties.contents();
+    return m_contents;
 }
 
-void VirtualConsole::resetContents(QWidget* parent, Doc* doc)
+void VirtualConsole::resetContents()
 {
-    /* Create new contents */
-    s_properties.resetContents(parent, doc);
+    if (m_contents != NULL)
+        delete m_contents;
 
-    /* If there is an instance of the VC, make it re-read the contents */
-    if (s_instance != NULL)
-    {
-        s_instance->dockArea()->refreshProperties();
-        s_instance->initContents();
-    }
-}
-
-void VirtualConsole::initContents()
-{
-    Q_ASSERT(layout() != NULL);
-    Q_ASSERT(contents() != NULL);
-
-    /* Add the contents area into the master horizontal layout */
-    if (m_scrollArea == NULL)
-    {
-        m_scrollArea = new QScrollArea(this);
-        layout()->addWidget(m_scrollArea);
-        m_scrollArea->setAlignment(Qt::AlignCenter);
-        m_scrollArea->setWidgetResizable(false);
-    }
+    Q_ASSERT(m_scrollArea != NULL);
+    m_contents = new VCFrame(m_scrollArea, m_doc);
 
     /* Make the bottom frame as big as the screen */
     QDesktopWidget dw;
     contents()->setGeometry(dw.availableGeometry(this));
     contents()->setSizePolicy(QSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed));
-    // Put the bottom VCFrame to the scroll area
     m_scrollArea->setWidget(contents());
 
     /* Disconnect old key handlers to prevent duplicates */
@@ -1498,8 +1362,7 @@ void VirtualConsole::initContents()
             contents(), SLOT(slotKeyReleased(const QKeySequence&)));
 
     /* Make the contents area take up all available space */
-    contents()->setSizePolicy(QSizePolicy::Expanding,
-                              QSizePolicy::Expanding);
+    contents()->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     m_clipboard.clear();
     m_selectedWidgets.clear();
@@ -1508,33 +1371,59 @@ void VirtualConsole::initContents()
     updateActions();
 }
 
+void VirtualConsole::initContents()
+{
+    Q_ASSERT(layout() != NULL);
+
+    m_scrollArea = new QScrollArea(this);
+    m_contentsLayout->addWidget(m_scrollArea);
+    m_scrollArea->setAlignment(Qt::AlignCenter);
+    m_scrollArea->setWidgetResizable(false);
+
+    resetContents();
+}
+
 /*****************************************************************************
  * Key press handler
  *****************************************************************************/
 
+bool VirtualConsole::isTapModifierDown() const
+{
+    return m_tapModifierDown;
+}
+
 void VirtualConsole::keyPressEvent(QKeyEvent* event)
 {
-    QKeySequence seq(event->key() | event->modifiers());
+    if (event->isAutoRepeat() == true)
+    {
+        event->ignore();
+        return;
+    }
+
+    if ((event->modifiers() & Qt::ControlModifier) != 0)
+        m_tapModifierDown = true;
+
+    QKeySequence seq(event->key() | (event->modifiers() & ~Qt::ControlModifier));
     emit keyPressed(seq);
+
+    event->accept();
 }
 
 void VirtualConsole::keyReleaseEvent(QKeyEvent* event)
 {
+    if (event->isAutoRepeat() == true)
+    {
+        event->ignore();
+        return;
+    }
+
+    if ((event->modifiers() & Qt::ControlModifier) == 0)
+        m_tapModifierDown = false;
+
     QKeySequence seq(event->key() | event->modifiers());
     emit keyReleased(seq);
-}
 
-/*****************************************************************************
- * External input
- *****************************************************************************/
-
-void VirtualConsole::slotInputValueChanged(quint32 uni, quint32 ch, uchar value)
-{
-    if (uni == s_properties.blackoutInputUniverse() &&
-        ch == s_properties.blackoutInputChannel() && value > 0)
-    {
-        slotToolsBlackout();
-    }
+    event->accept();
 }
 
 /*****************************************************************************
@@ -1544,33 +1433,6 @@ void VirtualConsole::slotInputValueChanged(quint32 uni, quint32 ch, uchar value)
 void VirtualConsole::slotModeChanged(Doc::Mode mode)
 {
     QString config;
-
-    /* Key repeat */
-    if (s_properties.isKeyRepeatOff() == true)
-    {
-#if !defined(WIN32) && !defined(__APPLE__)
-        Display* display;
-        display = XOpenDisplay(NULL);
-        Q_ASSERT(display != NULL);
-
-        if (mode == Doc::Design)
-            XAutoRepeatOn(display);
-        else
-            XAutoRepeatOff(display);
-
-        XCloseDisplay(display);
-#else
-#endif
-    }
-
-    /* Grab keyboard */
-    if (s_properties.isGrabKeyboard() == true)
-    {
-        if (mode == Doc::Design)
-            releaseKeyboard();
-        else
-            grabKeyboard();
-    }
 
     if (mode == Doc::Operate)
     {
@@ -1672,7 +1534,38 @@ void VirtualConsole::slotModeChanged(Doc::Mode mode)
 
 bool VirtualConsole::loadXML(const QDomElement& root)
 {
-    return s_properties.loadXML(root);
+    if (root.tagName() != KXMLQLCVirtualConsole)
+    {
+        qWarning() << Q_FUNC_INFO << "Virtual Console node not found";
+        return false;
+    }
+
+    QDomNode node = root.firstChild();
+    while (node.isNull() == false)
+    {
+        QDomElement tag = node.toElement();
+        if (tag.tagName() == KXMLQLCVCProperties)
+        {
+            /* Properties */
+            m_properties.loadXML(tag);
+        }
+        else if (tag.tagName() == KXMLQLCVCFrame)
+        {
+            /* Contents */
+            Q_ASSERT(m_contents != NULL);
+            m_contents->loadXML(&tag);
+        }
+        else
+        {
+            qWarning() << Q_FUNC_INFO << "Unknown Virtual Console tag"
+                       << tag.tagName();
+        }
+
+        /* Next node */
+        node = node.nextSibling();
+    }
+
+    return true;
 }
 
 bool VirtualConsole::saveXML(QDomDocument* doc, QDomElement* wksp_root)
@@ -1680,20 +1573,21 @@ bool VirtualConsole::saveXML(QDomDocument* doc, QDomElement* wksp_root)
     Q_ASSERT(doc != NULL);
     Q_ASSERT(wksp_root != NULL);
 
-    /* Store instance properties (geometry) */
-    if (s_instance != NULL)
-    {
-#ifdef __APPLE__
-        s_properties.store(s_instance);
-#else
-        s_properties.store(s_instance->parentWidget());
-#endif
-    }
+    /* Virtual Console entry */
+    QDomElement vc_root = doc->createElement(KXMLQLCVirtualConsole);
+    wksp_root->appendChild(vc_root);
 
-    return s_properties.saveXML(doc, wksp_root);
+    /* Contents */
+    Q_ASSERT(m_contents != NULL);
+    m_contents->saveXML(doc, &vc_root);
+
+    /* Properties */
+    m_properties.saveXML(doc, &vc_root);
+
+    return true;
 }
 
 void VirtualConsole::postLoad()
 {
-    s_properties.postLoad();
+    m_contents->postLoad();
 }

@@ -29,6 +29,7 @@
 #include "universearray.h"
 #include "chaserrunner.h"
 #include "mastertimer.h"
+#include "chaserstep.h"
 #include "function.h"
 #include "fixture.h"
 #include "chaser.h"
@@ -40,17 +41,12 @@
  * Initialization
  *****************************************************************************/
 
-Chaser::Chaser(Doc* doc) : Function(doc, Function::Chaser)
+Chaser::Chaser(Doc* doc)
+    : Function(doc, Function::Chaser)
+    , m_legacyHoldBus(Bus::invalid())
+    , m_runner(NULL)
 {
-    m_runTimeDirection = Forward;
-    m_runTimePosition = 0;
-    m_runner = NULL;
-
     setName(tr("New Chaser"));
-    setBus(Bus::defaultHold());
-
-    connect(Bus::instance(), SIGNAL(tapped(quint32)),
-            this, SLOT(slotBusTapped(quint32)));
 
     // Listen to member Function removals
     connect(doc, SIGNAL(functionRemoved(quint32)),
@@ -95,12 +91,17 @@ bool Chaser::copyFrom(const Function* function)
  * Contents
  *****************************************************************************/
 
-bool Chaser::addStep(quint32 id)
+bool Chaser::addStep(const ChaserStep& step, int index)
 {
-    if (id != this->id())
+    if (step.fid != this->id())
     {
-        m_steps.append(id);
+        if (index < 0)
+            m_steps.append(step);
+        else if (index <= m_steps.size())
+            m_steps.insert(index, step);
+
         emit changed(this->id());
+
         return true;
     }
     else
@@ -129,31 +130,14 @@ void Chaser::clear()
     emit changed(this->id());
 }
 
-QList <quint32> Chaser::steps() const
+QList <ChaserStep> Chaser::steps() const
 {
     return m_steps;
 }
 
-QList <Function*> Chaser::stepFunctions() const
-{
-    Doc* doc = qobject_cast<Doc*> (parent());
-    Q_ASSERT(doc != NULL);
-
-    QList <Function*> list;
-    QListIterator <quint32> it(m_steps);
-    while (it.hasNext() == true)
-    {
-        Function* function = doc->function(it.next());
-        if (function != NULL)
-            list << function;
-    }
-
-    return list;
-}
-
 void Chaser::slotFunctionRemoved(quint32 fid)
 {
-    m_steps.removeAll(fid);
+    m_steps.removeAll(ChaserStep(fid));
 }
 
 /*****************************************************************************
@@ -166,7 +150,6 @@ bool Chaser::saveXML(QDomDocument* doc, QDomElement* wksp_root)
     QDomElement tag;
     QDomText text;
     QString str;
-    int i = 0;
 
     Q_ASSERT(doc != NULL);
     Q_ASSERT(wksp_root != NULL);
@@ -179,101 +162,76 @@ bool Chaser::saveXML(QDomDocument* doc, QDomElement* wksp_root)
     root.setAttribute(KXMLQLCFunctionType, Function::typeToString(type()));
     root.setAttribute(KXMLQLCFunctionName, name());
 
-    /* Speed bus */
-    tag = doc->createElement(KXMLQLCBus);
-    root.appendChild(tag);
-    tag.setAttribute(KXMLQLCBusRole, KXMLQLCBusHold);
-    str.setNum(bus());
-    text = doc->createTextNode(str);
-    tag.appendChild(text);
+    /* Speed */
+    saveXMLSpeed(doc, &root);
 
     /* Direction */
-    tag = doc->createElement(KXMLQLCFunctionDirection);
-    root.appendChild(tag);
-    text = doc->createTextNode(Function::directionToString(direction()));
-    tag.appendChild(text);
+    saveXMLDirection(doc, &root);
 
     /* Run order */
-    tag = doc->createElement(KXMLQLCFunctionRunOrder);
-    root.appendChild(tag);
-    text = doc->createTextNode(Function::runOrderToString(runOrder()));
-    tag.appendChild(text);
+    saveXMLRunOrder(doc, &root);
 
     /* Steps */
-    QListIterator <quint32> it(m_steps);
+    int stepNumber = 0;
+    QListIterator <ChaserStep> it(m_steps);
     while (it.hasNext() == true)
     {
-        /* Step tag */
-        tag = doc->createElement(KXMLQLCFunctionStep);
-        root.appendChild(tag);
-
-        /* Step number */
-        tag.setAttribute(KXMLQLCFunctionNumber, i++);
-
-        /* Step Function ID */
-        str.setNum(it.next());
-        text = doc->createTextNode(str);
-        tag.appendChild(text);
+        ChaserStep step(it.next());
+        step.saveXML(doc, &root, stepNumber++);
     }
 
     return true;
 }
 
-bool Chaser::loadXML(const QDomElement* root)
+bool Chaser::loadXML(const QDomElement& root)
 {
-    QDomNode node;
-    QDomElement tag;
-
-    Q_ASSERT(root != NULL);
-
-    if (root->tagName() != KXMLQLCFunction)
+    if (root.tagName() != KXMLQLCFunction)
     {
         qWarning() << Q_FUNC_INFO << "Function node not found";
         return false;
     }
 
-    if (root->attribute(KXMLQLCFunctionType) != typeToString(Function::Chaser))
+    if (root.attribute(KXMLQLCFunctionType) != typeToString(Function::Chaser))
     {
-        qWarning() << Q_FUNC_INFO << root->attribute(KXMLQLCFunctionType)
+        qWarning() << Q_FUNC_INFO << root.attribute(KXMLQLCFunctionType)
                    << "is not a chaser";
         return false;
     }
 
     /* Load chaser contents */
-    node = root->firstChild();
+    QDomNode node = root.firstChild();
     while (node.isNull() == false)
     {
-        tag = node.toElement();
+        QDomElement tag = node.toElement();
 
         if (tag.tagName() == KXMLQLCBus)
         {
-            /* Bus */
-            setBus(tag.text().toUInt());
+            m_legacyHoldBus = tag.text().toUInt();
+        }
+        else if (tag.tagName() == KXMLQLCFunctionSpeed)
+        {
+            loadXMLSpeed(tag);
         }
         else if (tag.tagName() == KXMLQLCFunctionDirection)
         {
-            /* Direction */
-            setDirection(Function::stringToDirection(tag.text()));
+            loadXMLDirection(tag);
         }
         else if (tag.tagName() == KXMLQLCFunctionRunOrder)
         {
-            /* Run Order */
-            setRunOrder(Function::stringToRunOrder(tag.text()));
+            loadXMLRunOrder(tag);
         }
         else if (tag.tagName() == KXMLQLCFunctionStep)
         {
-            quint32 fid = -1;
-            int num = 0;
-
-            num = tag.attribute(KXMLQLCFunctionNumber).toInt();
-            fid = tag.text().toInt();
-
-            /* Don't check for the member function's existence,
-               because it might not have been loaded yet. */
-            if (num >= m_steps.size())
-                m_steps.append(fid);
-            else
-                m_steps.insert(num, fid);
+            //! @todo stepNumber is useless if the steps are in the wrong order
+            ChaserStep step;
+            int stepNumber = -1;
+            if (step.loadXML(tag, stepNumber) == true)
+            {
+                if (stepNumber >= m_steps.size())
+                    m_steps.append(step);
+                else
+                    m_steps.insert(stepNumber, step);
+            }
         }
         else
         {
@@ -288,15 +246,33 @@ bool Chaser::loadXML(const QDomElement* root)
 
 void Chaser::postLoad()
 {
-    Doc* doc = qobject_cast<Doc*> (parent());
-    Q_ASSERT(doc != NULL);
+    if (m_legacyHoldBus != Bus::invalid())
+    {
+        quint32 value = Bus::instance()->value(m_legacyHoldBus);
+        setDuration((value / MasterTimer::frequency()) * 1000);
+    }
 
-    QMutableListIterator <quint32> it(m_steps);
+    QMutableListIterator <ChaserStep> it(m_steps);
     while (it.hasNext() == true)
     {
-        Function* function = doc->function(it.next());
-        if (function == NULL || function->type() != Function::Scene)
+        ChaserStep step(it.next());
+        Function* function = doc()->function(step.fid);
+        if (function == NULL)
             it.remove();
+    }
+}
+
+/*****************************************************************************
+ * Speed
+ *****************************************************************************/
+
+void Chaser::tap()
+{
+    Function::tap();
+    if (m_runner != NULL)
+    {
+        m_runner->setDuration(duration());
+        m_runner->next();
     }
 }
 
@@ -304,24 +280,31 @@ void Chaser::postLoad()
  * Running
  *****************************************************************************/
 
-void Chaser::slotBusTapped(quint32 id)
-{
-    if (id == bus() && m_runner != NULL)
-        m_runner->next();
-}
-
 void Chaser::preRun(MasterTimer* timer)
 {
-    Doc* doc = qobject_cast <Doc*> (parent());
-    Q_ASSERT(doc != NULL);
-    m_runner = new ChaserRunner(doc, stepFunctions(), bus(), direction(),
-                                runOrder(), intensity());
+    Q_ASSERT(m_runner == NULL);
+
+    uint fadeIn = fadeInSpeed();
+    uint fadeOut = fadeOutSpeed();
+    uint dur = duration();
+
+    // These override* variables are set only if a chaser is started by another function
+    if (overrideFadeInSpeed() != defaultSpeed())
+        fadeIn = overrideFadeInSpeed();
+    if (overrideFadeOutSpeed() != defaultSpeed())
+        fadeOut = overrideFadeOutSpeed();
+    if (overrideDuration() != defaultSpeed())
+        dur = overrideDuration();
+
+    m_runner = new ChaserRunner(doc(), steps(), fadeIn, fadeOut, dur,
+                                direction(), runOrder(), intensity());
     Function::preRun(timer);
 }
 
 void Chaser::write(MasterTimer* timer, UniverseArray* universes)
 {
     Q_ASSERT(m_runner != NULL);
+
     if (m_runner->write(timer, universes) == false)
         stop();
 
@@ -332,6 +315,7 @@ void Chaser::postRun(MasterTimer* timer, UniverseArray* universes)
 {
     m_runner->postRun(timer, universes);
 
+    Q_ASSERT(m_runner != NULL);
     delete m_runner;
     m_runner = NULL;
 

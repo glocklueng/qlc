@@ -53,6 +53,7 @@
 #include "vcbutton.h"
 #include "function.h"
 #include "fixture.h"
+#include "apputil.h"
 #include "doc.h"
 
 const QSize VCButton::defaultSize(QSize(50, 50));
@@ -92,7 +93,7 @@ VCButton::VCButton(QWidget* parent, Doc* doc) : VCWidget(parent, doc)
     /* Initial size */
     resize(defaultSize);
 
-    setStyle(App::saneStyle());
+    setStyle(AppUtil::saneStyle());
 
     /* Listen to function removals */
     connect(m_doc, SIGNAL(functionRemoved(quint32)),
@@ -514,17 +515,31 @@ void VCButton::pressFunction()
     if (m_action == Toggle)
     {
         f = m_doc->function(m_function);
-        if (f != NULL)
+        if (f == NULL)
+            return;
+
+        if (VirtualConsole::instance() != NULL &&
+            VirtualConsole::instance()->isTapModifierDown() == true)
         {
-            /* if the button is in a SoloFrame and the function is running but was started by a different function (a chaser or collection), 
-             * turn of other functions and start it anyway.
-             */
-            if (isOn() == true && !(isChildOfSoloFrame() && f->initiatedByOtherFunction()))
+            // Produce a tap when the tap modifier key is down
+            f->tap();
+            blink(50);
+        }
+        else
+        {
+            // if the button is in a SoloFrame and the function is running but was
+            // started by a different function (a chaser or collection), turn other
+            // functions off and start this one.
+            //
+            if (isOn() == true && !(isChildOfSoloFrame() && f->startedAsChild()))
+            {
                 f->stop();
+            }
             else
             {
                 emit functionStarting();
-                m_doc->masterTimer()->startFunction(f, false);
+                f->start(m_doc->masterTimer());
+
                 if (adjustIntensity() == true)
                     f->adjustIntensity(intensityAdjustment());
             }
@@ -569,8 +584,7 @@ void VCButton::slotFunctionStopped(quint32 fid)
     if (fid == m_function && m_action != Flash)
     {
         setOn(false);
-        slotBlinkReady();
-        QTimer::singleShot(200, this, SLOT(slotBlinkReady()));
+        blink(250);
     }
 }
 
@@ -580,7 +594,13 @@ void VCButton::slotFunctionFlashing(quint32 fid, bool state)
         setOn(state);
 }
 
-void VCButton::slotBlinkReady()
+void VCButton::blink(int ms)
+{
+    slotBlink();
+    QTimer::singleShot(ms, this, SLOT(slotBlink()));
+}
+
+void VCButton::slotBlink()
 {
     // This function is called twice with same XOR mask,
     // thus creating a brief opposite-color -- normal-color blink
@@ -681,7 +701,7 @@ bool VCButton::loadXML(const QDomElement* root)
         }
         else if (tag.tagName() == KXMLQLCVCButtonKey)
         {
-            setKeySequence(QKeySequence(tag.text()));
+            setKeySequence(stripKeySequence(QKeySequence(tag.text())));
         }
         else if (tag.tagName() == KXMLQLCVCButtonIntensity)
         {

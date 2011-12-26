@@ -165,31 +165,26 @@ bool Collection::saveXML(QDomDocument* doc, QDomElement* wksp_root)
     return true;
 }
 
-bool Collection::loadXML(const QDomElement* root)
+bool Collection::loadXML(const QDomElement& root)
 {
-    QDomNode node;
-    QDomElement tag;
-
-    Q_ASSERT(root != NULL);
-
-    if (root->tagName() != KXMLQLCFunction)
+    if (root.tagName() != KXMLQLCFunction)
     {
         qWarning() << Q_FUNC_INFO << "Function node not found";
         return false;
     }
 
-    if (root->attribute(KXMLQLCFunctionType) != typeToString(Function::Collection))
+    if (root.attribute(KXMLQLCFunctionType) != typeToString(Function::Collection))
     {
-        qWarning() << Q_FUNC_INFO << root->attribute(KXMLQLCFunctionType)
+        qWarning() << Q_FUNC_INFO << root.attribute(KXMLQLCFunctionType)
                    << "is not a collection";
         return false;
     }
 
     /* Load collection contents */
-    node = root->firstChild();
+    QDomNode node = root.firstChild();
     while (node.isNull() == false)
     {
-        tag = node.toElement();
+        QDomElement tag = node.toElement();
 
         if (tag.tagName() == KXMLQLCFunctionStep)
             addFunction(tag.text().toInt());
@@ -216,8 +211,6 @@ void Collection::postLoad()
         if (doc->function(it.next()) == NULL)
             it.remove();
     }
-
-    resetElapsed();
 }
 
 /*****************************************************************************
@@ -274,7 +267,7 @@ void Collection::write(MasterTimer* timer, UniverseArray* universes)
             connect(function, SIGNAL(stopped(quint32)),
                     this, SLOT(slotChildStopped(quint32)));
 
-            timer->startFunction(function, true);
+            function->start(timer, true, overrideFadeInSpeed(), overrideFadeOutSpeed(), overrideDuration());
         }
     }
 

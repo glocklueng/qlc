@@ -56,22 +56,13 @@ VCPropertiesEditor::VCPropertiesEditor(QWidget* parent, const VCProperties& prop
 
     m_properties = properties;
 
-    /* Layout page */
+    /* General page */
     m_gridGroup->setChecked(properties.isGridEnabled());
     m_gridXSpin->setValue(properties.gridX());
     m_gridYSpin->setValue(properties.gridY());
     m_grabKeyboardCheck->setChecked(properties.isGrabKeyboard());
     m_keyRepeatOffCheck->setChecked(properties.isKeyRepeatOff());
-
-    /* Fade page */
-    m_fadeLowSpin->setValue(properties.fadeLowLimit());
-    m_fadeHighSpin->setValue(properties.fadeHighLimit());
-    updateFadeInputSource();
-
-    /* Hold page */
-    m_holdLowSpin->setValue(properties.holdLowLimit());
-    m_holdHighSpin->setValue(properties.holdHighLimit());
-    updateHoldInputSource();
+    fillTapModifierCombo();
 
     /* Grand Master page */
     switch (properties.grandMasterChannelMode())
@@ -115,6 +106,24 @@ VCProperties VCPropertiesEditor::properties() const
  * Layout page
  *****************************************************************************/
 
+void VCPropertiesEditor::fillTapModifierCombo()
+{
+    QList <int> mods;
+    mods << Qt::ShiftModifier << Qt::ControlModifier << Qt::AltModifier << Qt::MetaModifier;
+    foreach (int mod, mods)
+    {
+        QKeySequence seq(mod);
+        QString str(seq.toString(QKeySequence::NativeText));
+        m_tapModifierCombo->addItem(str.remove(QRegExp("\\W")).trimmed(), mod);
+
+        if (mod == int(m_properties.tapModifier()))
+            m_tapModifierCombo->setCurrentIndex(m_tapModifierCombo->count() - 1);
+    }
+
+    connect(m_tapModifierCombo, SIGNAL(activated(int)),
+            this, SLOT(slotTapModifierActivated(int)));
+}
+
 void VCPropertiesEditor::slotGrabKeyboardClicked()
 {
     m_properties.setGrabKeyboard(m_grabKeyboardCheck->isChecked());
@@ -140,132 +149,9 @@ void VCPropertiesEditor::slotGridYChanged(int value)
     m_properties.setGridY(value);
 }
 
-/*****************************************************************************
- * Fade slider page
- *****************************************************************************/
-
-void VCPropertiesEditor::slotFadeLimitsChanged()
+void VCPropertiesEditor::slotTapModifierActivated(int index)
 {
-    m_properties.setFadeLimits(m_fadeLowSpin->value(),
-                               m_fadeHighSpin->value());
-}
-
-void VCPropertiesEditor::slotAutoDetectFadeInputToggled(bool checked)
-{
-    if (checked == true)
-    {
-        if (m_autoDetectHoldInputButton->isChecked() == true)
-            m_autoDetectHoldInputButton->toggle();
-
-        connect(m_inputMap, SIGNAL(inputValueChanged(quint32,quint32,uchar)),
-                this, SLOT(slotFadeInputValueChanged(quint32,quint32)));
-    }
-    else
-    {
-        disconnect(m_inputMap, SIGNAL(inputValueChanged(quint32,quint32,uchar)),
-                   this, SLOT(slotFadeInputValueChanged(quint32,quint32)));
-    }
-}
-
-void VCPropertiesEditor::slotFadeInputValueChanged(quint32 universe,
-                                                   quint32 channel)
-{
-    m_properties.setFadeInputSource(universe, channel);
-    updateFadeInputSource();
-}
-
-void VCPropertiesEditor::slotChooseFadeInputClicked()
-{
-    SelectInputChannel sic(this, m_inputMap);
-    if (sic.exec() == QDialog::Accepted)
-    {
-        m_properties.setFadeInputSource(sic.universe(), sic.channel());
-        updateFadeInputSource();
-    }
-}
-
-void VCPropertiesEditor::updateFadeInputSource()
-{
-    QString uniName;
-    QString chName;
-
-    if (inputSourceNames(m_properties.fadeInputUniverse(),
-                         m_properties.fadeInputChannel(),
-                         uniName, chName) == true)
-    {
-        /* Display the gathered information */
-        m_fadeInputUniverseEdit->setText(uniName);
-        m_fadeInputChannelEdit->setText(chName);
-    }
-    else
-    {
-        m_fadeInputUniverseEdit->setText(KInputNone);
-        m_fadeInputChannelEdit->setText(KInputNone);
-    }
-}
-
-/*****************************************************************************
- * Hold slider page
- *****************************************************************************/
-
-void VCPropertiesEditor::slotHoldLimitsChanged()
-{
-    m_properties.setHoldLimits(m_holdLowSpin->value(),
-                               m_holdHighSpin->value());
-}
-
-void VCPropertiesEditor::slotAutoDetectHoldInputToggled(bool checked)
-{
-    if (checked == true)
-    {
-        if (m_autoDetectFadeInputButton->isChecked() == true)
-            m_autoDetectFadeInputButton->toggle();
-
-        connect(m_inputMap, SIGNAL(inputValueChanged(quint32,quint32,uchar)),
-                this, SLOT(slotHoldInputValueChanged(quint32,quint32)));
-    }
-    else
-    {
-        disconnect(m_inputMap, SIGNAL(inputValueChanged(quint32,quint32,uchar)),
-                   this, SLOT(slotHoldInputValueChanged(quint32,quint32)));
-    }
-}
-
-void VCPropertiesEditor::slotHoldInputValueChanged(quint32 universe,
-                                                   quint32 channel)
-{
-    m_properties.setHoldInputSource(universe, channel);
-    updateHoldInputSource();
-}
-
-void VCPropertiesEditor::slotChooseHoldInputClicked()
-{
-    SelectInputChannel sic(this, m_inputMap);
-    if (sic.exec() == QDialog::Accepted)
-    {
-        m_properties.setHoldInputSource(sic.universe(), sic.channel());
-        updateHoldInputSource();
-    }
-}
-
-void VCPropertiesEditor::updateHoldInputSource()
-{
-    QString uniName;
-    QString chName;
-
-    if (inputSourceNames(m_properties.holdInputUniverse(),
-                         m_properties.holdInputChannel(),
-                         uniName, chName) == true)
-    {
-        /* Display the gathered information */
-        m_holdInputUniverseEdit->setText(uniName);
-        m_holdInputChannelEdit->setText(chName);
-    }
-    else
-    {
-        m_holdInputUniverseEdit->setText(KInputNone);
-        m_holdInputChannelEdit->setText(KInputNone);
-    }
+    m_properties.setTapModifier(Qt::KeyboardModifier(m_tapModifierCombo->itemData(index).toInt()));
 }
 
 /*****************************************************************************

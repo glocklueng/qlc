@@ -25,6 +25,7 @@
 
 #include "qlcfixturedefcache.h"
 #include "qlcfixturemode.h"
+#include "qlcfixturehead.h"
 #include "qlcfixturedef.h"
 #include "qlccapability.h"
 #include "qlcchannel.h"
@@ -42,12 +43,6 @@ Fixture::Fixture(QObject* parent) : QObject(parent)
 
     m_address = 0;
     m_channels = 0;
-
-    m_panMsbChannel = QLCChannel::invalid();
-    m_tiltMsbChannel = QLCChannel::invalid();
-    m_panLsbChannel = QLCChannel::invalid();
-    m_tiltLsbChannel = QLCChannel::invalid();
-    m_masterIntensityChannel = QLCChannel::invalid();
 
     m_fixtureDef = NULL;
     m_fixtureMode = NULL;
@@ -120,7 +115,7 @@ QString Fixture::type() const
 
 bool Fixture::isDimmer() const
 {
-    if (m_fixtureDef != NULL)
+    if (m_fixtureDef != NULL && m_fixtureMode != NULL)
         return false;
     else
         return true;
@@ -271,29 +266,109 @@ QSet <quint32> Fixture::channels(const QString& name, Qt::CaseSensitivity cs,
     return set;
 }
 
-quint32 Fixture::panMsbChannel() const
+quint32 Fixture::panMsbChannel(int head) const
 {
-    return m_panMsbChannel;
+    if (m_fixtureMode != NULL)
+    {
+        if (head < m_fixtureMode->heads().size())
+            return m_fixtureMode->heads().at(head).panMsbChannel();
+        else
+            return QLCChannel::invalid();
+    }
+    else
+    {
+        return QLCChannel::invalid();
+    }
 }
 
-quint32 Fixture::tiltMsbChannel() const
+quint32 Fixture::tiltMsbChannel(int head) const
 {
-    return m_tiltMsbChannel;
+    if (m_fixtureMode != NULL)
+    {
+        if (head < m_fixtureMode->heads().size())
+            return m_fixtureMode->heads().at(head).tiltMsbChannel();
+        else
+            return QLCChannel::invalid();
+    }
+    else
+    {
+        return QLCChannel::invalid();
+    }
 }
 
-quint32 Fixture::panLsbChannel() const
+quint32 Fixture::panLsbChannel(int head) const
 {
-    return m_panLsbChannel;
+    if (m_fixtureMode != NULL)
+    {
+        if (head < m_fixtureMode->heads().size())
+            return m_fixtureMode->heads().at(head).panLsbChannel();
+        else
+            return QLCChannel::invalid();
+    }
+    else
+    {
+        return QLCChannel::invalid();
+    }
 }
 
-quint32 Fixture::tiltLsbChannel() const
+quint32 Fixture::tiltLsbChannel(int head) const
 {
-    return m_tiltLsbChannel;
+    if (m_fixtureMode != NULL)
+    {
+        if (head < m_fixtureMode->heads().size())
+            return m_fixtureMode->heads().at(head).tiltLsbChannel();
+        else
+            return QLCChannel::invalid();
+    }
+    else
+    {
+        return QLCChannel::invalid();
+    }
 }
 
-quint32 Fixture::masterIntensityChannel() const
+quint32 Fixture::masterIntensityChannel(int head) const
 {
-    return m_masterIntensityChannel;
+    if (m_fixtureMode != NULL)
+    {
+        if (head < m_fixtureMode->heads().size())
+            return m_fixtureMode->heads().at(head).masterIntensityChannel();
+        else
+            return QLCChannel::invalid();
+    }
+    else
+    {
+        return QLCChannel::invalid();
+    }
+}
+
+QList <quint32> Fixture::rgbChannels(int head) const
+{
+    if (m_fixtureMode != NULL)
+    {
+        if (head < m_fixtureMode->heads().size())
+            return m_fixtureMode->heads().at(head).rgbChannels();
+        else
+            return QList <quint32> ();
+    }
+    else
+    {
+        return QList <quint32> ();
+    }
+}
+
+QList <quint32> Fixture::cmyChannels(int head) const
+{
+    if (m_fixtureMode != NULL)
+    {
+        if (head < m_fixtureMode->heads().size())
+            return m_fixtureMode->heads().at(head).cmyChannels();
+        else
+            return QList <quint32> ();
+    }
+    else
+    {
+        return QList <quint32> ();
+    }
 }
 
 void Fixture::createGenericChannel()
@@ -309,44 +384,6 @@ void Fixture::createGenericChannel()
     }
 }
 
-void Fixture::findChannels()
-{
-    m_panMsbChannel = QLCChannel::invalid();
-    m_tiltMsbChannel = QLCChannel::invalid();
-    m_panLsbChannel = QLCChannel::invalid();
-    m_tiltLsbChannel = QLCChannel::invalid();
-    m_masterIntensityChannel = QLCChannel::invalid();
-
-    if (m_fixtureDef == NULL || m_fixtureMode == NULL)
-        return;
-
-    for (quint32 i = 0; i < quint32(m_fixtureMode->channels().size()); i++)
-    {
-        const QLCChannel* ch = m_fixtureMode->channel(i);
-        Q_ASSERT(ch != NULL);
-
-        if (ch->group() == QLCChannel::Pan)
-        {
-            if (ch->controlByte() == QLCChannel::MSB)
-                m_panMsbChannel = i;
-            else if (ch->controlByte() == QLCChannel::LSB)
-                m_panLsbChannel = i;
-        }
-        else if (ch->group() == QLCChannel::Tilt)
-        {
-            if (ch->controlByte() == QLCChannel::MSB)
-                m_tiltMsbChannel = i;
-            else if (ch->controlByte() == QLCChannel::LSB)
-                m_tiltLsbChannel = i;
-        }
-        else if (ch->group() == QLCChannel::Intensity &&
-                 ch->colour() == QLCChannel::NoColour) // Don't touch RGB/CMY channels
-        {
-            m_masterIntensityChannel = i;
-        }
-    }
-}
-
 /*****************************************************************************
  * Fixture definition
  *****************************************************************************/
@@ -359,6 +396,22 @@ void Fixture::setFixtureDefinition(const QLCFixtureDef* fixtureDef,
         m_fixtureDef = fixtureDef;
         m_fixtureMode = fixtureMode;
 
+        // If there are no head entries in the mode, create one that contains
+        // all channels. This const_cast is a bit heretic, but it's easier this
+        // way, than to change everything def & mode related non-const, which would
+        // be worse than one constness violation here.
+        QLCFixtureMode* mode = const_cast<QLCFixtureMode*> (fixtureMode);
+        if (mode->heads().size() == 0)
+        {
+            QLCFixtureHead head;
+            for (int i = 0; i < mode->channels().size(); i++)
+                head.addChannel(i);
+            mode->insertHead(-1, head);
+        }
+
+        // Cache all head channels
+        mode->cacheHeads();
+
         if (m_genericChannel != NULL)
             delete m_genericChannel;
         m_genericChannel = NULL;
@@ -369,8 +422,6 @@ void Fixture::setFixtureDefinition(const QLCFixtureDef* fixtureDef,
         m_fixtureMode = NULL;
         createGenericChannel();
     }
-
-    findChannels();
 
     emit changed(m_id);
 }
@@ -385,11 +436,37 @@ const QLCFixtureMode* Fixture::fixtureMode() const
     return m_fixtureMode;
 }
 
+int Fixture::heads() const
+{
+    if (isDimmer() == true)
+        return channels();
+    else
+        return m_fixtureMode->heads().size();
+}
+
+QLCFixtureHead Fixture::head(int index) const
+{
+    if (isDimmer() == true)
+    {
+        if (index < int(channels()))
+            return QLCDimmerHead(index);
+        else
+            return QLCFixtureHead();
+    }
+    else
+    {
+        if (index < m_fixtureMode->heads().size())
+            return m_fixtureMode->heads().at(index);
+        else
+            return QLCFixtureHead();
+    }
+}
+
 /*****************************************************************************
  * Load & Save
  *****************************************************************************/
 
-bool Fixture::loader(const QDomElement* root, Doc* doc)
+bool Fixture::loader(const QDomElement& root, Doc* doc)
 {
     bool result = false;
 
@@ -420,7 +497,7 @@ bool Fixture::loader(const QDomElement* root, Doc* doc)
     return result;
 }
 
-bool Fixture::loadXML(const QDomElement* root,
+bool Fixture::loadXML(const QDomElement& root,
                       const QLCFixtureDefCache* fixtureDefCache)
 {
     const QLCFixtureDef* fixtureDef = NULL;
@@ -434,21 +511,16 @@ bool Fixture::loadXML(const QDomElement* root,
     quint32 address = 0;
     quint32 channels = 0;
 
-    QDomElement tag;
-    QDomNode node;
-
-    Q_ASSERT(root != NULL);
-
-    if (root->tagName() != KXMLFixture)
+    if (root.tagName() != KXMLFixture)
     {
         qWarning() << Q_FUNC_INFO << "Fixture node not found";
         return false;
     }
 
-    node = root->firstChild();
+    QDomNode node = root.firstChild();
     while (node.isNull() == false)
     {
-        tag = node.toElement();
+        QDomElement tag = node.toElement();
 
         if (tag.tagName() == KXMLQLCFixtureDefManufacturer)
         {

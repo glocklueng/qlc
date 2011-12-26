@@ -22,10 +22,6 @@
 #ifndef VCPROPERTIES_H
 #define VCPROPERTIES_H
 
-#include <QDialog>
-
-#include "vcwidgetproperties.h"
-#include "ui_vcproperties.h"
 #include "universearray.h"
 
 class VirtualConsole;
@@ -49,16 +45,10 @@ class Doc;
 #define KXMLQLCVCPropertiesKeyboard "Keyboard"
 #define KXMLQLCVCPropertiesKeyboardGrab "Grab"
 #define KXMLQLCVCPropertiesKeyboardRepeatOff "RepeatOff"
-
-#define KXMLQLCVCPropertiesDefaultSlider "DefaultSlider"
-#define KXMLQLCVCPropertiesDefaultSliderRole "Role"
-#define KXMLQLCVCPropertiesDefaultSliderRoleFade "Fade"
-#define KXMLQLCVCPropertiesDefaultSliderRoleHold "Hold"
-#define KXMLQLCVCPropertiesDefaultSliderVisible "Visible"
-#define KXMLQLCVCPropertiesLowLimit "Low"
-#define KXMLQLCVCPropertiesHighLimit "High"
+#define KXMLQLCVCPropertiesKeyboardTapModifier "TapModifier"
 
 #define KXMLQLCVCPropertiesGrandMaster "GrandMaster"
+#define KXMLQLCVCPropertiesGrandMasterVisible "Visible"
 #define KXMLQLCVCPropertiesGrandMasterChannelMode "ChannelMode"
 #define KXMLQLCVCPropertiesGrandMasterValueMode "ValueMode"
 
@@ -72,27 +62,12 @@ class Doc;
  * Properties
  *****************************************************************************/
 
-class VCProperties : public VCWidgetProperties
+class VCProperties
 {
 public:
     VCProperties();
     VCProperties(const VCProperties& properties);
     ~VCProperties();
-
-    VCProperties& operator=(const VCProperties& properties);
-
-    /*********************************************************************
-     * VC Contents
-     *********************************************************************/
-public:
-    /** Get Virtual Console's bottom-most frame */
-    VCFrame* contents() const;
-
-    /** Reset Virtual Console's bottom-most frame to initial state */
-    void resetContents(QWidget* parent, Doc* doc);
-
-private:
-    VCFrame* m_contents;
 
     /*********************************************************************
      * Grid
@@ -113,7 +88,7 @@ private:
     int m_gridY;
 
     /*********************************************************************
-     * Keyboard state
+     * Keyboard
      *********************************************************************/
 public:
     /** Set key repeat off during operate mode or not. */
@@ -128,14 +103,27 @@ public:
     /** Check, if keyboard is grabbed in operate mode. */
     bool isGrabKeyboard() const;
 
+    /** Set the tap modifier key */
+    void setTapModifier(Qt::KeyboardModifier mod);
+
+    /** Get the tap modifier key */
+    Qt::KeyboardModifier tapModifier() const;
+
 private:
     bool m_keyRepeatOff;
     bool m_grabKeyboard;
+    Qt::KeyboardModifier m_tapModifier;
 
     /*************************************************************************
      * Grand Master
      *************************************************************************/
 public:
+    /** Set grand master visible/hidden */
+    void setGMVisible(bool visible);
+
+    /** Check if grand master slider is visible */
+    bool isGMVisible() const;
+
     void setGrandMasterChannelMode(UniverseArray::GMChannelMode mode);
     UniverseArray::GMChannelMode grandMasterChannelMode() const;
 
@@ -151,6 +139,7 @@ private:
     UniverseArray::GMValueMode m_gmValueMode;
     quint32 m_gmInputUniverse;
     quint32 m_gmInputChannel;
+    bool m_gmVisible;
 
     /*************************************************************************
      * Blackout
@@ -164,71 +153,17 @@ private:
     quint32 m_blackoutInputUniverse;
     quint32 m_blackoutInputChannel;
 
-    /*********************************************************************
-     * Default Fade Slider
-     *********************************************************************/
-public:
-    /** Set, whether default sliders are visible */
-    void setSlidersVisible(bool visible);
-
-    /** Check if default sliders are visible */
-    bool slidersVisible() const;
-
-    /** Set limits for fade slider */
-    void setFadeLimits(quint32 low, quint32 high);
-    quint32 fadeLowLimit() const;
-    quint32 fadeHighLimit() const;
-
-    /** Set input source for fade slider */
-    void setFadeInputSource(quint32 uni, quint32 ch);
-    quint32 fadeInputUniverse() const;
-    quint32 fadeInputChannel() const;
-
-private:
-    bool m_slidersVisible;
-
-    quint32 m_fadeLowLimit;
-    quint32 m_fadeHighLimit;
-    quint32 m_fadeInputUniverse;
-    quint32 m_fadeInputChannel;
-
-    /*********************************************************************
-     * Default Hold Slider
-     *********************************************************************/
-public:
-    /** Set limits for hold slider */
-    void setHoldLimits(quint32 low, quint32 high);
-    quint32 holdLowLimit() const;
-    quint32 holdHighLimit() const;
-
-    /** Set input source for hold slider */
-    void setHoldInputSource(quint32 uni, quint32 ch);
-    quint32 holdInputUniverse() const;
-    quint32 holdInputChannel() const;
-
-private:
-    quint32 m_holdLowLimit;
-    quint32 m_holdHighLimit;
-    quint32 m_holdInputUniverse;
-    quint32 m_holdInputChannel;
-
     /*************************************************************************
      * Load & Save
      *************************************************************************/
 public:
-    /** Load VirtualConsole properties & contents from the given XML tag */
+    /** Load VirtualConsole properties from the given XML tag */
     bool loadXML(const QDomElement& vc_root);
 
-    /** Save VirtualConsole properties & contents to the given XML document */
-    bool saveXML(QDomDocument* doc, QDomElement* wksp_root);
-
-    /** Perform post-load cleanup & checks */
-    void postLoad();
+    /** Save VirtualConsole properties to the given XML document */
+    bool saveXML(QDomDocument* doc, QDomElement* wksp_root) const;
 
 private:
-    /** Load VirtualConsole properties (not including contents) */
-    bool loadProperties(const QDomElement& root);
-
     /** Load the properties of a default slider */
     static bool loadXMLInput(const QDomElement& tag, quint32* universe, quint32* channel);
 };

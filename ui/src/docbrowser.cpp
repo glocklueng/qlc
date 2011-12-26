@@ -24,6 +24,7 @@
 #include <QApplication>
 #include <QTextBrowser>
 #include <QVBoxLayout>
+#include <QMessageBox>
 #include <QSettings>
 #include <QToolBar>
 #include <QAction>
@@ -37,6 +38,10 @@
 
 #define SETTINGS_GEOMETRY "documentbrowser/geometry"
 #define HYSTERESIS_MS 100
+
+/****************************************************************************
+ * QLCTextBrowser
+ ****************************************************************************/
 
 QLCTextBrowser::QLCTextBrowser(QWidget* parent)
     : QTextBrowser(parent)
@@ -83,7 +88,17 @@ bool QLCTextBrowser::event(QEvent* ev)
     return QTextBrowser::event(ev);
 }
 
-DocBrowser::DocBrowser(QWidget* parent, Qt::WindowFlags f) : QWidget(parent, f)
+/****************************************************************************
+ * DocBrowser
+ ****************************************************************************/
+DocBrowser* DocBrowser::s_instance = NULL;
+
+DocBrowser::DocBrowser(QWidget* parent)
+    : QWidget(parent, Qt::Window)
+    , m_backwardAction(NULL)
+    , m_forwardAction(NULL)
+    , m_homeAction(NULL)
+    , m_aboutQtAction(NULL)
 {
     new QVBoxLayout(this);
 
@@ -101,9 +116,15 @@ DocBrowser::DocBrowser(QWidget* parent, Qt::WindowFlags f) : QWidget(parent, f)
     m_backwardAction = new QAction(QIcon(":/back.png"), tr("Backward"), this);
     m_forwardAction = new QAction(QIcon(":/forward.png"), tr("Forward"), this);
     m_homeAction = new QAction(QIcon(":/qlc.png"), tr("Index"), this);
+    m_aboutQtAction = new QAction(QIcon(":/qt.png"), tr("About Qt"), this);
 
     m_backwardAction->setEnabled(false);
     m_forwardAction->setEnabled(false);
+
+    QAction* action = new QAction(this);
+    action->setShortcut(QKeySequence(QKeySequence::Close));
+    connect(action, SIGNAL(triggered(bool)), this, SLOT(close()));
+    addAction(action);
 
     /* Toolbar */
     m_toolbar = new QToolBar("Document Browser", this);
@@ -111,6 +132,10 @@ DocBrowser::DocBrowser(QWidget* parent, Qt::WindowFlags f) : QWidget(parent, f)
     m_toolbar->addAction(m_backwardAction);
     m_toolbar->addAction(m_forwardAction);
     m_toolbar->addAction(m_homeAction);
+    QWidget* widget = new QWidget(this);
+    widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_toolbar->addWidget(widget);
+    m_toolbar->addAction(m_aboutQtAction);
 
     /* Browser */
     m_browser = new QLCTextBrowser(this);
@@ -126,6 +151,8 @@ DocBrowser::DocBrowser(QWidget* parent, Qt::WindowFlags f) : QWidget(parent, f)
             m_browser, SLOT(forward()));
     connect(m_homeAction, SIGNAL(triggered(bool)),
             m_browser, SLOT(home()));
+    connect(m_aboutQtAction, SIGNAL(triggered(bool)),
+            this, SLOT(slotAboutQt()));
 
     /* Set document search paths */
     QStringList searchPaths;
@@ -145,6 +172,19 @@ DocBrowser::~DocBrowser()
 {
     QSettings settings;
     settings.setValue(SETTINGS_GEOMETRY, saveGeometry());
+    s_instance = NULL;
+}
+
+void DocBrowser::createAndShow(QWidget* parent)
+{
+    if (s_instance == NULL)
+    {
+        s_instance = new DocBrowser(parent);
+        s_instance->setAttribute(Qt::WA_DeleteOnClose);
+    }
+
+    s_instance->show();
+    s_instance->raise();
 }
 
 void DocBrowser::slotBackwardAvailable(bool available)
@@ -155,4 +195,9 @@ void DocBrowser::slotBackwardAvailable(bool available)
 void DocBrowser::slotForwardAvailable(bool available)
 {
     m_forwardAction->setEnabled(available);
+}
+
+void DocBrowser::slotAboutQt()
+{
+    QMessageBox::aboutQt(this, QString(APPNAME));
 }
